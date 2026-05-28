@@ -81,3 +81,8 @@ a { text-decoration: none; color: inherit; }
 
 .reveal { opacity: 0; transform: translateY(22px); transition: opacity .6s ease, transform .6s var(--ease-out); }
 .reveal.visible { opacity: 1; transform: translateY(0); }
+.nav-mobile { display: none; }
+@media (max-width: 768px) {
+  .nav-mobile { display: flex; }
+  .nav-desktop { display: none !important; }
+}
