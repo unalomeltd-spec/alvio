@@ -49,6 +49,7 @@ return <span ref={ref}>{val}{suffix}</span>
 function Nav({ onLogin, onRegister }: { onLogin: () => void; onRegister: () => void }) {
 const [scrolled, setScrolled] = useState(false)
 const [hovered, setHovered] = useState<number | null>(null)
+const [menuOpen, setMenuOpen] = useState(false)
 const items = ['Produit', 'Fonctionnalités', 'Tarifs', 'À propos']
 
 useEffect(() => {
@@ -61,17 +62,18 @@ const scale = (i: number) => hovered === null ? 1 : Math.abs(i - hovered) === 0 
 const ty = (i: number) => hovered === null ? 0 : Math.abs(i - hovered) === 0 ? -4 : Math.abs(i - hovered) === 1 ? -2 : 0
 
 return (
+<>
 <nav style={{
 position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-height: 64, padding: '0 48px',
+height: 64, padding: '0 24px',
 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-background: scrolled ? 'rgba(242,243,245,.88)' : 'transparent',
-backdropFilter: scrolled ? 'blur(18px)' : 'none',
-WebkitBackdropFilter: scrolled ? 'blur(18px)' : 'none',
+background: scrolled || menuOpen ? 'rgba(242,243,245,.95)' : 'transparent',
+backdropFilter: scrolled || menuOpen ? 'blur(18px)' : 'none',
+WebkitBackdropFilter: scrolled || menuOpen ? 'blur(18px)' : 'none',
 borderBottom: scrolled ? '.5px solid rgba(140,155,171,.2)' : 'none',
 transition: 'background .4s ease, border-bottom .4s ease',
 }}>
-<a href="#" style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 17, fontWeight: 600, color: '#1A1A1A', letterSpacing: '-.01em' }}>
+<a href="#" style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 17, fontWeight: 600, color: '#1A1A1A', letterSpacing: '-.01em', zIndex: 101 }}>
 <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
 <path d="M14 2C14 2 8 8 8 14C8 18.4 10.6 22.2 14 24C17.4 22.2 20 18.4 20 14C20 8 14 2 14 2Z" fill="#B8A98A"/>
 <path d="M14 24C14 24 7 20 4 14C7 8 14 2 14 2" stroke="#1A1A1A" strokeWidth="1.5" fill="none"/>
@@ -79,7 +81,8 @@ transition: 'background .4s ease, border-bottom .4s ease',
 </svg>
 Alvio
 </a>
-<div style={{ display: 'flex', alignItems: 'center', gap: 4 }} onMouseLeave={() => setHovered(null)}>
+
+<div className="nav-desktop" style={{ display: 'flex', alignItems: 'center', gap: 4 }} onMouseLeave={() => setHovered(null)}>
 {items.map((it, i) => (
 <a key={it} href={`#${it.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s/g, '-')}`}
 onMouseEnter={() => setHovered(i)}
@@ -94,14 +97,49 @@ position: 'relative', zIndex: hovered === i ? 1 : 0,
 }}>{it}</a>
 ))}
 </div>
-<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+
+<div className="nav-desktop" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
 <button onClick={onLogin} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#1A1A1A', padding: '6px 12px', fontFamily: 'Plus Jakarta Sans, sans-serif', transition: 'color .15s' }}
 onMouseEnter={e => (e.currentTarget.style.color = '#B8A98A')} onMouseLeave={e => (e.currentTarget.style.color = '#1A1A1A')}>
 Connexion
 </button>
 <button className="btn btn-primary btn-sm" onClick={(e) => { ripple(e); onRegister() }}>Créer un compte</button>
 </div>
+
+<button className="nav-mobile" onClick={() => setMenuOpen(o => !o)} style={{
+background: 'none', border: 'none', cursor: 'pointer', padding: 8, zIndex: 101,
+display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center', justifyContent: 'center',
+}}>
+<span style={{ display: 'block', width: 22, height: 1.5, background: '#1A1A1A', transition: 'all .3s ease', transform: menuOpen ? 'rotate(45deg) translate(4.5px, 4.5px)' : 'none' }}/>
+<span style={{ display: 'block', width: 22, height: 1.5, background: '#1A1A1A', transition: 'all .3s ease', opacity: menuOpen ? 0 : 1 }}/>
+<span style={{ display: 'block', width: 22, height: 1.5, background: '#1A1A1A', transition: 'all .3s ease', transform: menuOpen ? 'rotate(-45deg) translate(4.5px, -4.5px)' : 'none' }}/>
+</button>
 </nav>
+
+<div className="nav-mobile" style={{
+position: 'fixed', top: 64, left: 0, right: 0, zIndex: 99,
+background: 'rgba(242,243,245,.97)', backdropFilter: 'blur(18px)',
+WebkitBackdropFilter: 'blur(18px)',
+padding: '16px 24px 32px',
+transform: menuOpen ? 'translateY(0)' : 'translateY(-110%)',
+transition: 'transform .35s cubic-bezier(.34,1.2,.64,1)',
+borderBottom: '.5px solid rgba(140,155,171,.2)',
+}}>
+{items.map((it) => (
+<a key={it} href={`#${it.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s/g, '-')}`}
+onClick={() => setMenuOpen(false)}
+style={{ display: 'block', fontSize: 18, fontWeight: 500, color: '#1A1A1A', padding: '14px 0', borderBottom: '.5px solid rgba(140,155,171,.1)' }}>
+{it}
+</a>
+))}
+<div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 24 }}>
+<button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={(e) => { ripple(e); onRegister(); setMenuOpen(false) }}>Créer un compte</button>
+<button onClick={() => { onLogin(); setMenuOpen(false) }} style={{ background: 'none', border: '.5px solid rgba(140,155,171,.3)', borderRadius: 12, cursor: 'pointer', fontSize: 14, color: '#1A1A1A', padding: '12px', fontFamily: 'Plus Jakarta Sans, sans-serif', width: '100%' }}>
+Connexion
+</button>
+</div>
+</div>
+</>
 )
 }
 
@@ -211,7 +249,6 @@ return (
 <>
 <Nav onLogin={openLogin} onRegister={openRegister} />
 
-{/* ── HERO ── */}
 <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '120px 40px 80px', position: 'relative', overflow: 'hidden', textAlign: 'center' }}>
 <div style={{ position: 'absolute', width: 640, height: 640, borderRadius: '50%', background: 'radial-gradient(circle, rgba(184,169,138,.13) 0%, transparent 70%)', top: '5%', left: '-12%', animation: 'float-a 9s ease-in-out infinite', pointerEvents: 'none' }}/>
 <div style={{ position: 'absolute', width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(circle, rgba(26,26,26,.06) 0%, transparent 70%)', bottom: '12%', right: '-4%', animation: 'float-b 11s ease-in-out infinite 1.5s', pointerEvents: 'none' }}/>
@@ -223,7 +260,7 @@ L'intelligence financière <em style={{ fontStyle: 'normal', color: '#B8A98A' }}
 Le CFO digital des dirigeants de TPE/PME. Analyse, anticipe et simule — sans jargon, sans délai.
 </p>
 
-<div style={{ display: 'flex', gap: 12, marginTop: 40, alignItems: 'center', opacity: heroReady ? 1 : 0, transform: heroReady ? 'translateY(0)' : 'translateY(20px)', transition: 'opacity .7s var(--ease-out) .5s, transform .7s var(--ease-out) .5s' }}>
+<div style={{ display: 'flex', gap: 12, marginTop: 40, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center', opacity: heroReady ? 1 : 0, transform: heroReady ? 'translateY(0)' : 'translateY(20px)', transition: 'opacity .7s var(--ease-out) .5s, transform .7s var(--ease-out) .5s' }}>
 <button className="btn btn-primary btn-lg" onClick={(e) => { ripple(e); openRegister() }}>
 <svg width="16" height="16" viewBox="0 0 28 28" fill="none"><path d="M14 2C14 2 8 8 8 14C8 18.4 10.6 22.2 14 24C17.4 22.2 20 18.4 20 14C20 8 14 2 14 2Z" fill="currentColor" opacity=".7"/><circle cx="14" cy="14" r="2.5" fill="currentColor"/></svg>
 Créer un compte
@@ -242,7 +279,6 @@ Se connecter
 <span style={{ fontSize: 13, color: '#8C9BAB' }}>+120 dirigeants déjà inscrits</span>
 </div>
 
-{/* Dashboard preview */}
 <div style={{ marginTop: 60, width: '100%', maxWidth: 900, background: '#fff', borderRadius: 20, border: '.5px solid rgba(140,155,171,.2)', boxShadow: '0 32px 80px rgba(26,26,26,.1)', overflow: 'hidden', opacity: heroReady ? 1 : 0, transform: heroReady ? 'translateY(0) scale(1)' : 'translateY(40px) scale(.97)', transition: 'opacity .9s var(--ease-out) .4s, transform .9s var(--ease-out) .4s' }}>
 <div style={{ background: '#1A1A1A', padding: '13px 20px', display: 'flex', alignItems: 'center', gap: 8 }}>
 {['#ff5f57','#febc2e','#28c840'].map((c, i) => <div key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: c }}/>)}
@@ -269,7 +305,6 @@ Se connecter
 </div>
 </section>
 
-{/* ── TICKER ── */}
 <div style={{ overflow: 'hidden', borderTop: '.5px solid rgba(140,155,171,.15)', borderBottom: '.5px solid rgba(140,155,171,.15)', padding: '11px 0' }}>
 <div style={{ display: 'flex', width: 'max-content', animation: 'ticker-scroll 28s linear infinite' }}>
 {[...TICKS, ...TICKS].map((t, i) => (
@@ -280,7 +315,6 @@ Se connecter
 </div>
 </div>
 
-{/* ── STATS ── */}
 <section style={{ padding: '84px 40px', background: '#fff' }}>
 <div ref={statsRef.ref} style={{ maxWidth: 760, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 48, textAlign: 'center' }}>
 {[{ v: 120, s: '+', l: 'Dirigeants actifs', d: 0 }, { v: 48, s: 'h', l: 'Données disponibles', d: 120 }, { v: 5, s: ' min', l: 'Pour le premier insight', d: 240 }].map((st, i) => (
@@ -294,7 +328,6 @@ Se connecter
 </div>
 </section>
 
-{/* ── FEATURES ── */}
 <section id="fonctionnalites" style={{ padding: '96px 40px' }}>
 <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 <div ref={featRef.ref} className="reveal" style={{ textAlign: 'center', marginBottom: 52 }}>
@@ -309,7 +342,6 @@ Tout ce qu'un CFO ferait.<br/>En quelques secondes.
 </div>
 </section>
 
-{/* ── CTA ── */}
 <section style={{ padding: '96px 40px', background: '#1A1A1A', textAlign: 'center' }}>
 <div className="reveal" style={{ maxWidth: 600, margin: '0 auto' }}>
 <h2 style={{ fontSize: 'clamp(28px,4vw,48px)', fontWeight: 600, color: '#F2F3F5', letterSpacing: '-.025em', lineHeight: 1.15, marginBottom: 18 }}>Votre CFO digital vous attend.</h2>
@@ -321,7 +353,6 @@ Tout ce qu'un CFO ferait.<br/>En quelques secondes.
 </div>
 </section>
 
-{/* ── FOOTER ── */}
 <footer style={{ padding: '36px 48px', borderTop: '.5px solid rgba(140,155,171,.2)', background: '#F2F3F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
 <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 500, color: '#1A1A1A' }}>
 <svg width="20" height="20" viewBox="0 0 28 28" fill="none"><path d="M14 2C14 2 8 8 8 14C8 18.4 10.6 22.2 14 24C17.4 22.2 20 18.4 20 14C20 8 14 2 14 2Z" fill="#B8A98A"/><circle cx="14" cy="14" r="2.5" fill="#1A1A1A"/></svg>
@@ -330,13 +361,8 @@ Alvio
 <span style={{ fontSize: 13, color: '#8C9BAB' }}>© 2026 Alvio — L'intelligence financière en temps réel</span>
 </footer>
 
-{/* ── REVEAL OBSERVER ── */}
 <RevealObserver/>
-
-{/* ── AGENT ── */}
 <AgentFab/>
-
-{/* ── AUTH MODAL ── */}
 <AuthModal open={authOpen} defaultMode={authMode} onClose={() => setAuthOpen(false)}/>
 </>
 )
