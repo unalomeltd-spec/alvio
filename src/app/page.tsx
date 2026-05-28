@@ -73,7 +73,6 @@ WebkitBackdropFilter: scrolled || menuOpen ? 'blur(18px)' : 'none',
 borderBottom: scrolled ? '.5px solid rgba(140,155,171,.2)' : 'none',
 transition: 'background .4s ease, border-bottom .4s ease',
 }}>
-{/* Logo */}
 <a href="#" style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 17, fontWeight: 600, color: '#1A1A1A', letterSpacing: '-.01em', zIndex: 101 }}>
 <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
 <path d="M14 2C14 2 8 8 8 14C8 18.4 10.6 22.2 14 24C17.4 22.2 20 18.4 20 14C20 8 14 2 14 2Z" fill="#B8A98A"/>
@@ -83,7 +82,6 @@ transition: 'background .4s ease, border-bottom .4s ease',
 Alvio
 </a>
 
-{/* Desktop links */}
 <div className="nav-links-desktop" style={{ display: 'flex', alignItems: 'center', gap: 4 }} onMouseLeave={() => setHovered(null)}>
 {items.map((it, i) => (
 <a key={it} href={`#${it.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s/g, '-')}`}
@@ -100,7 +98,6 @@ position: 'relative', zIndex: hovered === i ? 1 : 0,
 ))}
 </div>
 
-{/* Desktop CTA */}
 <div className="nav-cta-desktop" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
 <button onClick={onLogin} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#1A1A1A', padding: '6px 12px', fontFamily: 'Plus Jakarta Sans, sans-serif', transition: 'color .15s' }}
 onMouseEnter={e => (e.currentTarget.style.color = '#B8A98A')} onMouseLeave={e => (e.currentTarget.style.color = '#1A1A1A')}>
@@ -109,7 +106,6 @@ Connexion
 <button className="btn btn-primary btn-sm" onClick={(e) => { ripple(e); onRegister() }}>Créer un compte</button>
 </div>
 
-{/* Mobile hamburger */}
 <button className="nav-burger" onClick={() => setMenuOpen(o => !o)} style={{
 background: 'none', border: 'none', cursor: 'pointer', padding: 8, zIndex: 101,
 width: 40, height: 40, display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center', justifyContent: 'center',
@@ -120,7 +116,6 @@ width: 40, height: 40, display: 'flex', flexDirection: 'column', gap: 5, alignIt
 </button>
 </nav>
 
-{/* Mobile drawer */}
 <div className="nav-drawer" style={{
 position: 'fixed', top: 64, left: 0, right: 0, zIndex: 99,
 background: 'rgba(242,243,245,.97)', backdropFilter: 'blur(18px)',
@@ -243,7 +238,6 @@ const [authOpen, setAuthOpen] = useState(false)
 const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
 const [heroReady, setHeroReady] = useState(false)
 const featRef = useInView()
-const statsRef = useInView()
 
 useEffect(() => { const t = setTimeout(() => setHeroReady(true), 80); return () => clearTimeout(t) }, [])
 
@@ -319,19 +313,6 @@ Se connecter
 ))}
 </div>
 </div>
-
-<section style={{ padding: '84px 40px', background: '#fff' }}>
-<div ref={statsRef.ref} style={{ maxWidth: 760, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 48, textAlign: 'center' }}>
-{[{ v: 120, s: '+', l: 'Dirigeants actifs', d: 0 }, { v: 48, s: 'h', l: 'Données disponibles', d: 120 }, { v: 5, s: ' min', l: 'Pour le premier insight', d: 240 }].map((st, i) => (
-<div key={i} className="reveal" style={{ transitionDelay: `${st.d}ms` }}>
-<div style={{ fontSize: 52, fontWeight: 600, color: '#1A1A1A', letterSpacing: '-.03em', lineHeight: 1 }}>
-<Counter to={st.v} suffix={st.s}/>
-</div>
-<div style={{ fontSize: 14, color: '#8C9BAB', marginTop: 8 }}>{st.l}</div>
-</div>
-))}
-</div>
-</section>
 
 <section id="fonctionnalites" style={{ padding: '96px 40px' }}>
 <div style={{ maxWidth: 1100, margin: '0 auto' }}>
