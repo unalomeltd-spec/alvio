@@ -108,7 +108,7 @@ Connexion
 
 <button className="nav-burger" onClick={() => setMenuOpen(o => !o)} style={{
 background: 'none', border: 'none', cursor: 'pointer', padding: 8, zIndex: 101,
-width: 40, height: 40, display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center', justifyContent: 'center',
+width: 40, height: 40,  flexDirection: 'column', gap: 5, alignItems: 'center', justifyContent: 'center',
 }}>
 <span style={{ display: 'block', width: 22, height: 1.5, background: '#1A1A1A', transition: 'all .3s ease', transform: menuOpen ? 'rotate(45deg) translate(4.5px, 4.5px)' : 'none' }}/>
 <span style={{ display: 'block', width: 22, height: 1.5, background: '#1A1A1A', transition: 'all .3s ease', opacity: menuOpen ? 0 : 1 }}/>
