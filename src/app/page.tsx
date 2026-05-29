@@ -108,7 +108,7 @@ Connexion
 
 <button className="nav-burger" onClick={() => setMenuOpen(o => !o)} style={{
 background: 'none', border: 'none', cursor: 'pointer', padding: 8, zIndex: 101,
-width: 40, height: 40,  flexDirection: 'column', gap: 5, alignItems: 'center', justifyContent: 'center',
+width: 40, height: 40, flexDirection: 'column', gap: 5, alignItems: 'center', justifyContent: 'center',
 }}>
 <span style={{ display: 'block', width: 22, height: 1.5, background: '#1A1A1A', transition: 'all .3s ease', transform: menuOpen ? 'rotate(45deg) translate(4.5px, 4.5px)' : 'none' }}/>
 <span style={{ display: 'block', width: 22, height: 1.5, background: '#1A1A1A', transition: 'all .3s ease', opacity: menuOpen ? 0 : 1 }}/>
@@ -144,24 +144,29 @@ Connexion
 }
 
 /* ─── Feature card ───────────────────────────────────────────────────────── */
-function FeatCard({ icon, title, desc, delay = 0 }: { icon: string; title: string; desc: string; delay?: number }) {
+function FeatCard({ icon, title, desc, delay = 0, featured = false }: { icon: string; title: string; desc: string; delay?: number; featured?: boolean }) {
 const { ref, visible } = useInView()
 const [hov, setHov] = useState(false)
 return (
 <div ref={ref} onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
 style={{
-background: hov ? '#1A1A1A' : '#fff',
-border: '.5px solid rgba(140,155,171,.2)', borderRadius: 16, padding: 28,
+background: featured ? '#1A1A1A' : (hov ? '#1A1A1A' : '#fff'),
+border: featured ? '.5px solid rgba(184,169,138,.3)' : '.5px solid rgba(140,155,171,.2)',
+borderRadius: 16, padding: 28,
 opacity: visible ? 1 : 0,
 transform: visible ? (hov ? 'translateY(-6px) scale(1.02)' : 'translateY(0)') : 'translateY(24px)',
 transition: `opacity .6s ease ${delay}ms, transform .35s cubic-bezier(.34,1.2,.64,1)`,
-boxShadow: hov ? '0 16px 40px rgba(26,26,26,.14)' : '0 2px 8px rgba(26,26,26,.05)',
+boxShadow: featured ? '0 16px 40px rgba(26,26,26,.14)' : (hov ? '0 16px 40px rgba(26,26,26,.14)' : '0 2px 8px rgba(26,26,26,.05)'),
 cursor: 'default',
+gridColumn: featured ? 'span 1' : undefined,
 }}>
-<div style={{ width: 44, height: 44, borderRadius: 12, background: hov ? 'rgba(184,169,138,.15)' : 'rgba(26,26,26,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18, fontSize: 22, transition: 'background .3s ease' }}>
+<div style={{ width: 44, height: 44, borderRadius: 12, background: featured ? 'rgba(184,169,138,.2)' : (hov ? 'rgba(184,169,138,.15)' : 'rgba(26,26,26,.06)'), display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18, fontSize: 22, transition: 'background .3s ease' }}>
 {icon}
 </div>
-<h3 style={{ fontSize: 16, fontWeight: 500, color: hov ? '#F2F3F5' : '#1A1A1A', marginBottom: 8, transition: 'color .3s ease' }}>{title}</h3>
+<div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+<h3 style={{ fontSize: 16, fontWeight: 500, color: featured ? '#F2F3F5' : (hov ? '#F2F3F5' : '#1A1A1A'), margin: 0, transition: 'color .3s ease' }}>{title}</h3>
+{featured && <span style={{ fontSize: 10, fontWeight: 600, color: '#B8A98A', background: 'rgba(184,169,138,.15)', border: '.5px solid rgba(184,169,138,.3)', borderRadius: 6, padding: '2px 7px', letterSpacing: '.06em', textTransform: 'uppercase' }}>Clé</span>}
+</div>
 <p style={{ fontSize: 14, lineHeight: 1.6, color: '#8C9BAB', margin: 0 }}>{desc}</p>
 </div>
 )
@@ -190,7 +195,7 @@ transition: 'all .3s cubic-bezier(.34,1.4,.64,1)', transformOrigin: 'bottom righ
 <div style={{ background: '#F2F3F5', borderRadius: '12px 12px 12px 2px', padding: '12px 14px', fontSize: 13, lineHeight: 1.5, color: '#1A1A1A' }}>
 Bonjour 👋 Je suis Alvio, votre CFO digital. Quelle question financière puis-je analyser pour vous ?
 </div>
-<div style={{ textAlign: 'right', fontSize: 11, color: '#8C9BAB', marginTop: 6 }}>À l'instant</div>
+<div style={{ textAlign: 'right', fontSize: 11, color: '#8C9BAB', marginTop: 6 }}>À l&apos;instant</div>
 </div>
 <div style={{ padding: '0 12px 12px', display: 'flex', gap: 8 }}>
 <input placeholder="Posez une question…" style={{ flex: 1, background: '#F2F3F5', borderRadius: 10, padding: '10px 12px', fontSize: 12, color: '#8C9BAB', border: 'none', fontFamily: 'Plus Jakarta Sans, sans-serif', outline: 'none' }}/>
@@ -222,8 +227,8 @@ transition: 'transform .3s cubic-bezier(.34,1.56,.64,1)',
 
 /* ─── Page ───────────────────────────────────────────────────────────────── */
 const FEATURES = [
-{ icon: '📊', title: 'Tableaux de bord KPIs', desc: 'SIG complets, ratios clés et comparaison N/N-1/N-2 mis à jour en continu.', delay: 0 },
-{ icon: '💬', title: 'Agent CFO en temps réel', desc: 'Posez vos questions en langage naturel. Alvio répond, anticipe et simule.', delay: 80 },
+{ icon: '💬', title: 'Agent CFO en temps réel', desc: 'Posez vos questions en langage naturel. Alvio répond, anticipe et simule — disponible à tout moment.', delay: 0, featured: true },
+{ icon: '📊', title: 'Tableaux de bord KPIs', desc: 'SIG complets, ratios clés et comparaison N/N-1/N-2 mis à jour en continu.', delay: 80 },
 { icon: '🔮', title: 'Prévisionnel & budget', desc: "Construisez votre budget N+1 avec l'agent et suivez les écarts en live.", delay: 160 },
 { icon: '📈', title: 'Plan de trésorerie', desc: 'Vision 12 mois glissants, flux éditables, projection cumulée automatique.', delay: 240 },
 { icon: '⚡', title: 'Simulations financières', desc: "Recrutement, investissement, perte de client — l'impact chiffré en secondes.", delay: 320 },
@@ -236,10 +241,7 @@ const BAR_H = [58,74,52,88,68,84,62,96,78,70,86,75]
 export default function HomePage() {
 const [authOpen, setAuthOpen] = useState(false)
 const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
-const [heroReady, setHeroReady] = useState(false)
 const featRef = useInView()
-
-useEffect(() => { const t = setTimeout(() => setHeroReady(true), 80); return () => clearTimeout(t) }, [])
 
 const openLogin = () => { setAuthMode('login'); setAuthOpen(true) }
 const openRegister = () => { setAuthMode('register'); setAuthOpen(true) }
@@ -252,14 +254,14 @@ return (
 <div style={{ position: 'absolute', width: 640, height: 640, borderRadius: '50%', background: 'radial-gradient(circle, rgba(184,169,138,.13) 0%, transparent 70%)', top: '5%', left: '-12%', animation: 'float-a 9s ease-in-out infinite', pointerEvents: 'none' }}/>
 <div style={{ position: 'absolute', width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(circle, rgba(26,26,26,.06) 0%, transparent 70%)', bottom: '12%', right: '-4%', animation: 'float-b 11s ease-in-out infinite 1.5s', pointerEvents: 'none' }}/>
 
-<h1 style={{ fontSize: 'clamp(40px,6vw,72px)', fontWeight: 600, color: '#1A1A1A', lineHeight: 1.1, letterSpacing: '-.03em', maxWidth: 820, opacity: heroReady ? 1 : 0, transform: heroReady ? 'translateY(0)' : 'translateY(28px)', transition: 'opacity .7s var(--ease-out) .22s, transform .7s var(--ease-out) .22s' }}>
-L'intelligence financière <em style={{ fontStyle: 'normal', color: '#B8A98A' }}>en temps réel</em>
+<h1 style={{ fontSize: 'clamp(40px,6vw,72px)', fontWeight: 600, color: '#1A1A1A', lineHeight: 1.1, letterSpacing: '-.03em', maxWidth: 820, opacity: 1, transform: 'translateY(0)', animation: 'hero-in .7s var(--ease-out) .1s backwards' }}>
+L&apos;intelligence financière <em style={{ fontStyle: 'normal', color: '#B8A98A' }}>en temps réel</em>
 </h1>
-<p style={{ fontSize: 'clamp(16px,2vw,19px)', fontWeight: 300, color: '#8C9BAB', lineHeight: 1.6, maxWidth: 560, marginTop: 22, opacity: heroReady ? 1 : 0, transform: heroReady ? 'translateY(0)' : 'translateY(24px)', transition: 'opacity .7s var(--ease-out) .36s, transform .7s var(--ease-out) .36s' }}>
+<p style={{ fontSize: 'clamp(16px,2vw,19px)', fontWeight: 300, color: '#8C9BAB', lineHeight: 1.6, maxWidth: 560, marginTop: 22, animation: 'hero-in .7s var(--ease-out) .22s backwards' }}>
 Le CFO digital des dirigeants de TPE/PME. Analyse, anticipe et simule — sans jargon, sans délai.
 </p>
 
-<div style={{ display: 'flex', gap: 12, marginTop: 40, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center', opacity: heroReady ? 1 : 0, transform: heroReady ? 'translateY(0)' : 'translateY(20px)', transition: 'opacity .7s var(--ease-out) .5s, transform .7s var(--ease-out) .5s' }}>
+<div style={{ display: 'flex', gap: 12, marginTop: 40, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center', animation: 'hero-in .7s var(--ease-out) .36s backwards' }}>
 <button className="btn btn-primary btn-lg" onClick={(e) => { ripple(e); openRegister() }}>
 <svg width="16" height="16" viewBox="0 0 28 28" fill="none"><path d="M14 2C14 2 8 8 8 14C8 18.4 10.6 22.2 14 24C17.4 22.2 20 18.4 20 14C20 8 14 2 14 2Z" fill="currentColor" opacity=".7"/><circle cx="14" cy="14" r="2.5" fill="currentColor"/></svg>
 Créer un compte
@@ -269,19 +271,10 @@ Se connecter
 </button>
 </div>
 
-<div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 32, opacity: heroReady ? 1 : 0, transition: 'opacity .7s ease .64s' }}>
-<div style={{ display: 'flex' }}>
-{['#B8A98A','#8C9BAB','#1A1A1A','rgba(184,169,138,.7)'].map((c, i) => (
-<div key={i} style={{ width: 28, height: 28, borderRadius: '50%', background: c, border: '2px solid #F2F3F5', marginLeft: i === 0 ? 0 : -8 }}/>
-))}
-</div>
-<span style={{ fontSize: 13, color: '#8C9BAB' }}>+120 dirigeants déjà inscrits</span>
-</div>
-
-<div style={{ marginTop: 60, width: '100%', maxWidth: 900, background: '#fff', borderRadius: 20, border: '.5px solid rgba(140,155,171,.2)', boxShadow: '0 32px 80px rgba(26,26,26,.1)', overflow: 'hidden', opacity: heroReady ? 1 : 0, transform: heroReady ? 'translateY(0) scale(1)' : 'translateY(40px) scale(.97)', transition: 'opacity .9s var(--ease-out) .4s, transform .9s var(--ease-out) .4s' }}>
+<div style={{ marginTop: 60, width: '100%', maxWidth: 900, background: '#fff', borderRadius: 20, border: '.5px solid rgba(140,155,171,.2)', boxShadow: '0 32px 80px rgba(26,26,26,.1)', overflow: 'hidden', animation: 'hero-in .9s var(--ease-out) .28s backwards' }}>
 <div style={{ background: '#1A1A1A', padding: '13px 20px', display: 'flex', alignItems: 'center', gap: 8 }}>
 {['#ff5f57','#febc2e','#28c840'].map((c, i) => <div key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: c }}/>)}
-<div style={{ flex: 1, textAlign: 'center', fontSize: 12, color: '#8C9BAB' }}>app.alvio.finance — Dashboard</div>
+<div style={{ flex: 1, textAlign: 'center', fontSize: 12, color: '#8C9BAB' }}>beta.alvio.finance — Dashboard</div>
 </div>
 <div style={{ padding: 24, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
 {[
@@ -319,7 +312,7 @@ Se connecter
 <div ref={featRef.ref} className="reveal" style={{ textAlign: 'center', marginBottom: 52 }}>
 <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 500, color: '#B8A98A', letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 16 }}>Fonctionnalités</span>
 <h2 style={{ fontSize: 'clamp(28px,4vw,44px)', fontWeight: 600, color: '#1A1A1A', letterSpacing: '-.025em', lineHeight: 1.15 }}>
-Tout ce qu'un CFO ferait.<br/>En quelques secondes.
+Tout ce qu&apos;un CFO ferait.<br/>En quelques secondes.
 </h2>
 </div>
 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 16 }}>
@@ -334,7 +327,7 @@ Tout ce qu'un CFO ferait.<br/>En quelques secondes.
 <p style={{ fontSize: 16, fontWeight: 300, color: '#8C9BAB', lineHeight: 1.6, marginBottom: 40 }}>Créez votre compte en 2 minutes.</p>
 <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
 <button className="btn btn-ghost btn-lg" onClick={(e) => { ripple(e); openRegister() }}>Commencer gratuitement</button>
-<button className="btn btn-dark-ghost btn-lg" onClick={(e) => ripple(e)}>Parler à l'équipe</button>
+<a href="mailto:hello@alvio.finance" className="btn btn-dark-ghost btn-lg" onClick={(e) => ripple(e as unknown as React.MouseEvent<HTMLButtonElement>)} style={{ textDecoration: 'none' }}>Parler à l&apos;équipe</a>
 </div>
 </div>
 </section>
@@ -344,7 +337,7 @@ Tout ce qu'un CFO ferait.<br/>En quelques secondes.
 <svg width="20" height="20" viewBox="0 0 28 28" fill="none"><path d="M14 2C14 2 8 8 8 14C8 18.4 10.6 22.2 14 24C17.4 22.2 20 18.4 20 14C20 8 14 2 14 2Z" fill="#B8A98A"/><circle cx="14" cy="14" r="2.5" fill="#1A1A1A"/></svg>
 Alvio
 </div>
-<span style={{ fontSize: 13, color: '#8C9BAB' }}>© 2026 Alvio — L'intelligence financière en temps réel</span>
+<span style={{ fontSize: 13, color: '#8C9BAB' }}>© 2026 Alvio — L&apos;intelligence financière en temps réel</span>
 </footer>
 
 <RevealObserver/>
