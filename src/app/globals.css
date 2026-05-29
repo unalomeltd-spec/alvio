@@ -83,7 +83,7 @@ a { text-decoration: none; color: inherit; }
   .nav-burger { display: flex !important; }
   .nav-drawer { display: block !important; }
 
-  .hero-section { flex-direction: column !important; padding: 36px 20px 32px !important; gap: 32px !important; text-align: center !important; }
+  .hero-section { flex-direction: column !important; padding: 88px 20px 40px !important; gap: 32px !important; text-align: center !important; }
   .hero-left { flex: none !important; width: 100% !important; }
   .hero-right { width: 100% !important; }
   .hero-ctas { justify-content: center !important; }
