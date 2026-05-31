@@ -3,7 +3,7 @@ import React from 'react'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import Sidebar from '@/components/Sidebar'
+import AppSidebar from '@/components/Sidebar'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -864,7 +864,7 @@ function Sidebar() {
 
   return (
     <>
-<Sidebar activePage="dashboard"/>
+<AppSidebar activePage="dashboard"/>
 
       {/* Modale profil */}
       {profilOpen && (
