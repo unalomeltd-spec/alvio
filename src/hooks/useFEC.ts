@@ -107,9 +107,7 @@ export function getMonthlyCash(lignes: LigneFEC[]): {m:string; val:number}[] {
       byMonth[m] = (byMonth[m] || 0) + (l.Debit - l.Credit)
     }
   }
-  let cum = 0
-  return Object.entries(byMonth).sort(([a],[b]) => a.localeCompare(b)).slice(-12)
-    .map(([m,v]) => { cum += v; return { m: m.slice(5)||m, val: cum } })
+  return Object.entries(byMonth).sort(([a],[b]) => a.localeCompare(b)).slice(-12).map(([m,v]) => ({ m: m.slice(5)||m, val: v }))
 }
 
 export function getDetailCompte(lignes: LigneFEC[], prefixes: string[]): {num:string;lib:string;solde:number;lignes:LigneFEC[]}[] {
