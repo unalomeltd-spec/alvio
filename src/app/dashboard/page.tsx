@@ -3,6 +3,7 @@ import React from 'react'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import Sidebar from '@/components/Sidebar'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -863,60 +864,7 @@ function Sidebar() {
 
   return (
     <>
-      <div style={{ width: 216, minWidth: 216, background: '#1A1A1A', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '18px 20px 14px', borderBottom: '0.5px solid rgba(184,169,138,0.18)' }}>
-          <div style={{ color: '#B8A98A', fontSize: 16, fontWeight: 700, letterSpacing: '0.05em' }}><a href='/dashboard' style={{color:'#B8A98A',textDecoration:'none'}}>Alvio</a></div>
-          <div style={{ color: '#8C9BAB', fontSize: 9, marginTop: 3 }}>Intelligence financiere en temps reel</div>
-        </div>
-        <div style={{ flex: 1, padding: '10px 0' }}>
-          <div style={{ padding: '10px 20px 4px', color: 'rgba(140,155,171,0.5)', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Analyse</div>
-          {items.map(item => (
-            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: item.active ? '8px 18px' : '8px 20px', borderLeft: item.active ? '2px solid #B8A98A' : '2px solid transparent', background: item.active ? 'rgba(184,169,138,0.1)' : 'transparent', color: item.active ? '#B8A98A' : '#8C9BAB', fontSize: 12, cursor: 'pointer' }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={item.d} /></svg>
-              {item.label}
-            </div>
-          ))}
-          <div style={{ padding: '10px 20px 4px', color: 'rgba(140,155,171,0.5)', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 8 }}>Mon espace</div>
-          <a href="/entreprise" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 20px', borderLeft: '2px solid transparent', color: '#8C9BAB', fontSize: 12, cursor: 'pointer', textDecoration: 'none' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = '#F2F3F5' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = '#8C9BAB' }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            Fiche societe
-          </a>
-        </div>
-        <div style={{ padding: '12px 20px', borderTop: '0.5px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(184,169,138,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#B8A98A', fontSize: 10, fontWeight: 500, flexShrink: 0 }}>
-              {initiales}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: '#F2F3F5', fontSize: 11, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail || 'Chargement...'}</div>
-              <div style={{ color: '#8C9BAB', fontSize: 9 }}>{nomEntreprise || 'Beta'}</div>
-            </div>
-          </div>
-          {/* Mon profil */}
-          <button
-            onClick={() => setProfilOpen(true)}
-            style={{ width: '100%', background: 'transparent', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 0', fontSize: 11, color: '#8C9BAB', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 6 }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(184,169,138,0.4)'; (e.currentTarget as HTMLButtonElement).style.color = '#B8A98A' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.1)'; (e.currentTarget as HTMLButtonElement).style.color = '#8C9BAB' }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-            Mon profil
-          </button>
-          {/* Deconnexion */}
-          <button
-            onClick={handleSignOut}
-            style={{ width: '100%', background: 'transparent', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 0', fontSize: 11, color: '#8C9BAB', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(216,90,48,0.4)'; (e.currentTarget as HTMLButtonElement).style.color = '#D85A30' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.1)'; (e.currentTarget as HTMLButtonElement).style.color = '#8C9BAB' }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            Se deconnecter
-          </button>
-        </div>
-      </div>
+<Sidebar activePage="dashboard"/>
 
       {/* Modale profil */}
       {profilOpen && (
