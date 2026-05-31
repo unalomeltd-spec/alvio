@@ -66,10 +66,23 @@ export default function EntreprisePage() {
         setUserEmail(user.email ?? '')
         const meta = user.user_metadata ?? {}
 
-        if (meta.entreprise) {
-          setEntreprise(meta.entreprise as EntrepriseInfo)
-          setSiren(meta.siren ?? '')
-          setSirenInput(meta.siren ?? '')
+        if (meta.entreprise && meta.siren) {
+          const sirenVal = meta.siren as string
+          setSirenInput(sirenVal)
+          try {
+            const res = await fetch('/api/siren?siren=' + sirenVal)
+            if (res.ok) {
+              const fresh = await res.json()
+              setEntreprise(fresh)
+              setSiren(sirenVal)
+            } else {
+              setEntreprise(meta.entreprise as EntrepriseInfo)
+              setSiren(sirenVal)
+            }
+          } catch {
+            setEntreprise(meta.entreprise as EntrepriseInfo)
+            setSiren(sirenVal)
+          }
         }
 
         // Charger les exercices FEC depuis Supabase
