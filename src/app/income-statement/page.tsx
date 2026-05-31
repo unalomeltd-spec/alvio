@@ -24,6 +24,9 @@ export default function IncomeStatementPage() {
   const [periodeTab, setPeriodeTab] = useState<'exercice'|'perso'>('exercice')
   const [dateDebut, setDateDebut] = useState('')
   const [dateFin, setDateFin] = useState('')
+  const [anneeN1, setAnneeN1] = useState(new Date().getFullYear() - 1)
+  const [dateDebutN1, setDateDebutN1] = useState('')
+  const [dateFinN1, setDateFinN1] = useState('')
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState<Record<string,boolean>>({ prod:true, charges:true, fin:false, exc:false })
 
@@ -93,7 +96,7 @@ export default function IncomeStatementPage() {
       <div style={{ flex:1, display:'flex', flexDirection:'column' }}>
         <div style={{ background:'#fff', borderBottom:'0.5px solid rgba(0,0,0,0.07)', padding:'0 24px', height:52, display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
           <span style={{ fontSize:14, fontWeight:500, color:'#1A1A1A' }}>Compte de résultat</span>
-          {ind && <PeriodSelector annees={anneesDisponibles} anneeActive={anneeActive} setAnneeActive={setAnneeActive} periodeTab={periodeTab} setPeriodeTab={setPeriodeTab} dateDebut={dateDebut} setDateDebut={setDateDebut} dateFin={dateFin} setDateFin={setDateFin} />}
+          {ind && <PeriodSelector annees={anneesDisponibles} anneeActive={anneeActive} setAnneeActive={setAnneeActive} periodeTab={periodeTab} setPeriodeTab={setPeriodeTab} dateDebut={dateDebut} setDateDebut={setDateDebut} dateFin={dateFin} setDateFin={setDateFin} anneeN1={anneeN1} setAnneeN1={setAnneeN1} dateDebutN1={dateDebutN1} setDateDebutN1={setDateDebutN1} dateFinN1={dateFinN1} setDateFinN1={setDateFinN1} />}
         </div>
         <div style={{ flex:1, padding:24, overflowY:'auto' }}>
           {!ind ? (
