@@ -424,7 +424,26 @@ export default function DashboardPage() {
   // Données N et N-1
   const exN   = exercices[anneeActive]
   const exN1  = exercices[anneeActive - 1]
-  const lignesAllN = exN?.lignes ?? null
+
+  // En mode dates perso, merger toutes les lignes des exercices couverts par la plage
+  const lignesAllN: LigneFEC[] | null = (() => {
+    if (periodeTab === 'perso' && dateDebut && dateFin) {
+      const anneesTriees = Object.keys(exercices).map(Number).sort((a, b) => a - b)
+      const merged: LigneFEC[] = []
+      for (const a of anneesTriees) {
+        const ex = exercices[a]
+        if (!ex) continue
+        const exInfo = detecterExercice(ex.lignes)
+        // Inclure si l'exercice chevauche la plage sélectionnée
+        if (exInfo.fin >= dateDebut && exInfo.debut <= dateFin) {
+          merged.push(...ex.lignes)
+        }
+      }
+      return merged.length > 0 ? merged : (exN?.lignes ?? null)
+    }
+    return exN?.lignes ?? null
+  })()
+
   const exercice   = lignesAllN ? detecterExercice(lignesAllN) : { debut: '', fin: '', annee: anneeActive }
   const lignes     = lignesAllN ? filtrerParPeriode(lignesAllN, periodeTab, dateDebut, dateFin) : null
   const indicateurs  = lignes          ? calculerIndicateurs(lignes) : null
