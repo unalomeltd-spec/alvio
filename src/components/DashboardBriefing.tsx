@@ -118,7 +118,7 @@ export default function DashboardBriefing({ prenom, metrics }: DashboardBriefing
       <p className="briefing-greeting">
         Bonjour,&nbsp;<strong ref={nameRef} /><span ref={cursorRef} className="tw-cursor" />
       </p>
-      <p className="briefing-sub">Votre briefing financier du matin est prêt.</p>
+      <p className="briefing-sub">Votre briefing financier est prêt.</p>
 
       {/* Metric pills */}
       <div className="briefing-metrics">

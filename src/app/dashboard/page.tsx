@@ -50,7 +50,7 @@ function MiniBar({ data }: { data: { m: string; val: number }[] }) {
   if (!data.length) return null
   const max = Math.max(...data.map(d => Math.abs(d.val))) || 1
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 80 }}>
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 160 }}>
       {data.map((d, i) => {
         const h = Math.max(Math.abs(d.val) / max * 100, 4)
         const isLast = i === data.length - 1
@@ -261,7 +261,7 @@ export default function DashboardPage() {
             <div style={{ maxWidth:1100 }}>
 
               <DashboardBriefing
-                prenom={''}
+                prenom={(() => { try { const raw = localStorage.getItem('sb-gsflplpmiukbwuewivps-auth-token'); const u = JSON.parse(raw || '{}'); const meta = u?.user?.user_metadata; return meta?.prenom || meta?.full_name?.split(' ')[0] || u?.user?.email?.split('@')[0] || ''; } catch(e) { return ''; } })()}
                 metrics={{
                   chiffreAffaires: ind.ca,
                   resultatNet: ind.rnet,
@@ -270,8 +270,6 @@ export default function DashboardPage() {
                   deltaCA: indN1 && indN1.ca ? (ind.ca - indN1.ca) / Math.abs(indN1.ca) * 100 : undefined,
                 }}
               />
-
-              <AlvioInsight payload={{ page:'dashboard', annee:anneeActive, periode: periodeTab==='perso'&&dateDebut&&dateFin?`${dateDebut} → ${dateFin}`:undefined, indicateurs:{ ca:ind.ca, mb:ind.mb, ebe:ind.ebe, rnet:ind.rnet, treso:ind.treso, bfr:ind.bfr, tauxMb:ind.tauxMb, tauxEbe:ind.tauxEbe, tauxRnet:ind.tauxRnet, tauxPers:ind.tauxPers } }} />
 
               {/* 4 KPIs */}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:24 }}>
