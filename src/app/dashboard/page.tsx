@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import AppSidebar from '@/components/Sidebar'
+import PeriodSelector from '@/components/PeriodSelector'
 import { calculerIndicateurs, getMonthlyCash, filtrerLignes } from '@/hooks/useFEC'
 import type { LigneFEC, Indicateurs } from '@/hooks/useFEC'
 
@@ -30,12 +31,14 @@ function Delta({ val, pct }: { val: number; pct: number }) {
 }
 
 function KpiCard({ label, value, sub, color, delta, icon }: { label: string; value: string; sub?: string; color: string; delta?: { val: number; pct: number } | null; icon: string }) {
+  const [hov, setHov] = useState(false)
   return (
-    <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid rgba(0,0,0,0.06)', padding: '20px 20px 16px', borderTop: `3px solid ${color}`, position: 'relative', overflow: 'hidden' }}>
+    <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+      style={{ background: hov ? '#1A1A1A' : '#fff', borderRadius: 12, border: '0.5px solid rgba(0,0,0,0.06)', padding: '20px 20px 16px', borderTop: `3px solid ${color}`, position: 'relative', overflow: 'hidden', transition: 'background 0.25s, box-shadow 0.25s, transform 0.2s', transform: hov ? 'translateY(-3px)' : 'none', boxShadow: hov ? '0 12px 32px rgba(0,0,0,0.12)' : 'none', cursor: 'default' }}>
       <div style={{ position: 'absolute', top: 14, right: 16, fontSize: 22, opacity: 0.12 }}>{icon}</div>
-      <div style={{ fontSize: 10, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 600, color: '#1A1A1A', letterSpacing: '-0.02em', lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: color, marginTop: 6, fontWeight: 500 }}>{sub}</div>}
+      <div style={{ fontSize: 10, fontWeight: 600, color: hov ? 'rgba(255,255,255,0.5)' : '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 600, color: hov ? '#fff' : '#1A1A1A', letterSpacing: '-0.02em', lineHeight: 1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: hov ? 'rgba(255,255,255,0.7)' : color, marginTop: 6, fontWeight: 500 }}>{sub}</div>}
       {delta && <Delta val={delta.val} pct={delta.pct} />}
     </div>
   )
@@ -211,7 +214,7 @@ export default function DashboardPage() {
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
             <span style={{ fontSize:14, fontWeight:500, color:'#1A1A1A' }}>Synthèse</span>
             {ind && (
-              <PeriodBar annees={anneesDisponibles} anneeActive={anneeActive} setAnneeActive={setAnneeActive}
+              <PeriodSelector annees={anneesDisponibles} anneeActive={anneeActive} setAnneeActive={setAnneeActive}
                 periodeTab={periodeTab} setPeriodeTab={setPeriodeTab}
                 dateDebut={dateDebut} setDateDebut={setDateDebut}
                 dateFin={dateFin} setDateFin={setDateFin} />
