@@ -435,7 +435,7 @@ export default function DashboardPage() {
         if (!ex) continue
         const exInfo = detecterExercice(ex.lignes)
         // Inclure si l'exercice chevauche la plage sélectionnée
-        if (exInfo.fin >= dateDebut && exInfo.debut <= dateFin) {
+        if (toIso(exInfo.fin) >= dateDebut && toIso(exInfo.debut) <= dateFin) {
           merged.push(...ex.lignes)
         }
       }
