@@ -51,6 +51,7 @@ export default function SuiviPage() {
   const [prio, setPrio] = useState<Priorite>('Normal')
   const [cat, setCat] = useState<Categorie>('Interface & expérience')
   const [saving, setSaving] = useState(false)
+  const [catChosen, setCatChosen] = useState(false)
 
   const load = async () => {
     const { data } = await sb.from('suivi_demandes').select('*').order('created_at', { ascending: false })
@@ -69,7 +70,7 @@ export default function SuiviPage() {
     if (!titre.trim()) return
     setSaving(true)
     await sb.from('suivi_demandes').insert({ titre, description: desc || null, auteur, destinataire: dest, priorite: prio, statut: 'à faire', categorie: cat })
-    setTitre(''); setDesc(''); setPrio('Normal'); setCat('Interface & expérience'); setFormOpen(false)
+    setTitre(''); setDesc(''); setPrio('Normal'); setCat('Interface & expérience'); setCatChosen(false); setFormOpen(false)
     await load()
     setSaving(false)
   }
@@ -124,7 +125,7 @@ export default function SuiviPage() {
             <span style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A' }}>Suivi des demandes</span>
             <span style={{ fontSize: 11, color: '#8C9BAB' }}>Jeremy & Val</span>
           </div>
-          <button onClick={() => setFormOpen(o => !o)}
+          <button onClick={() => { setFormOpen(o => !o); setCatChosen(false) }}
             style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
             Nouvelle demande
@@ -144,10 +145,10 @@ export default function SuiviPage() {
 
               {/* Catégorie */}
               <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 11, fontWeight: 500, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Catégorie</div>
+                <div style={{ fontSize: 11, fontWeight: 500, color: catChosen ? '#8C9BAB' : '#993C1D', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Catégorie {!catChosen && <span style={{ fontWeight: 400 }}>— obligatoire</span>}</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                   {CATEGORIES.map(c => (
-                    <button key={c} onClick={() => setCat(c)}
+                    <button key={c} onClick={() => { setCat(c); setCatChosen(true) }}
                       style={{ fontSize: 11, padding: '4px 10px', borderRadius: 20, border: `0.5px solid ${cat === c ? CAT_COLOR[c].color : 'rgba(0,0,0,0.12)'}`, background: cat === c ? CAT_COLOR[c].bg : '#fff', color: cat === c ? CAT_COLOR[c].color : '#8C9BAB', cursor: 'pointer', fontFamily: 'inherit', fontWeight: cat === c ? 500 : 400 }}>
                       {c}
                     </button>
@@ -184,7 +185,7 @@ export default function SuiviPage() {
               </div>
 
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={add} disabled={saving || !titre.trim()}
+                <button onClick={add} disabled={saving || !titre.trim() || !catChosen}
                   style={{ background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', opacity: !titre.trim() ? 0.4 : 1 }}>
                   {saving ? 'Ajout...' : 'Ajouter'}
                 </button>
