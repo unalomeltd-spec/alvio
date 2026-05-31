@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import AppSidebar from '@/components/Sidebar'
 import PeriodSelector from '@/components/PeriodSelector'
 import AlvioInsight from '@/components/AlvioInsight'
+import DashboardBriefing from '@/components/DashboardBriefing'
 import { calculerIndicateurs, getMonthlyCash, filtrerLignes } from '@/hooks/useFEC'
 import type { LigneFEC, Indicateurs } from '@/hooks/useFEC'
 
@@ -258,6 +259,17 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div style={{ maxWidth:1100 }}>
+
+              <DashboardBriefing
+                prenom={''}
+                metrics={{
+                  chiffreAffaires: ind.ca,
+                  resultatNet: ind.rnet,
+                  tresorerie: ind.treso,
+                  bfr: ind.bfr,
+                  deltaCA: indN1 && indN1.ca ? (ind.ca - indN1.ca) / Math.abs(indN1.ca) * 100 : undefined,
+                }}
+              />
 
               <AlvioInsight payload={{ page:'dashboard', annee:anneeActive, periode: periodeTab==='perso'&&dateDebut&&dateFin?`${dateDebut} → ${dateFin}`:undefined, indicateurs:{ ca:ind.ca, mb:ind.mb, ebe:ind.ebe, rnet:ind.rnet, treso:ind.treso, bfr:ind.bfr, tauxMb:ind.tauxMb, tauxEbe:ind.tauxEbe, tauxRnet:ind.tauxRnet, tauxPers:ind.tauxPers } }} />
 
