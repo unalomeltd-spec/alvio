@@ -52,6 +52,28 @@ export default function SuiviPage() {
   const [cat, setCat] = useState<Categorie>('Interface & expérience')
   const [saving, setSaving] = useState(false)
   const [catChosen, setCatChosen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+
+  const openEdit = (item: Demande) => {
+    setEditingId(item.id)
+    setTitre(item.titre)
+    setDesc(item.description || '')
+    setAuteur(item.auteur)
+    setDest(item.destinataire)
+    setPrio(item.priorite)
+    setCat(item.categorie || 'Divers')
+    setCatChosen(true)
+    setFormOpen(true)
+  }
+
+  const update = async () => {
+    if (!editingId || !titre.trim()) return
+    setSaving(true)
+    await sb.from('suivi_demandes').update({ titre, description: desc || null, auteur, destinataire: dest, priorite: prio, categorie: cat }).eq('id', editingId)
+    setTitre(''); setDesc(''); setPrio('Normal'); setCat('Interface & expérience'); setCatChosen(false); setEditingId(null); setFormOpen(false)
+    await load()
+    setSaving(false)
+  }
 
   const load = async () => {
     const { data } = await sb.from('suivi_demandes').select('*').order('created_at', { ascending: false })
@@ -137,7 +159,7 @@ export default function SuiviPage() {
           {/* Formulaire */}
           {formOpen && (
             <div style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#1A1A1A', marginBottom: 12 }}>Nouvelle demande</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: '#1A1A1A', marginBottom: 12 }}>{editingId ? 'Modifier la demande' : 'Nouvelle demande'}</div>
               <input value={titre} onChange={e => setTitre(e.target.value)} placeholder="Titre de la demande"
                 style={{ width: '100%', border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 8, padding: '8px 12px', fontSize: 13, fontFamily: 'inherit', marginBottom: 8, outline: 'none', color: '#1A1A1A' }} />
               <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Description (optionnel)"
@@ -185,11 +207,11 @@ export default function SuiviPage() {
               </div>
 
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={add} disabled={saving || !titre.trim() || !catChosen}
+                <button onClick={editingId ? update : add} disabled={saving || !titre.trim() || !catChosen}
                   style={{ background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', opacity: !titre.trim() ? 0.4 : 1 }}>
-                  {saving ? 'Ajout...' : 'Ajouter'}
+                  {saving ? 'Enregistrement...' : editingId ? 'Enregistrer' : 'Ajouter'}
                 </button>
-                <button onClick={() => setFormOpen(false)}
+                <button onClick={() => { setFormOpen(false); setEditingId(null); setTitre(''); setDesc('') }}
                   style={{ background: 'transparent', color: '#8C9BAB', border: '0.5px solid rgba(0,0,0,0.12)', borderRadius: 8, padding: '8px 16px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
                   Annuler
                 </button>
@@ -301,6 +323,10 @@ export default function SuiviPage() {
                           <option value="fait">Fait</option>
                         </select>
                       )}
+                      <button onClick={() => openEdit(item)}
+                        style={{ background: 'none', border: '0.5px solid rgba(0,0,0,0.12)', borderRadius: 6, cursor: 'pointer', color: '#8C9BAB', padding: '2px 8px', fontSize: 11, fontFamily: 'inherit' }}>
+                        Modifier
+                      </button>
                       <button onClick={() => del(item.id)}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.2)', padding: '2px 4px', fontSize: 16, lineHeight: 1 }}>
                         ×
