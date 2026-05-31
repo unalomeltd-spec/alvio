@@ -80,6 +80,10 @@ export default function BalanceSheetPage() {
 
   const totalActif = actif.reduce((s,r) => s + Math.abs(r.val), 0)
   const totalPassif = passif.reduce((s,r) => s + Math.abs(r.val), 0)
+  const ind = lignesActives.length > 0 ? (() => {
+    const s = (rs: string[]) => { let t=0; for(const l of lignesActives) for(const r of rs) if(l.CompteNum.startsWith(r)){t+=l.Debit-l.Credit;break}; return t }
+    return { treso: s(['51','53']), bfr: s(['41'])-(-s(['40','42','43'])), ca: -s(['701','702','703','704','705','706','707','708']) }
+  })() : null
 
   if (loading) return (
     <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
@@ -129,7 +133,7 @@ export default function BalanceSheetPage() {
             </div>
           ) : (
             <div style={{ maxWidth:960 }}>
-              <AlvioInsight payload={{ page:'balance-sheet', annee:anneeActive, periode: periodeTab==='perso'&&dateDebut&&dateFin?`${dateDebut} → ${dateFin}`:undefined, indicateurs:{ treso:ind.treso, bfr:ind.bfr, ca:ind.ca } }} />
+              {ind && <AlvioInsight payload={{ page:'balance-sheet', annee:anneeActive, periode: periodeTab==='perso'&&dateDebut&&dateFin?`${dateDebut} → ${dateFin}`:undefined, indicateurs:{ treso:ind.treso, bfr:ind.bfr, ca:ind.ca } }} />}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
                 <div style={{ background:'#fff', borderRadius:10, border:'0.5px solid rgba(0,0,0,0.06)', padding:'18px 20px' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
