@@ -1241,7 +1241,7 @@ function Topbar({ titre, periodeTab, setPeriodeTab, hasData, labelPer, nomFichie
             )}
             {/* Dates perso inline */}
             {periodeTab === 'perso' && !ddOpen && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 0, position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', border: '0.5px solid rgba(0,0,0,0.12)', borderRadius: 7, padding: '5px 10px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', zIndex: 100 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', border: '0.5px solid rgba(0,0,0,0.12)', borderRadius: 7, padding: '5px 10px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', zIndex: 100 }}>
                 <input type="date" value={dateDebut} onChange={e => setDateDebut(e.target.value)} style={{ border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 5, padding: '3px 7px', fontSize: 11, color: '#1A1A1A', outline: 'none' }} />
                 <span style={{ fontSize: 11, color: '#8C9BAB' }}>→</span>
                 <input type="date" value={dateFin} onChange={e => setDateFin(e.target.value)} style={{ border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 5, padding: '3px 7px', fontSize: 11, color: '#1A1A1A', outline: 'none' }} />
