@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+const FJ: Record<string,string> = {"1000": "Entrepreneur individuel", "2110": "Indivision", "2210": "GEIE", "2220": "GIE", "3110": "SNC", "3120": "SCS", "3210": "SA", "3220": "SA à directoire", "3310": "SARL", "3410": "EURL", "3420": "SARL", "5202": "SAS", "5308": "SAS", "5410": "SA", "5415": "SA", "5498": "SARL", "5499": "SARL unipersonnelle", "5505": "SAS", "5510": "SAS", "5515": "SASU", "5520": "SAS", "5600": "SA", "5610": "SA", "6100": "Caisse d epargne", "7111": "Association loi 1901", "7112": "Association", "7381": "Syndicat", "8210": "EPIC", "8220": "EPA", "9210": "SCI", "9220": "SCI", "9221": "SCI"}
+
+
 export async function GET(request: NextRequest) {
   const siren = request.nextUrl.searchParams.get('siren')
 
@@ -25,7 +28,9 @@ export async function GET(request: NextRequest) {
     const siege = r.siege ?? {}
 
     const dirigeants = (r.dirigeants ?? []).slice(0, 5).map((d: Record<string, string>) => {
-      const nom = ((d.prenom ?? '') + ' ' + (d.nom ?? '')).trim() || (d.denomination ?? '')
+      const prenom = (d.prenom ?? d.prenoms ?? '').trim()
+      const nomFam = (d.nom ?? '').trim()
+      const nom = prenom && nomFam ? prenom + ' ' + nomFam : (prenom || nomFam || (d.denomination ?? ''))
       return { nom, fonction: d.qualite ?? '' }
     })
 
@@ -33,11 +38,11 @@ export async function GET(request: NextRequest) {
       siren:            r.siren ?? siren,
       siret_siege:      siege.siret ?? '',
       nom:              r.nom_raison_sociale ?? r.nom_complet ?? '',
-      forme_juridique:  r.nature_juridique ?? '',
+      forme_juridique:  FJ[r.nature_juridique] ?? r.nature_juridique ?? '',
       capital:          null,
       date_creation:    r.date_creation ?? '',
       code_naf:         siege.activite_principale ?? r.activite_principale ?? '',
-      libelle_naf:      r.libelle_activite_principale_unite_legale ?? '',
+      libelle_naf:      siege.libelle_activite_principale ?? r.libelle_activite_principale_unite_legale ?? '',
       adresse:          siege.adresse ?? '',
       ville:            siege.libelle_commune ?? '',
       code_postal:      siege.code_postal ?? '',

@@ -35,6 +35,9 @@ interface ExerciceResume {
   tresorerie: number
 }
 
+
+const fmtSiren = (s: string) => s.replace(/^(\d{3})(\d{3})(\d{3})$/, '$1 $2 $3')
+const fmtSiret = (s: string) => s.replace(/^(\d{3})(\d{3})(\d{3})(\d{5})$/, '$1 $2 $3 $4')
 const fmt = (n: number) =>
   new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' €'
 
@@ -232,7 +235,7 @@ export default function EntreprisePage() {
           <span style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A' }}>Fiche societe</span>
           {entreprise && (
             <div style={{ fontSize: 11, color: '#8C9BAB', fontStyle: 'italic' }}>
-              SIREN <strong style={{ color: '#1A1A1A', fontStyle: 'normal' }}>{siren}</strong>
+              SIREN <strong style={{ color: '#1A1A1A', fontStyle: 'normal' }}>{fmtSiren(siren)}</strong>
             </div>
           )}
         </div>
@@ -278,7 +281,7 @@ export default function EntreprisePage() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ color: '#F2F3F5', fontSize: 18, fontWeight: 500, marginBottom: 4 }}>{entreprise.nom}</div>
-                  <div style={{ color: '#8C9BAB', fontSize: 12 }}>{entreprise.forme_juridique} · SIREN {siren} · {entreprise.ville}</div>
+                  <div style={{ color: '#8C9BAB', fontSize: 12 }}>{entreprise.forme_juridique} · SIREN {fmtSiren(siren)} · {entreprise.ville}</div>
                 </div>
                 <button
                   onClick={() => { setEntreprise(null); setSirenInput('') }}
@@ -295,8 +298,8 @@ export default function EntreprisePage() {
                     <div style={{ fontSize: 13, fontWeight: 500, color: '#1A1A1A', marginBottom: 16 }}>Informations legales</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                       {[
-                        ['SIREN', siren],
-                        ['SIRET siege', entreprise.siret_siege],
+                        ['SIREN', fmtSiren(siren)],
+                        ['SIRET siege', fmtSiret(entreprise.siret_siege)],
                         ['Forme juridique', entreprise.forme_juridique],
                         ['Date de creation', entreprise.date_creation],
                         ['Code NAF', entreprise.code_naf],
