@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import AppSidebar from '@/components/Sidebar'
 import PeriodSelector from '@/components/PeriodSelector'
+import AlvioInsight from '@/components/AlvioInsight'
 import { calculerIndicateurs, getMonthlyCash, filtrerLignes } from '@/hooks/useFEC'
 import type { LigneFEC, Indicateurs } from '@/hooks/useFEC'
 
@@ -242,14 +243,7 @@ export default function DashboardPage() {
           ) : (
             <div style={{ maxWidth:1100 }}>
 
-              {/* Alerte Alvio */}
-              <div style={{ background:'rgba(184,169,138,0.06)', border:'0.5px solid rgba(184,169,138,0.2)', borderRadius:12, padding:'14px 18px', marginBottom:24, display:'flex', gap:14, alignItems:'flex-start' }}>
-                <div style={{ width:36, height:36, borderRadius:10, background:'#1A1A1A', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:18 }}>💬</div>
-                <div>
-                  <div style={{ fontSize:11, fontWeight:600, color:'#B8A98A', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Agent Alvio</div>
-                  <div style={{ fontSize:13, color:'#1A1A1A', lineHeight:1.6 }}>{alvioMessage()}</div>
-                </div>
-              </div>
+              <AlvioInsight payload={{ page:'dashboard', annee:anneeActive, periode: periodeTab==='perso'&&dateDebut&&dateFin?`${dateDebut} → ${dateFin}`:undefined, indicateurs:{ ca:ind.ca, mb:ind.mb, ebe:ind.ebe, rnet:ind.rnet, treso:ind.treso, bfr:ind.bfr, tauxMb:ind.tauxMb, tauxEbe:ind.tauxEbe, tauxRnet:ind.tauxRnet, tauxPers:ind.tauxPers } }} />
 
               {/* 4 KPIs */}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:24 }}>
