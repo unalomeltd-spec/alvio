@@ -191,7 +191,7 @@ export default function EntreprisePage() {
       {/* Sidebar */}
       <div style={{ width: 216, minWidth: 216, background: '#1A1A1A', display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '18px 20px 14px', borderBottom: '0.5px solid rgba(184,169,138,0.18)' }}>
-          <div style={{ color: '#B8A98A', fontSize: 15, fontWeight: 500, letterSpacing: '0.05em' }}>Alvio</div>
+          <a href='/dashboard' style={{ color: '#B8A98A', fontSize: 15, fontWeight: 500, letterSpacing: '0.05em', textDecoration: 'none', cursor: 'pointer' }}>Alvio</a>
           <div style={{ color: '#8C9BAB', fontSize: 9, marginTop: 3 }}>Intelligence financiere en temps reel</div>
         </div>
         <div style={{ flex: 1, padding: '10px 0' }}>
