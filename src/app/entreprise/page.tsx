@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import Sidebar from '@/components/Sidebar'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -201,44 +202,7 @@ export default function EntreprisePage() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#F2F3F5', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
 
-      {/* Sidebar */}
-      <div style={{ width: 216, minWidth: 216, background: '#1A1A1A', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '18px 20px 14px', borderBottom: '0.5px solid rgba(184,169,138,0.18)' }}>
-          <a href='/dashboard' style={{ color: '#B8A98A', fontSize: 15, fontWeight: 500, letterSpacing: '0.05em', textDecoration: 'none', cursor: 'pointer' }}>Alvio</a>
-          <div style={{ color: '#8C9BAB', fontSize: 9, marginTop: 3 }}>Intelligence financiere en temps reel</div>
-        </div>
-        <div style={{ flex: 1, padding: '10px 0' }}>
-          <div style={{ padding: '10px 20px 4px', color: 'rgba(140,155,171,0.5)', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Analyse</div>
-          {[
-            { label: 'KPIs & SIG',    href: '/dashboard', d: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z' },
-            { label: 'Tresorerie',    href: '/dashboard', d: 'M3 3v18h18M7 16l4-4 4 4 5-5' },
-            { label: 'Previsionnel',  href: '/dashboard', d: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01' },
-            { label: 'Simulations',   href: '/dashboard', d: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z' },
-            { label: 'Export',        href: '/dashboard', d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12' },
-          ].map(item => (
-            <a key={item.label} href={item.href} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 20px', borderLeft: '2px solid transparent', color: '#8C9BAB', fontSize: 12, cursor: 'pointer', textDecoration: 'none' }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={item.d} /></svg>
-              {item.label}
-            </a>
-          ))}
-          <div style={{ padding: '10px 20px 4px', color: 'rgba(140,155,171,0.5)', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 8 }}>Mon espace</div>
-          <a href="/entreprise" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 18px', borderLeft: '2px solid #B8A98A', background: 'rgba(184,169,138,0.1)', color: '#B8A98A', fontSize: 12, cursor: 'pointer', textDecoration: 'none' }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            Fiche societe
-          </a>
-        </div>
-        <div style={{ padding: '12px 20px', borderTop: '0.5px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(184,169,138,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#B8A98A', fontSize: 10, fontWeight: 500, flexShrink: 0 }}>
-              {userEmail.slice(0, 2).toUpperCase()}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: '#F2F3F5', fontSize: 11, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail}</div>
-              <div style={{ color: '#8C9BAB', fontSize: 9 }}>{entreprise?.nom || 'Beta'}</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <Sidebar activePage="company"/>
 
       {/* Contenu */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
