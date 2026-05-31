@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import Sidebar from '@/components/Sidebar'
 import PeriodSelector from '@/components/PeriodSelector'
 import { calculerIndicateurs, filtrerLignes } from '@/hooks/useFEC'
+import AlvioInsight from '@/components/AlvioInsight'
 import type { LigneFEC, Indicateurs } from '@/hooks/useFEC'
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -102,6 +103,7 @@ export default function IncomeStatementPage() {
             </div>
           ) : (
             <div style={{ maxWidth:800 }}>
+              <AlvioInsight payload={{ page:'income-statement', annee:anneeActive, periode: periodeTab==='perso'&&dateDebut&&dateFin?`${dateDebut} → ${dateFin}`:undefined, indicateurs:{ ca:ind.ca, mb:ind.mb, rex:ind.rex, rnet:ind.rnet, rfin:ind.rfin, tauxMb:ind.tauxMb, tauxRnet:ind.tauxRnet } }} />
               <div style={{ background:'#fff', borderRadius:10, border:'0.5px solid rgba(0,0,0,0.06)', overflow:'hidden' }}>
                 <div style={{ display:'flex', background:'#1A1A1A', padding:'10px 16px' }}>
                   <div style={{ flex:1, fontSize:11, fontWeight:500, color:'#F2F3F5', textTransform:'uppercase', letterSpacing:'0.06em' }}>Libellé</div>

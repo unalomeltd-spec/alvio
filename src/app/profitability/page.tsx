@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import Sidebar from '@/components/Sidebar'
 import PeriodSelector from '@/components/PeriodSelector'
 import { calculerIndicateurs, filtrerLignes } from '@/hooks/useFEC'
+import AlvioInsight from '@/components/AlvioInsight'
 import type { LigneFEC, Indicateurs } from '@/hooks/useFEC'
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -91,12 +92,7 @@ export default function ProfitabilityPage() {
             </div>
           ) : (
             <div style={{ maxWidth:960 }}>
-              <div style={{ background:'rgba(184,169,138,0.06)', border:'0.5px solid rgba(184,169,138,0.25)', borderRadius:10, padding:'12px 16px', marginBottom:20, display:'flex', gap:12, alignItems:'flex-start' }}>
-                <div style={{ width:32, height:32, borderRadius:8, background:'rgba(184,169,138,0.12)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:16 }}>💡</div>
-                <div style={{ fontSize:12, color:'#5C6670', lineHeight:1.6 }}>
-                  <strong style={{ color:'#1A1A1A' }}>Alvio analyse :</strong> Marge brute à {fmtP(ind.tauxMb)} — {ind.tauxMb>40?'bonne performance commerciale':'marge à optimiser'}. {ind.tauxPers>55?`Masse salariale élevée : ${fmtP(ind.tauxPers)} du CA.`:`Masse salariale maîtrisée : ${fmtP(ind.tauxPers)} du CA.`}
-                </div>
-              </div>
+              <AlvioInsight payload={{ page:'profitability', annee:anneeActive, periode: periodeTab==='perso'&&dateDebut&&dateFin?`${dateDebut} → ${dateFin}`:undefined, indicateurs:{ ca:ind.ca, mb:ind.mb, ebe:ind.ebe, rex:ind.rex, rnet:ind.rnet, tauxMb:ind.tauxMb, tauxEbe:ind.tauxEbe, tauxRex:ind.tauxRex, tauxRnet:ind.tauxRnet, tauxPers:ind.tauxPers, pers64:ind.pers64 } }} />
               <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
                 {kpis.map((k,i) => (
                   <div key={k.label} onMouseEnter={() => setHov(i)} onMouseLeave={() => setHov(null)}

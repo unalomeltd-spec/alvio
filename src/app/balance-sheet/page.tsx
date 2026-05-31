@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import Sidebar from '@/components/Sidebar'
 import PeriodSelector from '@/components/PeriodSelector'
 import { calculerIndicateurs, filtrerLignes } from '@/hooks/useFEC'
+import AlvioInsight from '@/components/AlvioInsight'
 import type { LigneFEC, Indicateurs } from '@/hooks/useFEC'
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -128,6 +129,7 @@ export default function BalanceSheetPage() {
             </div>
           ) : (
             <div style={{ maxWidth:960 }}>
+              <AlvioInsight payload={{ page:'balance-sheet', annee:anneeActive, periode: periodeTab==='perso'&&dateDebut&&dateFin?`${dateDebut} → ${dateFin}`:undefined, indicateurs:{ treso:ind.treso, bfr:ind.bfr, ca:ind.ca } }} />
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
                 <div style={{ background:'#fff', borderRadius:10, border:'0.5px solid rgba(0,0,0,0.06)', padding:'18px 20px' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>

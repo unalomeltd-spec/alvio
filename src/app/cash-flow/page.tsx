@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import Sidebar from '@/components/Sidebar'
 import PeriodSelector from '@/components/PeriodSelector'
 import { calculerIndicateurs, filtrerLignes, getMonthlyCash } from '@/hooks/useFEC'
+import AlvioInsight from '@/components/AlvioInsight'
 import type { LigneFEC, Indicateurs } from '@/hooks/useFEC'
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -84,6 +85,7 @@ export default function CashFlowPage() {
             </div>
           ) : (
             <div style={{ maxWidth:960 }}>
+              <AlvioInsight payload={{ page:'cash-flow', annee:anneeActive, periode: periodeTab==='perso'&&dateDebut&&dateFin?`${dateDebut} → ${dateFin}`:undefined, indicateurs:{ ca:ind.ca, treso:ind.treso, ebe:ind.ebe, bfr:ind.bfr, tauxMb:ind.tauxMb } }} />
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:20 }}>
                 {[
                   { label:'Trésorerie nette', val:fmt(ind.treso), color:ind.treso>=0?'#1D9E75':'#D85A30', accent:ind.treso>=0?'#1D9E75':'#D85A30' },
