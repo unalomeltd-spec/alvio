@@ -114,6 +114,9 @@ export default function DashboardPage() {
   const [periodeTab, setPeriodeTab] = useState<'exercice'|'perso'>('exercice')
   const [dateDebut, setDateDebut] = useState('')
   const [dateFin, setDateFin] = useState('')
+  const [anneeN1, setAnneeN1] = useState(new Date().getFullYear() - 1)
+  const [dateDebutN1, setDateDebutN1] = useState('')
+  const [dateFinN1, setDateFinN1] = useState('')
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [erreur, setErreur] = useState('')
@@ -149,8 +152,21 @@ export default function DashboardPage() {
   })()
 
   const anneesDisponibles = Object.keys(exercices).map(Number).sort((a,b) => b-a)
+  const lignesN1: LigneFEC[] = (() => {
+    if (dateDebutN1 && dateFinN1) {
+      const merged: LigneFEC[] = []
+      for (const a of Object.keys(exercices).map(Number).sort((x,y) => x-y)) {
+        const ex = exercices[a]; if (!ex) continue
+        const dates = ex.lignes.map((l:LigneFEC) => toIso(l.EcritureDate)).filter(Boolean).sort()
+        if (dates.length && toIso(dates[dates.length-1]) >= dateDebutN1 && toIso(dates[0]) <= dateFinN1)
+          merged.push(...filtrerLignes(ex.lignes, 'perso', dateDebutN1, dateFinN1))
+      }
+      if (merged.length > 0) return merged
+    }
+    return exercices[anneeN1]?.lignes ?? []
+  })()
   const ind: Indicateurs | null = lignesActives.length > 0 ? calculerIndicateurs(lignesActives) : null
-  const indN1: Indicateurs | null = exercices[anneeActive-1] ? calculerIndicateurs(exercices[anneeActive-1].lignes) : null
+  const indN1: Indicateurs | null = lignesN1.length > 0 ? calculerIndicateurs(lignesN1) : null
   const monthly = ind ? getMonthlyCash(lignesActives) : []
 
   const handleFEC = async (file: File) => {
@@ -218,7 +234,7 @@ export default function DashboardPage() {
               <PeriodSelector annees={anneesDisponibles} anneeActive={anneeActive} setAnneeActive={setAnneeActive}
                 periodeTab={periodeTab} setPeriodeTab={setPeriodeTab}
                 dateDebut={dateDebut} setDateDebut={setDateDebut}
-                dateFin={dateFin} setDateFin={setDateFin} />
+                dateFin={dateFin} setDateFin={setDateFin} anneeN1={anneeN1} setAnneeN1={setAnneeN1} dateDebutN1={dateDebutN1} setDateDebutN1={setDateDebutN1} dateFinN1={dateFinN1} setDateFinN1={setDateFinN1} />
             )}
           </div>
           <label style={{ display:'flex', alignItems:'center', gap:7, background:'#1A1A1A', color:'#F2F3F5', border:'none', borderRadius:7, padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer' }}>
