@@ -1,4 +1,5 @@
 'use client'
+import React from 'react'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
@@ -1104,49 +1105,156 @@ function Topbar({ titre, periodeTab, setPeriodeTab, hasData, labelPer, nomFichie
   anneesDisponibles?: number[]
   setAnneeActive?: (a: number) => void
 }) {
-  const savLabel = sauvegarde === 'saving' ? 'Sauvegarde...' : sauvegarde === 'saved' ? 'Sauvegarde' : sauvegarde === 'error' ? 'Erreur sauvegarde' : null
+  const [ddOpen, setDdOpen] = React.useState(false)
+  const [ddSub, setDdSub] = React.useState<number|null>(null)
+  const ddRef = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => {
+    const h = (e: MouseEvent) => { if (ddRef.current && !ddRef.current.contains(e.target as Node)) { setDdOpen(false); setDdSub(null) } }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [])
+
+  const MOIS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
+  const moisCodes = ['01','02','03','04','05','06','07','08','09','10','11','12']
+
+  const labelPeriode = () => {
+    if (periodeTab === 'perso' && dateDebut && dateFin) return `${dateDebut.slice(8,10)}/${dateDebut.slice(5,7)} → ${dateFin.slice(8,10)}/${dateFin.slice(5,7)}`
+    if (periodeTab === 'exercice') return 'Période complète'
+    return labelPer || 'Période complète'
+  }
+
+  const selectMois = (annee: number, moisIdx: number) => {
+    const m = moisCodes[moisIdx]
+    const lastDay = new Date(annee, moisIdx + 1, 0).getDate()
+    setPeriodeTab('perso')
+    setDateDebut(`${annee}-${m}-01`)
+    setDateFin(`${annee}-${m}-${String(lastDay).padStart(2,'0')}`)
+    if (setAnneeActive) setAnneeActive(annee)
+    setDdOpen(false); setDdSub(null)
+  }
+
+  const selectTrimestre = (annee: number, t: number) => {
+    const debuts = ['01','04','07','10']
+    const fins = ['03','06','09','12']
+    const finsJ = [31,30,30,31]
+    setPeriodeTab('perso')
+    setDateDebut(`${annee}-${debuts[t]}-01`)
+    setDateFin(`${annee}-${fins[t]}-${finsJ[t]}`)
+    if (setAnneeActive) setAnneeActive(annee)
+    setDdOpen(false); setDdSub(null)
+  }
+
+  const selectExercice = (annee: number) => {
+    setPeriodeTab('exercice')
+    if (setAnneeActive) setAnneeActive(annee)
+    setDdOpen(false); setDdSub(null)
+  }
+
+  const navigueAnnee = (dir: number) => {
+    if (!anneesDisponibles || !setAnneeActive) return
+    const idx = anneesDisponibles.indexOf(anneeActive ?? anneesDisponibles[0])
+    const next = anneesDisponibles[idx + dir]
+    if (next !== undefined) { setAnneeActive(next); setPeriodeTab('exercice') }
+  }
+
+  const savLabel = sauvegarde === 'saving' ? 'Sauvegarde...' : sauvegarde === 'saved' ? 'Sauvegardé' : sauvegarde === 'error' ? 'Erreur' : null
   const savColor = sauvegarde === 'saved' ? '#0F6E56' : sauvegarde === 'error' ? '#993C1D' : '#8C9BAB'
+
+  const annees = anneesDisponibles ?? []
+  const anneeIdx = annees.indexOf(anneeActive ?? annees[0])
+
   return (
     <div style={{ background: '#fff', borderBottom: '0.5px solid rgba(0,0,0,0.07)', padding: '0 24px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A' }}>{titre}</span>
         {hasData && (
-          <>
-            {/* Sélecteur d'exercice */}
-            {anneesDisponibles && anneesDisponibles.length > 1 && setAnneeActive && (
-              <div style={{ display: 'flex', background: '#F2F3F5', borderRadius: 6, padding: 2, gap: 2 }}>
-                {anneesDisponibles.map(a => (
-                  <div key={a} onClick={() => setAnneeActive(a)} style={{ padding: '4px 12px', borderRadius: 5, fontSize: 11, fontWeight: 500, cursor: 'pointer', background: anneeActive === a ? '#fff' : 'transparent', color: anneeActive === a ? '#1A1A1A' : '#8C9BAB', boxShadow: anneeActive === a ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>
-                    {a}
-                  </div>
-                ))}
-              </div>
-            )}
-            {/* Période */}
-            <div style={{ display: 'flex', background: '#F2F3F5', borderRadius: 6, padding: 2, gap: 2 }}>
-              {(['exercice', 'perso'] as const).map(t => (
-                <div key={t} onClick={() => setPeriodeTab(t)} style={{ padding: '4px 12px', borderRadius: 5, fontSize: 11, fontWeight: 500, cursor: 'pointer', background: periodeTab === t ? '#fff' : 'transparent', color: periodeTab === t ? '#1A1A1A' : '#8C9BAB', boxShadow: periodeTab === t ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', whiteSpace: 'nowrap' }}>
-                  {t === 'exercice' ? 'Exercice complet' : 'Personnalise'}
-                </div>
-              ))}
+          <div ref={ddRef} style={{ position: 'relative' }}>
+            {/* Trigger */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 0, border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 7, overflow: 'hidden' }}>
+              <button onClick={() => navigueAnnee(-1)} disabled={anneeIdx <= 0} style={{ padding: '5px 8px', background: 'none', border: 'none', cursor: anneeIdx > 0 ? 'pointer' : 'default', color: anneeIdx > 0 ? '#1A1A1A' : '#C8D0DA', fontSize: 12, display: 'flex', alignItems: 'center' }}>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M8 2L4 6L8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+              <button onClick={() => setDdOpen(o => !o)} style={{ padding: '5px 10px', background: ddOpen ? '#F2F3F5' : '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500, color: '#1A1A1A', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                {anneeActive ? `Exercice ${anneeActive}` : 'Exercice'} · {labelPeriode()}
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transform: ddOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}><path d="M2 3.5L5 6.5L8 3.5" stroke="#8C9BAB" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+              <button onClick={() => navigueAnnee(1)} disabled={anneeIdx >= annees.length - 1} style={{ padding: '5px 8px', background: 'none', border: 'none', cursor: anneeIdx < annees.length - 1 ? 'pointer' : 'default', color: anneeIdx < annees.length - 1 ? '#1A1A1A' : '#C8D0DA', fontSize: 12, display: 'flex', alignItems: 'center' }}>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2L8 6L4 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
             </div>
-            {periodeTab === 'perso' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input type="date" value={dateDebut} onChange={e => setDateDebut(e.target.value)} style={{ border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 6, padding: '4px 8px', fontSize: 11, color: '#1A1A1A', background: '#fff', outline: 'none' }} />
-                <span style={{ fontSize: 11, color: '#8C9BAB' }}>→</span>
-                <input type="date" value={dateFin} onChange={e => setDateFin(e.target.value)} style={{ border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 6, padding: '4px 8px', fontSize: 11, color: '#1A1A1A', background: '#fff', outline: 'none' }} />
+            {/* Dropdown */}
+            {ddOpen && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', borderRadius: 10, border: '0.5px solid rgba(0,0,0,0.1)', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 100, minWidth: 220, overflow: 'hidden' }}>
+                {ddSub === null ? (
+                  <>
+                    {annees.map(a => (
+                      <div key={a} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 14px', cursor: 'pointer', background: anneeActive === a ? 'rgba(184,169,138,0.08)' : 'transparent', borderBottom: '0.5px solid rgba(0,0,0,0.05)' }}
+                        onMouseEnter={e => { if (anneeActive !== a) (e.currentTarget as HTMLElement).style.background = '#F7F8FA' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = anneeActive === a ? 'rgba(184,169,138,0.08)' : 'transparent' }}
+                        onClick={() => setDdSub(a)}>
+                        <span style={{ fontSize: 13, fontWeight: 500, color: '#1A1A1A' }}>Exercice {a}</span>
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2L8 6L4 10" stroke="#8C9BAB" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </div>
+                    ))}
+                    <div style={{ padding: '9px 14px', cursor: 'pointer', borderTop: '0.5px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', gap: 8 }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F7F8FA'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                      onClick={() => { setPeriodeTab('perso'); setDdOpen(false) }}>
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="14" height="13" rx="2" stroke="#8C9BAB" strokeWidth="1.2"/><path d="M5 1v2M11 1v2M1 6h14" stroke="#8C9BAB" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                      <span style={{ fontSize: 13, color: '#5C6670' }}>Dates personnalisées</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 14px', borderBottom: '0.5px solid rgba(0,0,0,0.07)', cursor: 'pointer' }}
+                      onClick={() => setDdSub(null)}>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M8 2L4 6L8 10" stroke="#8C9BAB" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A' }}>Exercice {ddSub}</span>
+                    </div>
+                    <div style={{ padding: '7px 14px', cursor: 'pointer', background: periodeTab === 'exercice' && anneeActive === ddSub ? 'rgba(184,169,138,0.08)' : 'transparent' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F7F8FA'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = periodeTab === 'exercice' && anneeActive === ddSub ? 'rgba(184,169,138,0.08)' : 'transparent'}
+                      onClick={() => selectExercice(ddSub)}>
+                      <span style={{ fontSize: 12, color: '#1A1A1A', fontWeight: 500 }}>Période complète</span>
+                    </div>
+                    <div style={{ padding: '4px 14px 2px', fontSize: 9, fontWeight: 600, color: '#8C9BAB', letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>Mois</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 1, padding: '0 8px 6px' }}>
+                      {MOIS.map((m, i) => (
+                        <div key={m} style={{ padding: '5px 6px', borderRadius: 5, cursor: 'pointer', fontSize: 11, color: '#1A1A1A', textAlign: 'center' as const }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F2F3F5'}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                          onClick={() => selectMois(ddSub, i)}>{m.slice(0,3)}</div>
+                      ))}
+                    </div>
+                    <div style={{ padding: '4px 14px 2px', fontSize: 9, fontWeight: 600, color: '#8C9BAB', letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>Trimestres</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, padding: '0 8px 8px' }}>
+                      {['T1','T2','T3','T4'].map((t, i) => (
+                        <div key={t} style={{ padding: '5px 6px', borderRadius: 5, cursor: 'pointer', fontSize: 11, color: '#1A1A1A', textAlign: 'center' as const }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F2F3F5'}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                          onClick={() => selectTrimestre(ddSub, i)}>{t}</div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
-            <span style={{ fontSize: 11, color: '#B8A98A', fontWeight: 500 }}>{labelPer}</span>
-          </>
+            {/* Dates perso inline */}
+            {periodeTab === 'perso' && !ddOpen && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 0, position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', border: '0.5px solid rgba(0,0,0,0.12)', borderRadius: 7, padding: '5px 10px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', zIndex: 100 }}>
+                <input type="date" value={dateDebut} onChange={e => setDateDebut(e.target.value)} style={{ border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 5, padding: '3px 7px', fontSize: 11, color: '#1A1A1A', outline: 'none' }} />
+                <span style={{ fontSize: 11, color: '#8C9BAB' }}>→</span>
+                <input type="date" value={dateFin} onChange={e => setDateFin(e.target.value)} style={{ border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 5, padding: '3px 7px', fontSize: 11, color: '#1A1A1A', outline: 'none' }} />
+                <button onClick={() => setPeriodeTab('exercice')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8C9BAB', fontSize: 14, lineHeight: 1 }}>×</button>
+              </div>
+            )}
+          </div>
         )}
       </div>
       {hasData && nomFichier && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {savLabel && <span style={{ fontSize: 11, color: savColor, fontStyle: 'italic' }}>{savLabel}</span>}
-          <span style={{ fontSize: 11, color: '#8C9BAB', fontStyle: 'italic' }}>
-            <strong style={{ color: '#1A1A1A', fontStyle: 'normal', fontWeight: 500 }}>Source : </strong>{nomFichier} · {nbLignes?.toLocaleString('fr-FR')} lignes
-          </span>
+          <span style={{ fontSize: 11, color: '#8C9BAB', fontStyle: 'italic' }}>{nomFichier}</span>
         </div>
       )}
     </div>
