@@ -205,7 +205,7 @@ export default function SuiviPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {visible.map(item => (
-                <div key={item.id} style={{ background: prioBg[item.priorite] || '#fff', border: `0.5px solid ${item.priorite === 'Urgent' ? 'rgba(216,90,48,0.2)' : 'rgba(0,0,0,0.06)'}`, borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'flex-start', gap: 12, background: '#fff' }}>
+                <div key={item.id} style={{ background: prioBg[item.priorite] || '#fff', border: `0.5px solid ${item.priorite === 'Urgent' ? 'rgba(216,90,48,0.2)' : 'rgba(0,0,0,0.06)'}`, borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
 
                   {/* Checkbox */}
                   <div onClick={() => item.statut === 'fait' ? uncheck(item.id) : check(item.id)}
