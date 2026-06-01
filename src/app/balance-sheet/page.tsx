@@ -294,8 +294,6 @@ export default function BalanceSheetPage() {
   const rnetFromPL = rnet120check < 1 ? lignesActives.filter(l => l.CompteNum.startsWith('7')).reduce((s,l) => s - (l.Debit - l.Credit), 0) - lignesActives.filter(l => l.CompteNum.startsWith('6')).reduce((s,l) => s + (l.Debit - l.Credit), 0) : 0
   const totalPassif       = totalCapPropres + totalProvRisques + totalDettes + Math.max(rnetFromPL, 0)
 
-  const ecart             = Math.abs(totalActif - Math.abs(totalPassif))
-  const hasDesequilibre   = ecart > 1
   const hasData           = lignesActives.length > 0 && totalActif !== 0
 
   const indBilan = useMemo(() => {
