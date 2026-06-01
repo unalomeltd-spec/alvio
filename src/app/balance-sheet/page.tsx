@@ -342,16 +342,7 @@ export default function BalanceSheetPage() {
               <div style={{ flex:1, minWidth:0 }}>
                 {indBilan && <AlvioInsight payload={{ page:'balance-sheet', annee:anneeActive, periode: periodeTab==='perso'&&dateDebut&&dateFin?`${dateDebut} → ${dateFin}`:undefined, indicateurs:{ treso:indBilan.treso, bfr:indBilan.bfr, ca:indBilan.ca } }} />}
 
-                {hasDesequilibre && (
-                  <div style={{ background:'rgba(184,169,138,0.08)', border:'0.5px solid rgba(184,169,138,0.3)', borderLeft:'3px solid #B8A98A', borderRadius:'0 10px 10px 0', padding:'12px 16px', marginBottom:16, display:'flex', alignItems:'flex-start', gap:10 }}>
-                    <span style={{ fontSize:16, flexShrink:0 }}>ℹ️</span>
-                    <div>
-                      <div style={{ fontSize:12, fontWeight:500, color:'#1A1A1A', marginBottom:3 }}>Bilan non équilibré — normal avec un FEC mono-exercice</div>
-                      <div style={{ fontSize:11, color:'#8C9BAB', lineHeight:1.6 }}>Le FEC ne contient que les mouvements de l'exercice en cours. Les soldes d'ouverture des capitaux propres, immobilisations et résultats antérieurs ne sont pas inclus. Pour un bilan équilibré, il faut importer les FEC de tous les exercices précédents ou les à-nouveaux (comptes 890/891).</div>
-                    </div>
-                  </div>
-                )}
-
+                
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
 
                   {/* ACTIF */}
