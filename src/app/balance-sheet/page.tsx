@@ -90,6 +90,15 @@ function soldeKeys(lignes: LigneFEC[], keys: string[]): number {
   return getSousComptes(lignes, keys).reduce((s, c) => s + c.valeur, 0)
 }
 
+// Retourne uniquement les soldes positifs (actif) ou négatifs (passif) d'un groupe
+function soldeActif(lignes: LigneFEC[], keys: string[]): number {
+  return getSousComptes(lignes, keys).reduce((s, c) => s + Math.max(c.valeur, 0), 0)
+}
+
+function soldePassif(lignes: LigneFEC[], keys: string[]): number {
+  return getSousComptes(lignes, keys).reduce((s, c) => s + Math.min(c.valeur, 0), 0)
+}
+
 interface PanelData { compte: string; label: string; valeur: number; ecritures: LigneFEC[] }
 
 function SidePanel({ data, onClose }: { data: PanelData; onClose: () => void }) {
@@ -269,16 +278,16 @@ export default function BalanceSheetPage() {
   const totalImmobFin     = useMemo(() => soldeKeys(lignesActives, ['immobFinBrut','immobFinProv']), [lignesActives])
   const totalActifImmo    = totalImmobIncorp + totalImmobCorp + totalImmobFin
   const totalStocks       = useMemo(() => soldeKeys(lignesActives, ['stocksMP','stocksEncours','stocksProduits','stocksMarchandises','provStocks']), [lignesActives])
-  const totalCreances     = useMemo(() => soldeKeys(lignesActives, ['creancesClients','provCreances','creancesEtat','autresCreances']), [lignesActives])
-  const totalTresoA       = useMemo(() => soldeKeys(lignesActives, ['vmp','banques','caisse','autresTresoA']), [lignesActives])
+  const totalCreances     = useMemo(() => soldeActif(lignesActives, ['creancesClients','provCreances','creancesEtat','autresCreances']), [lignesActives])
+  const totalTresoA       = useMemo(() => soldeActif(lignesActives, ['vmp','banques','caisse','autresTresoA']), [lignesActives])
   const totalActifCirc    = totalStocks + totalCreances + totalTresoA + soldeKeys(lignesActives, ['chargesRepartir'])
   const totalActif        = totalActifImmo + totalActifCirc
 
   // Totaux passif
-  const totalCapPropres   = useMemo(() => soldeKeys(lignesActives, ['capital','reserves','reportANouveau','resultatN','subventionsInvest','provReglementees']), [lignesActives])
-  const totalProvRisques  = useMemo(() => soldeKeys(lignesActives, ['provRisques','provCharges']), [lignesActives])
-  const totalDettesLT     = useMemo(() => soldeKeys(lignesActives, ['empruntsOblig','empruntsEtab','autresEmprunts']), [lignesActives])
-  const totalDettesCT     = useMemo(() => soldeKeys(lignesActives, ['dettesFourn','dettesSociales','dettesFiscales','autresDettes','concoursBancaires']), [lignesActives])
+  const totalCapPropres   = useMemo(() => Math.abs(soldePassif(lignesActives, ['capital','reserves','reportANouveau','resultatN','subventionsInvest','provReglementees'])), [lignesActives])
+  const totalProvRisques  = useMemo(() => Math.abs(soldePassif(lignesActives, ['provRisques','provCharges'])), [lignesActives])
+  const totalDettesLT     = useMemo(() => Math.abs(soldePassif(lignesActives, ['empruntsOblig','empruntsEtab','autresEmprunts'])), [lignesActives])
+  const totalDettesCT     = useMemo(() => Math.abs(soldePassif(lignesActives, ['dettesFourn','dettesSociales','dettesFiscales','autresDettes','concoursBancaires'])), [lignesActives])
   const totalDettes       = totalDettesLT + totalDettesCT
   const totalPassif       = totalCapPropres + totalProvRisques + totalDettes
 
