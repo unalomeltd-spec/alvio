@@ -19,6 +19,13 @@ function toIso(d: string): string {
   return d
 }
 
+// ── Décaler une date ISO d'un an en arrière ─────────────────────────────────
+function decalerAnMoins1(d: string): string {
+  if (!d) return ''
+  const y = parseInt(d.slice(0,4), 10)
+  return (y - 1) + d.slice(4)
+}
+
 // ── Groupes PCG complets pour le drill-down ─────────────────────────────────
 const PCG_GROUPES: Record<string, { prefixes: string[]; label: string; sign: 1|-1 }[]> = {
   venteMarchandises:  [{ prefixes:['707'], label:'Ventes de marchandises', sign:-1 }],
