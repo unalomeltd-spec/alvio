@@ -66,6 +66,11 @@ function getSousComptes(lignes: LigneFEC[], groupeKey: string) {
   return result.sort((a, b) => Math.abs(b.valeur) - Math.abs(a.valeur))
 }
 
+function formatCompte(num: string): string {
+  if (num.length >= 8) return num.slice(0, 8)
+  return num.padEnd(8, '0')
+}
+
 function solde(lignes: LigneFEC[], prefixes: string[], sign: 1 | -1 = 1): number {
   let t = 0
   for (const l of lignes) for (const p of prefixes) if (l.CompteNum.startsWith(p)) { t += l.Debit - l.Credit; break }
@@ -138,7 +143,7 @@ function SidePanel({ data, onClose }: { data: PanelData; onClose: () => void }) 
       <div style={{ background: '#1A1A1A', padding: '14px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#B8A98A', marginBottom: 2 }}>{data.compte}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#B8A98A', marginBottom: 2, fontFamily: 'monospace' }}>{formatCompte(data.compte)}</div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 8, maxWidth: 220 }}>{data.label}</div>
             <div style={{ fontSize: 22, fontWeight: 600, color: data.valeur >= 0 ? '#fff' : '#D85A30' }}>{fmt(Math.abs(data.valeur))}</div>
           </div>
@@ -223,7 +228,7 @@ function SigRow({
                   return (
                     <div key={j} onClick={() => setPanelData(active ? null : { compte: sc.prefix, label: sc.label, valeur: sc.valeur, ecritures: sc.ecritures })}
                       style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderBottom: j < dedSC.length-1 ? '0.5px solid rgba(0,0,0,0.04)' : 'none', cursor: 'pointer', background: active ? 'rgba(184,169,138,0.08)' : 'transparent' }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#B8A98A', minWidth: 40 }}>{sc.prefix}</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#B8A98A', minWidth: 70, fontFamily: 'monospace' }}>{formatCompte(sc.prefix)}</span>
                       <span style={{ flex: 1, fontSize: 12, color: '#1A1A1A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sc.label}</span>
                       <div style={{ width: 50, height: 4, background: 'rgba(0,0,0,0.06)', borderRadius: 2, flexShrink: 0 }}>
                         <div style={{ height: '100%', width: `${pctBar}%`, background: sc.valeur >= 0 ? '#D85A30' : '#1D9E75', borderRadius: 2 }} />
@@ -266,7 +271,7 @@ function SigRow({
             return (
               <div key={i} onClick={() => setPanelData(active ? null : { compte: sc.prefix, label: sc.label, valeur: sc.valeur, ecritures: sc.ecritures })}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderBottom: i < sousComptes.length-1 ? '0.5px solid rgba(0,0,0,0.04)' : 'none', cursor: 'pointer', background: active ? 'rgba(184,169,138,0.08)' : 'transparent', transition: 'background 0.1s' }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#B8A98A', minWidth: 44 }}>{sc.prefix}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#B8A98A', minWidth: 70, fontFamily: 'monospace' }}>{formatCompte(sc.prefix)}</span>
                 <span style={{ flex: 1, fontSize: 12, color: '#1A1A1A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sc.label}</span>
                 <div style={{ width: 60, height: 4, background: 'rgba(0,0,0,0.06)', borderRadius: 2, flexShrink: 0 }}>
                   <div style={{ height: '100%', width: `${pctBar}%`, background: color || '#B8A98A', borderRadius: 2 }} />
