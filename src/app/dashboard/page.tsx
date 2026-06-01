@@ -267,45 +267,22 @@ export default function DashboardPage() {
                   resultatNet: ind.rnet,
                   tresorerie: ind.treso,
                   bfr: ind.bfr,
+                  margebrute: ind.mb,
+                  tauxMb: ind.tauxMb,
+                  ebitda: ind.ebe,
+                  tauxEbe: ind.tauxEbe,
+                  detteFournisseurs: (() => { let t=0; for(const l of lignesActives) if(l.CompteNum.startsWith('40')){t+=l.Credit-l.Debit}; return t })(),
+                  creancesClients: (() => { let t=0; for(const l of lignesActives) if(l.CompteNum.startsWith('41')){t+=l.Debit-l.Credit}; return t })(),
                   deltaCA: indN1 && indN1.ca ? (ind.ca - indN1.ca) / Math.abs(indN1.ca) * 100 : undefined,
+                  deltaMb: indN1 && indN1.mb ? (ind.mb - indN1.mb) / Math.abs(indN1.mb) * 100 : undefined,
+                  deltaEbe: indN1 && indN1.ebe ? (ind.ebe - indN1.ebe) / Math.abs(indN1.ebe) * 100 : undefined,
+                  deltaRnet: indN1 && indN1.rnet ? (ind.rnet - indN1.rnet) / Math.abs(indN1.rnet) * 100 : undefined,
                 }}
               />
 
-              {/* 4 KPIs */}
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:24 }}>
-                <KpiCard label="Chiffre d'affaires" value={fmt(ind.ca)} icon="📈" color="#B8A98A"
-                  sub={indN1 ? undefined : undefined}
-                  delta={indN1 && ind.ca > 0 ? { val: ind.ca - indN1.ca, pct: (ind.ca - indN1.ca) / indN1.ca * 100 } : null} />
-                <KpiCard label="Marge brute" value={fmt(ind.mb)} sub={fmtP(ind.tauxMb) + ' du CA'} icon="💰" color="#B8A98A"
-                  delta={indN1 && ind.mb > 0 ? { val: ind.mb - indN1.mb, pct: (ind.mb - indN1.mb) / Math.abs(indN1.mb || 1) * 100 } : null} />
-                <KpiCard label="EBITDA" value={fmt(ind.ebe)} sub={fmtP(ind.tauxEbe) + ' du CA'} icon="⚡" color={ind.tauxEbe >= 10 ? '#1D9E75' : '#D85A30'}
-                  delta={indN1 ? { val: ind.ebe - indN1.ebe, pct: (ind.ebe - indN1.ebe) / Math.abs(indN1.ebe || 1) * 100 } : null} />
-                <KpiCard label="Résultat net" value={fmt(ind.rnet)} sub={fmtP(ind.tauxRnet) + ' du CA'} icon="🎯" color={ind.rnet >= 0 ? '#1D9E75' : '#D85A30'}
-                  delta={indN1 ? { val: ind.rnet - indN1.rnet, pct: (ind.rnet - indN1.rnet) / Math.abs(indN1.rnet || 1) * 100 } : null} />
-              </div>
 
-              {/* Graphique trésorerie + KPI tréso */}
-              <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:14, marginBottom:24 }}>
-                <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'18px 20px' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-                    <span style={{ fontSize:13, fontWeight:500, color:'#1A1A1A' }}>Trésorerie cumulée</span>
-                    <span style={{ fontSize:12, color: ind.treso >= 0 ? '#1D9E75' : '#D85A30', fontWeight:500 }}>{fmt(ind.treso)}</span>
-                  </div>
-                  <MiniBar data={monthly} />
-                </div>
-                <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-                  <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'16px 18px', flex:1 }}>
-                    <div style={{ fontSize:10, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>BFR</div>
-                    <div style={{ fontSize:22, fontWeight:600, color: ind.bfr > 0 ? '#D85A30' : '#1D9E75' }}>{fmt(ind.bfr)}</div>
-                    <div style={{ fontSize:11, color:'#8C9BAB', marginTop:4 }}>{ind.bfr > 0 ? 'Besoin à financer' : 'Ressource nette'}</div>
-                  </div>
-                  <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'16px 18px', flex:1 }}>
-                    <div style={{ fontSize:10, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Masse salariale</div>
-                    <div style={{ fontSize:22, fontWeight:600, color: ind.tauxPers > 55 ? '#D85A30' : '#1A1A1A' }}>{fmtP(ind.tauxPers)}</div>
-                    <div style={{ fontSize:11, color:'#8C9BAB', marginTop:4 }}>du chiffre d'affaires</div>
-                  </div>
-                </div>
-              </div>
+
+
 
               {/* Navigation vers les autres pages */}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
