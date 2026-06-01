@@ -371,7 +371,7 @@ export default function ProfitabilityPage() {
   const show = (v: number) => Math.abs(v) > 0.5
   const delta = (v: number, vN1: number | undefined) => !vN1 || !sigN1 ? null : { val: v - vN1, pct: (v - vN1) / Math.abs(vN1) * 100 }
 
-  const rowProps = { lignes: lignesActives, panelData, setPanelData }
+  const rowProps = { lignes: lignesActives, panelData, setPanelData, lignesN1, caN1 }
 
   if (loading) return (
     <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
