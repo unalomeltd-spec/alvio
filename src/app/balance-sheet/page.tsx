@@ -290,7 +290,9 @@ export default function BalanceSheetPage() {
   const totalDettesLT     = useMemo(() => Math.abs(soldePassif(lignesActives, ['empruntsOblig','empruntsEtab','autresEmprunts'])), [lignesActives])
   const totalDettesCT     = useMemo(() => Math.abs(soldePassif(lignesActives, ['dettesFourn','dettesSociales','dettesFiscales','autresDettes','concoursBancaires'])), [lignesActives])
   const totalDettes       = totalDettesLT + totalDettesCT
-  const totalPassif       = totalCapPropres + totalProvRisques + totalDettes + (indBilan?.rnetManquant ?? 0)
+  const rnet120check = lignesActives.filter(l => l.CompteNum.startsWith('120') || l.CompteNum.startsWith('129')).reduce((s,l) => s + Math.abs(l.Debit - l.Credit), 0)
+  const rnetFromPL = rnet120check < 1 ? lignesActives.filter(l => l.CompteNum.startsWith('7')).reduce((s,l) => s - (l.Debit - l.Credit), 0) - lignesActives.filter(l => l.CompteNum.startsWith('6')).reduce((s,l) => s + (l.Debit - l.Credit), 0) : 0
+  const totalPassif       = totalCapPropres + totalProvRisques + totalDettes + Math.max(rnetFromPL, 0)
 
   const ecart             = Math.abs(totalActif - Math.abs(totalPassif))
   const hasDesequilibre   = ecart > 1
@@ -440,6 +442,12 @@ export default function BalanceSheetPage() {
                       <BilanLigne label="Résultat de l'exercice" groupeKeys={['resultatN']} color="#1D9E75" filterSign="passif" indent {...rp} />
                       <BilanLigne label="Subventions d'investissement" groupeKeys={['subventionsInvest']} color="#8C9BAB" filterSign="passif" indent {...rp} />
                       <BilanLigne label="Provisions réglementées" groupeKeys={['provReglementees']} color="#8C9BAB" filterSign="passif" indent {...rp} />
+                      {rnetFromPL > 0 && (
+                        <div style={{ display:'flex', alignItems:'center', padding:'7px 16px 7px 32px', borderBottom:'0.5px solid rgba(0,0,0,0.04)', background:'rgba(29,158,117,0.04)' }}>
+                          <div style={{ flex:1, fontSize:12, color:'#1D9E75' }}>Résultat de l'exercice (calculé)</div>
+                          <div style={{ fontSize:12, fontWeight:500, color:'#1D9E75' }}>{new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0}).format(Math.round(rnetFromPL))} €</div>
+                        </div>
+                      )}
                     </Section>
 
                     {Math.abs(totalProvRisques) > 0.5 && (
