@@ -105,7 +105,7 @@ interface PanelData { compte: string; label: string; valeur: number; ecritures: 
 function SidePanel({ data, onClose }: { data: PanelData; onClose: () => void }) {
   const fmtDate = (d: string) => { const iso = toIso(d); if (!iso) return d; return iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4) }
   return (
-    <div style={{ width:300, flexShrink:0, background:'#fff', border:'0.5px solid rgba(0,0,0,0.08)', borderRadius:12, overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'calc(100vh - 120px)', position:'sticky', top:24 }}>
+    <div style={{ width:300, flexShrink:0, background:'#fff', border:'0.5px solid rgba(0,0,0,0.08)', borderRadius:12, overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'calc(100vh - 120px)', position:'fixed' as const, top:80, right:24, zIndex:100 }}>
       <div style={{ background:'#1A1A1A', padding:'14px 16px' }}>
         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
           <div>

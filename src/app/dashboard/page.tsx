@@ -233,10 +233,7 @@ export default function DashboardPage() {
                 dateFin={dateFin} setDateFin={setDateFin} anneeN1={anneeN1} setAnneeN1={setAnneeN1} dateDebutN1={dateDebutN1} setDateDebutN1={setDateDebutN1} dateFinN1={dateFinN1} setDateFinN1={setDateFinN1} />
             )}
           </div>
-          <label style={{ display:'flex', alignItems:'center', gap:7, background:'#1A1A1A', color:'#F2F3F5', border:'none', borderRadius:7, padding:'7px 14px', fontSize:12, fontWeight:500, cursor:'pointer' }}>
-            {uploading ? '⏳ Import...' : '＋ Importer FEC'}
-            <input type="file" accept=".txt,.csv,.tsv" style={{ display:'none' }} onChange={e => e.target.files?.[0] && handleFEC(e.target.files[0])} />
-          </label>
+          
         </div>
 
         <div style={{ flex:1, padding:24, overflowY:'auto' }}>
@@ -282,15 +279,20 @@ export default function DashboardPage() {
               {/* Navigation vers les autres pages */}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
                 {[
-                  { href:'/profitability', label:'Rentabilité', icon:'📊', desc:`MB ${fmtP(ind.tauxMb)} · EBITDA ${fmtP(ind.tauxEbe)}`, color:'#B8A98A' },
-                  { href:'/income-statement', label:'Compte de résultat', icon:'📋', desc:`Résultat net ${fmt(ind.rnet)}`, color: ind.rnet >= 0 ? '#1D9E75' : '#D85A30' },
-                  { href:'/balance-sheet', label:'Bilan', icon:'⚖️', desc:`Tréso ${fmt(ind.treso)}`, color: ind.treso >= 0 ? '#1D9E75' : '#D85A30' },
-                  { href:'/cash-flow', label:'Trésorerie', icon:'💧', desc:`BFR ${fmt(ind.bfr)}`, color: ind.bfr <= 0 ? '#1D9E75' : '#D85A30' },
+                  { href:'/profitability', label:'Rentabilité', icon:'profitability', desc:`MB ${fmtP(ind.tauxMb)} · EBITDA ${fmtP(ind.tauxEbe)}`, color:'#B8A98A' },
+                  { href:'/income-statement', label:'Compte de résultat', icon:'income', desc:`Résultat net ${fmt(ind.rnet)}`, color: ind.rnet >= 0 ? '#1D9E75' : '#D85A30' },
+                  { href:'/balance-sheet', label:'Bilan', icon:'balance', desc:`Tréso ${fmt(ind.treso)}`, color: ind.treso >= 0 ? '#1D9E75' : '#D85A30' },
+                  { href:'/cash-flow', label:'Trésorerie', icon:'cashflow', desc:`BFR ${fmt(ind.bfr)}`, color: ind.bfr <= 0 ? '#1D9E75' : '#D85A30' },
                 ].map(n => (
                   <a key={n.href} href={n.href} style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'16px 18px', textDecoration:'none', display:'block', transition:'box-shadow 0.15s' }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.boxShadow = 'none'}>
-                    <div style={{ fontSize:22, marginBottom:10 }}>{n.icon}</div>
+                    <div style={{ width:36, height:36, marginBottom:10, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:8, background:'rgba(184,169,138,0.1)' }}>
+                      {n.icon === 'profitability' && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B8A98A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>}
+                      {n.icon === 'income' && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B8A98A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>}
+                      {n.icon === 'balance' && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B8A98A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>}
+                      {n.icon === 'cashflow' && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B8A98A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>}
+                    </div>
                     <div style={{ fontSize:12, fontWeight:500, color:'#1A1A1A', marginBottom:4 }}>{n.label}</div>
                     <div style={{ fontSize:11, color: n.color, fontWeight:500 }}>{n.desc}</div>
                   </a>

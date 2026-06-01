@@ -145,7 +145,7 @@ function SidePanel({ data, onClose }: { data: PanelData; onClose: () => void }) 
     return iso.slice(8,10) + '/' + iso.slice(5,7) + '/' + iso.slice(0,4)
   }
   return (
-    <div style={{ width: 300, flexShrink: 0, background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 120px)', position: 'sticky', top: 24 }}>
+    <div style={{ width: 300, flexShrink: 0, position: 'fixed' as const, top: 80, right: 24, zIndex: 100, background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 120px)' }}>
       <div style={{ background: '#1A1A1A', padding: '14px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div>
@@ -300,8 +300,16 @@ function SigRow({
         }}
       >
         {/* Icône */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>
-          {icon}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {icon === '💰' && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B8A98A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>}
+          {icon === '🏪' && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B8A98A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>}
+          {icon === '🏭' && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B8A98A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>}
+          {icon === '⚙️' && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B8A98A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>}
+          {icon === '⚡' && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={highlight ? '#F2F3F5' : '#B8A98A'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>}
+          {icon === '🎯' && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B8A98A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>}
+          {icon === '🏦' && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B8A98A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>}
+          {icon === '⚠️' && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B8A98A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
+          {icon === '✅' && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B8A98A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}
         </div>
 
         {/* Label + valeur principale (colonne gauche) */}
@@ -536,7 +544,7 @@ export default function ProfitabilityPage() {
                 {show(sig.venteMarchandises) && <SigRow icon="🏪" label="Ventes de marchandises" value={sig.venteMarchandises} pct={sig.ca>0?sig.venteMarchandises/sig.ca*100:0} color="#B8A98A" explain="Revente de marchandises" groupeKey="venteMarchandises" {...rowProps} />}
 
                 {show(sig.margeCommerciale) && (
-                  <SigRow icon="🏪" label="Marge commerciale" value={sig.margeCommerciale} pct={sig.ca>0?sig.margeCommerciale/sig.ca*100:0} color="#B8A98A" explain="Ventes − coût d'achat marchandises" groupeKey="venteMarchandises"
+                  <SigRow icon="🏪" label="Marge commerciale" value={sig.margeCommerciale} pct={sig.ca>0?sig.margeCommerciale/sig.ca*100:0} color="#B8A98A" explain="Ventes − coût d'achat marchandises" groupeKey="coutMarchandises"
                     deductions={show(sig.coutMarchandises) ? [{ label:"Coût d'achat des marchandises", value:sig.coutMarchandises, groupeKey:'coutMarchandises' }] : []}
                     {...rowProps}
                   />
@@ -608,7 +616,7 @@ export default function ProfitabilityPage() {
 
               </div>
 
-              {panelData && <SidePanel data={panelData} onClose={() => setPanelData(null)} />}
+              <div style={{ position:'sticky', top:24, alignSelf:'flex-start', flexShrink:0 }}>{panelData && <SidePanel data={panelData} onClose={() => setPanelData(null)} />}</div>
             </div>
           )}
         </div>

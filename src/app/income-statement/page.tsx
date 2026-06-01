@@ -12,6 +12,12 @@ const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_
 const fmt = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' €'
 const fmtP = (n: number) => (Math.round(n * 10) / 10).toFixed(1) + ' %'
 
+function decalerAnMoins1(d: string): string {
+  if (!d) return ''
+  const y = parseInt(d.slice(0,4), 10)
+  return (y - 1) + d.slice(4)
+}
+
 function toIso(d: string): string {
   if (!d) return ''
   if (d.includes('-')) return d.slice(0, 10)
@@ -82,7 +88,7 @@ interface PanelData { compte: string; label: string; valeur: number; ecritures: 
 function SidePanel({ data, onClose }: { data: PanelData; onClose: () => void }) {
   const fmtDate = (d: string) => { const iso = toIso(d); if (!iso) return d; return iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4) }
   return (
-    <div style={{ width:300, flexShrink:0, background:'#fff', border:'0.5px solid rgba(0,0,0,0.08)', borderRadius:12, overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'calc(100vh - 120px)', position:'sticky', top:24 }}>
+    <div style={{ width:300, flexShrink:0, background:'#fff', border:'0.5px solid rgba(0,0,0,0.08)', borderRadius:12, overflow:'hidden', display:'flex', flexDirection:'column', maxHeight:'calc(100vh - 120px)', position:'fixed' as const, top:80, right:24, zIndex:100 }}>
       <div style={{ background:'#1A1A1A', padding:'14px 16px' }}>
         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
           <div>
@@ -115,8 +121,8 @@ function SidePanel({ data, onClose }: { data: PanelData; onClose: () => void }) 
   )
 }
 
-function CrRow({ label, groupeKeys, lignes, panelData, setPanelData, color, bold, indent, sub, isTotal }: {
-  label: string; groupeKeys: string[]; lignes: LigneFEC[]
+function CrRow({ label, groupeKeys, lignes, lignesN1, panelData, setPanelData, color, bold, indent, sub, isTotal }: {
+  label: string; groupeKeys: string[]; lignes: LigneFEC[]; lignesN1?: LigneFEC[]
   panelData: PanelData | null; setPanelData: (d: PanelData | null) => void
   color?: string; bold?: boolean; indent?: boolean; sub?: boolean; isTotal?: boolean
 }) {
@@ -128,6 +134,11 @@ function CrRow({ label, groupeKeys, lignes, panelData, setPanelData, color, bold
   }, [lignes, groupeKeys])
 
   const valeur = sousComptes.reduce((s, c) => s + c.valeur, 0)
+  const valeurN1 = lignesN1 ? (() => {
+    const all: ReturnType<typeof getSousComptes> = []
+    for (const k of groupeKeys) all.push(...getSousComptes(lignesN1, k))
+    return all.reduce((s, c) => s + c.valeur, 0)
+  })() : null
   if (Math.abs(valeur) < 0.5 && !isTotal) return null
 
   const hasDetail = sousComptes.length > 0
@@ -154,7 +165,8 @@ function CrRow({ label, groupeKeys, lignes, panelData, setPanelData, color, bold
             {label}
           </div>
           <div style={{ fontSize:13, fontWeight:500, color: c, minWidth:110, textAlign:'right' }}>{fmt(valeur)}</div>
-          <div style={{ fontSize:10, color:'#8C9BAB', minWidth:60, textAlign:'right' }}>{}</div>
+          <div style={{ fontSize:12, color:'#8C9BAB', minWidth:110, textAlign:'right' }}>{valeurN1 !== null ? fmt(valeurN1) : '—'}</div>
+          <div style={{ fontSize:10, fontWeight:500, minWidth:60, textAlign:'right', color: valeurN1 && valeurN1 !== 0 ? ((valeur - valeurN1)/Math.abs(valeurN1)*100 >= 0 ? '#1D9E75' : '#D85A30') : '#8C9BAB' }}>{valeurN1 && valeurN1 !== 0 ? ((valeur - valeurN1)/Math.abs(valeurN1)*100).toFixed(1)+'%' : '—'}</div>
         </div>
         {open && sousComptes.length > 0 && (
           <div style={{ margin:'0 0 2px 0', background:'#fff', border:'0.5px solid rgba(0,0,0,0.06)', overflow:'hidden' }}>
@@ -190,7 +202,8 @@ function CrRow({ label, groupeKeys, lignes, panelData, setPanelData, color, bold
           {label}
         </div>
         <div style={{ fontSize:12, fontWeight: bold ? 500 : 400, color: c, minWidth:110, textAlign:'right' }}>{fmt(valeur)}</div>
-        <div style={{ fontSize:10, color:'#8C9BAB', minWidth:60, textAlign:'right' }}></div>
+        <div style={{ fontSize:11, color:'#B4B2A9', minWidth:110, textAlign:'right' }}>{valeurN1 !== null ? fmt(valeurN1) : ''}</div>
+        <div style={{ fontSize:10, fontWeight:500, minWidth:60, textAlign:'right', color: valeurN1 && valeurN1 !== 0 ? ((valeur - valeurN1)/Math.abs(valeurN1)*100 >= 0 ? '#1D9E75' : '#D85A30') : '#8C9BAB' }}>{valeurN1 && valeurN1 !== 0 ? ((valeur - valeurN1)/Math.abs(valeurN1)*100).toFixed(1)+'%' : '—'}</div>
       </div>
       {open && sousComptes.length > 0 && (
         <div style={{ margin:'0 0 2px 16px', background:'#fff', border:'0.5px solid rgba(0,0,0,0.06)', borderRadius:6, overflow:'hidden' }}>
@@ -264,6 +277,22 @@ export default function IncomeStatementPage() {
     return exercices[anneeActive]?.lignes ?? []
   }, [exercices, anneeActive, periodeTab, dateDebut, dateFin])
 
+  const lignesN1: LigneFEC[] = (() => {
+    if (periodeTab === 'perso' && dateDebut && dateFin) {
+      const dN1 = decalerAnMoins1(dateDebut)
+      const fN1 = decalerAnMoins1(dateFin)
+      const merged: LigneFEC[] = []
+      for (const a of Object.keys(exercices).map(Number).sort((x,y) => x-y)) {
+        const ex = exercices[a]; if (!ex) continue
+        const dates = ex.lignes.map((l:LigneFEC) => toIso(l.EcritureDate)).filter(Boolean).sort()
+        if (dates.length && toIso(dates[dates.length-1]) >= dN1 && toIso(dates[0]) <= fN1)
+          merged.push(...filtrerLignes(ex.lignes, 'perso', dN1, fN1))
+      }
+      if (merged.length > 0) return merged
+    }
+    return exercices[anneeActive - 1]?.lignes ?? []
+  })()
+
   const anneesDisponibles = Object.keys(exercices).map(Number).sort((a,b) => b-a)
 
   const indBase = useMemo(() => {
@@ -277,7 +306,18 @@ export default function IncomeStatementPage() {
     return { ca, rnet, rex, rfin, mb, tauxMb: ca>0?mb/ca*100:0, tauxRnet: ca>0?rnet/ca*100:0 }
   }, [lignesActives])
 
-  const rowProps = { lignes: lignesActives, panelData, setPanelData }
+  const indN1 = (() => {
+    if (!lignesN1.length) return null
+    const s = (ps: string[], sign: 1|-1 = 1) => { let t=0; for(const l of lignesN1) for(const p of ps) if(l.CompteNum.startsWith(p)){t+=l.Debit-l.Credit;break}; return t*sign }
+    const ca = -s(['701','702','703','704','705','706','708'],-1) - s(['707'],-1)
+    const rnet = ca - s(['607','6037','601','602','604','605','606','608','609','61','62']) + s(['74'],-1) - s(['63']) - s(['64']) - s(['681','686','687']) + s(['781','786','787'],-1) + s(['75'],-1) - s(['65']) + s(['76'],-1) - s(['66']) + s(['77'],-1) - s(['67']) - s(['691']) - s(['695','696','697','698','699'])
+    const rex = ca - s(['607','6037','601','602','604','605','606','608','609','61','62']) + s(['74'],-1) - s(['63']) - s(['64']) - s(['681','686','687']) + s(['781','786','787'],-1) + s(['75'],-1) - s(['65'])
+    const rfin = s(['76'],-1) - s(['66'])
+    const mb = -s(['707'],-1) - s(['607','6037'])
+    return { ca, rnet, rex, rfin, mb, tauxMb: ca>0?mb/ca*100:0, tauxRnet: ca>0?rnet/ca*100:0 }
+  })()
+
+  const rowProps = { lignes: lignesActives, lignesN1, panelData, setPanelData }
 
   if (loading) return (
     <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
@@ -317,8 +357,9 @@ export default function IncomeStatementPage() {
                   {/* Header */}
                   <div style={{ display:'flex', background:'#1A1A1A', padding:'10px 16px' }}>
                     <div style={{ flex:1, fontSize:11, fontWeight:500, color:'#F2F3F5', textTransform:'uppercase', letterSpacing:'0.06em' }}>Libellé</div>
-                    <div style={{ fontSize:11, fontWeight:500, color:'#F2F3F5', minWidth:110, textAlign:'right' }}>Montant</div>
-                    <div style={{ fontSize:11, color:'#8C9BAB', minWidth:60, textAlign:'right' }}>% CA</div>
+                    <div style={{ fontSize:11, fontWeight:500, color:'#F2F3F5', minWidth:110, textAlign:'right' }}>N — {periodeTab==='perso'&&dateDebut?dateDebut.slice(0,4):anneeActive}</div>
+                    <div style={{ fontSize:11, color:'#B8A98A', minWidth:110, textAlign:'right' }}>N-1 — {periodeTab==='perso'&&dateDebut?(parseInt(dateDebut.slice(0,4))-1):anneeActive-1}</div>
+                    <div style={{ fontSize:11, color:'#8C9BAB', minWidth:60, textAlign:'right' }}>Variation</div>
                   </div>
 
                   {/* PRODUITS D'EXPLOITATION */}
@@ -351,6 +392,7 @@ export default function IncomeStatementPage() {
                   <div style={{ display:'flex', alignItems:'center', padding:'10px 16px', background:'rgba(184,169,138,0.08)', borderTop:'0.5px solid rgba(184,169,138,0.2)' }}>
                     <div style={{ flex:1, fontSize:13, fontWeight:500, color:'#1A1A1A' }}>Résultat d'exploitation</div>
                     <div style={{ fontSize:14, fontWeight:500, color: indBase.rex >= 0 ? '#1D9E75' : '#D85A30', minWidth:110, textAlign:'right' }}>{fmt(indBase.rex)}</div>
+                    <div style={{ fontSize:12, color:'#8C9BAB', minWidth:110, textAlign:'right' }}>{indN1 ? fmt(indN1.rex) : '—'}</div>
                     <div style={{ fontSize:10, color:'#8C9BAB', minWidth:60, textAlign:'right' }}>{fmtP(indBase.ca > 0 ? indBase.rex/indBase.ca*100 : 0)}</div>
                   </div>
 
@@ -368,6 +410,7 @@ export default function IncomeStatementPage() {
                     <div style={{ display:'flex', alignItems:'center', padding:'10px 16px', background:'rgba(184,169,138,0.04)', borderTop:'0.5px solid rgba(184,169,138,0.15)' }}>
                       <div style={{ flex:1, fontSize:12, fontWeight:500, color:'#1A1A1A' }}>Résultat courant avant impôts</div>
                       <div style={{ fontSize:13, fontWeight:500, color: (indBase.rex + indBase.rfin) >= 0 ? '#1D9E75' : '#D85A30', minWidth:110, textAlign:'right' }}>{fmt(indBase.rex + indBase.rfin)}</div>
+                      <div style={{ fontSize:12, color:'#8C9BAB', minWidth:110, textAlign:'right' }}>{indN1 ? fmt(indN1.rex + indN1.rfin) : '—'}</div>
                       <div style={{ fontSize:10, color:'#8C9BAB', minWidth:60, textAlign:'right' }}>{fmtP(indBase.ca > 0 ? (indBase.rex + indBase.rfin)/indBase.ca*100 : 0)}</div>
                     </div>
                   )}
