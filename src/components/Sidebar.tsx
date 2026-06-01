@@ -48,7 +48,7 @@ export default function Sidebar({ activePage }: { activePage: PageId }) {
 
   const space = [
     { id: 'company', href: '/company', label: 'Paramétrages',  d: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
-    ...(userEmail !== 'hello@alvio.finance' ? [{ id: 'suivi', href: '/suivi', label: 'Suivi demandes', d: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11' }] : []) as typeof main,
+    ...(userEmail && userEmail !== 'hello@alvio.finance' ? [{ id: 'suivi', href: '/suivi', label: 'Suivi demandes', d: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11' }] : []) as typeof main,
   ]
 
   const w = collapsed ? 56 : 220
