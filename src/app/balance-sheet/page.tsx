@@ -290,8 +290,7 @@ export default function BalanceSheetPage() {
   const totalDettesLT     = useMemo(() => Math.abs(soldePassif(lignesActives, ['empruntsOblig','empruntsEtab','autresEmprunts'])), [lignesActives])
   const totalDettesCT     = useMemo(() => Math.abs(soldePassif(lignesActives, ['dettesFourn','dettesSociales','dettesFiscales','autresDettes','concoursBancaires'])), [lignesActives])
   const totalDettes       = totalDettesLT + totalDettesCT
-  const rnetManquant      = indBilan?.rnetManquant ?? 0
-  const totalPassif       = totalCapPropres + totalProvRisques + totalDettes + rnetManquant
+  const totalPassif       = totalCapPropres + totalProvRisques + totalDettes + (indBilan?.rnetManquant ?? 0)
 
   const ecart             = Math.abs(totalActif - Math.abs(totalPassif))
   const hasDesequilibre   = ecart > 1
