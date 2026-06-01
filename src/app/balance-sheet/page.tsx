@@ -290,7 +290,8 @@ export default function BalanceSheetPage() {
   const totalDettesLT     = useMemo(() => Math.abs(soldePassif(lignesActives, ['empruntsOblig','empruntsEtab','autresEmprunts'])), [lignesActives])
   const totalDettesCT     = useMemo(() => Math.abs(soldePassif(lignesActives, ['dettesFourn','dettesSociales','dettesFiscales','autresDettes','concoursBancaires'])), [lignesActives])
   const totalDettes       = totalDettesLT + totalDettesCT
-  const totalPassif       = totalCapPropres + totalProvRisques + totalDettes
+  const rnetManquant      = indBilan?.rnetManquant ?? 0
+  const totalPassif       = totalCapPropres + totalProvRisques + totalDettes + rnetManquant
 
   const ecart             = Math.abs(totalActif - Math.abs(totalPassif))
   const hasDesequilibre   = ecart > 1
@@ -301,7 +302,15 @@ export default function BalanceSheetPage() {
     const treso = soldeKeys(lignesActives, ['banques','caisse','autresTresoA'])
     const creances = soldeKeys(lignesActives, ['creancesClients'])
     const dettes = Math.abs(soldeKeys(lignesActives, ['dettesFourn']))
-    return { treso, bfr: creances - dettes, ca: -lignesActives.filter(l => ['701','702','703','704','705','706','707','708'].some(p => l.CompteNum.startsWith(p))).reduce((s,l) => s + (l.Debit - l.Credit), 0) }
+    const ca = -lignesActives.filter(l => ['701','702','703','704','705','706','707','708'].some(p => l.CompteNum.startsWith(p))).reduce((s,l) => s + (l.Debit - l.Credit), 0)
+    // Résultat net = produits (7x) - charges (6x), non encore clôturé dans 120
+    const produits = lignesActives.filter(l => l.CompteNum.startsWith('7')).reduce((s,l) => s - (l.Debit - l.Credit), 0)
+    const charges  = lignesActives.filter(l => l.CompteNum.startsWith('6')).reduce((s,l) => s + (l.Debit - l.Credit), 0)
+    // Résultat déjà inscrit en 120/129
+    const rnet120 = -lignesActives.filter(l => l.CompteNum.startsWith('120') || l.CompteNum.startsWith('129')).reduce((s,l) => s + (l.Debit - l.Credit), 0)
+    const rnetCalcule = produits - charges
+    const rnetManquant = Math.abs(rnet120) < 1 ? rnetCalcule : 0 // si 120 vide, on ajoute le résultat calculé
+    return { treso, bfr: creances - dettes, ca, rnetCalcule, rnetManquant }
   }, [lignesActives])
 
   if (loading) return (
