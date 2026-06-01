@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
+import { usePeriod } from '@/hooks/usePeriod'
 import { createClient } from '@supabase/supabase-js'
 import Sidebar from '@/components/Sidebar'
 import PeriodSelector from '@/components/PeriodSelector'
