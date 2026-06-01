@@ -126,7 +126,7 @@ export default function DashboardPage() {
         const map: Record<number, any> = {}
         for (const row of data) map[row.annee] = { annee: row.annee, lignes: row.ecritures as LigneFEC[], nomFichier: row.nom_fichier || `FEC ${row.annee}` }
         setExercices(map)
-        if (!localStorage.getItem('alvio-period')) setAnneeActive(data[0].annee)
+        if (typeof window === 'undefined' || !localStorage.getItem('alvio-period')) setAnneeActive(data[0].annee)
       }
       setLoading(false)
     }

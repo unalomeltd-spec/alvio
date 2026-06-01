@@ -14,19 +14,25 @@ interface PeriodState {
 }
 
 function load(): Partial<PeriodState> {
+  if (typeof window === 'undefined') return {}
   try { const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : {} } catch { return {} }
 }
 
 function persist(patch: Partial<PeriodState>) {
+  if (typeof window === 'undefined') return
   try {
     const prev = load()
     localStorage.setItem(KEY, JSON.stringify({ ...prev, ...patch }))
   } catch {}
 }
 
+export function hasSavedPeriod(): boolean {
+  if (typeof window === 'undefined') return false
+  return !!localStorage.getItem(KEY)
+}
+
 export function usePeriod(defaultAnnee: number) {
   const saved = load()
-  const hasSaved = !!localStorage.getItem(KEY)
 
   const [anneeActive, _setAnneeActive] = useState<number>(saved.anneeActive ?? defaultAnnee)
   const [periodeTab, _setPeriodeTab] = useState<'exercice'|'perso'>(saved.periodeTab ?? 'exercice')
@@ -44,6 +50,5 @@ export function usePeriod(defaultAnnee: number) {
   const setDateDebutN1 = useCallback((v: string) => { _setDateDebutN1(v); persist({ dateDebutN1: v }) }, [])
   const setDateFinN1 = useCallback((v: string) => { _setDateFinN1(v); persist({ dateFinN1: v }) }, [])
 
-  // Exposer hasSaved pour que les pages sachent si elles peuvent ignorer le setAnneeActive du useEffect
-  return { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1, hasSaved }
+  return { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1 }
 }
