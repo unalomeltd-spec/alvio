@@ -405,10 +405,10 @@ export default function ProfitabilityPage() {
 
                 <div style={{ fontSize:11, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Soldes intermédiaires de gestion</div>
 
+                <SigRow icon="💰" label="Chiffre d'affaires" value={sig.ca} pct={100} color="#B8A98A" explain="Total de vos ventes hors taxes" groupeKey="prodVendue" delta={delta(sig.ca, sigN1?.ca)} {...rowProps} lignesN1={lignesN1} caN1={caN1} />
+
                 {show(sig.venteMarchandises) && <SigRow icon="🏪" label="Ventes de marchandises" value={sig.venteMarchandises} pct={sig.ca>0?sig.venteMarchandises/sig.ca*100:0} color="#B8A98A" explain="Revente de marchandises" groupeKey="venteMarchandises" delta={delta(sig.venteMarchandises, sigN1?.venteMarchandises)} {...rowProps} lignesN1={lignesN1} caN1={caN1} />}
                 {show(sig.margeCommerciale) && <SigRow icon="🏪" label="Marge commerciale" value={sig.margeCommerciale} pct={sig.ca>0?sig.margeCommerciale/sig.ca*100:0} color="#B8A98A" explain="Ventes − coût d'achat marchandises" groupeKey="venteMarchandises" deductions={show(sig.coutMarchandises)?[{label:'Coût d\'achat des marchandises',value:sig.coutMarchandises,groupeKey:'coutMarchandises'}]:[]} delta={delta(sig.margeCommerciale, sigN1?.margeCommerciale)} {...rowProps} lignesN1={lignesN1} caN1={caN1} />}
-
-                <SigRow icon="💰" label="Chiffre d'affaires" value={sig.ca} pct={100} color="#B8A98A" explain="Total de vos ventes hors taxes" groupeKey="prodVendue" delta={delta(sig.ca, sigN1?.ca)} {...rowProps} lignesN1={lignesN1} caN1={caN1} />
 
                 {(show(sig.prodStockee)||show(sig.prodImmobilisee)) && <SigRow icon="🏭" label="Production de l'exercice" value={sig.productionExercice} pct={sig.ca>0?sig.productionExercice/sig.ca*100:0} explain="CA + stockage + immobilisation" groupeKey="prodVendue" deductions={[...(show(sig.prodStockee)?[{label:'Production stockée',value:-sig.prodStockee,groupeKey:'prodStockee'}]:[]),...(show(sig.prodImmobilisee)?[{label:'Production immobilisée',value:-sig.prodImmobilisee,groupeKey:'prodImmobilisee'}]:[])]} delta={null} {...rowProps} lignesN1={lignesN1} caN1={caN1} />}
 
