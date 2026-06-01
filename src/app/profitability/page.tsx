@@ -301,7 +301,7 @@ export default function ProfitabilityPage() {
         const map: Record<number,any> = {}
         for (const row of data) map[row.annee] = { annee: row.annee, lignes: row.ecritures as LigneFEC[] }
         setExercices(map)
-        setAnneeActive(data[0].annee)
+        if (!localStorage.getItem('alvio-period')) setAnneeActive(data[0].annee)
       }
       setLoading(false)
     })
