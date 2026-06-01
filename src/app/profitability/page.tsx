@@ -19,14 +19,12 @@ function toIso(d: string): string {
   return d
 }
 
-// ── Décaler une date ISO d'un an en arrière ─────────────────────────────────
 function decalerAnMoins1(d: string): string {
   if (!d) return ''
   const y = parseInt(d.slice(0,4), 10)
   return (y - 1) + d.slice(4)
 }
 
-// ── Groupes PCG complets pour le drill-down ─────────────────────────────────
 const PCG_GROUPES: Record<string, { prefixes: string[]; label: string; sign: 1|-1 }[]> = {
   venteMarchandises:  [{ prefixes:['707'], label:'Ventes de marchandises', sign:-1 }],
   coutMarchandises:   [{ prefixes:['607'], label:'Achats de marchandises', sign:1 }, { prefixes:['6037'], label:'Variation de stocks — marchandises', sign:1 }],
@@ -58,7 +56,6 @@ function getSousComptes(lignes: LigneFEC[], groupeKey: string) {
     if (matching.length === 0) continue
     const valeur = matching.reduce((s, l) => s + (l.Debit - l.Credit) * g.sign, 0)
     if (Math.abs(valeur) < 0.5) continue
-    // Regrouper par numéro de compte exact
     const byCompte: Record<string, LigneFEC[]> = {}
     for (const l of matching) {
       if (!byCompte[l.CompteNum]) byCompte[l.CompteNum] = []
@@ -140,6 +137,7 @@ function calculerSIG(lignes: LigneFEC[]) {
 
 interface PanelData { compte: string; label: string; valeur: number; ecritures: LigneFEC[] }
 
+// ── Side panel — inchangé ────────────────────────────────────────────────────
 function SidePanel({ data, onClose }: { data: PanelData; onClose: () => void }) {
   const fmtDate = (d: string) => {
     const iso = toIso(d)
@@ -182,118 +180,199 @@ function SidePanel({ data, onClose }: { data: PanelData; onClose: () => void }) 
   )
 }
 
+// ── Ligne de déduction entre deux SigRow ────────────────────────────────────
+function DedLine({
+  label, value, groupeKey, lignes, openDed, setOpenDed, panelData, setPanelData
+}: {
+  label: string; value: number; groupeKey?: string
+  lignes: LigneFEC[]; openDed: string | null; setOpenDed: (k: string | null) => void
+  panelData: PanelData | null; setPanelData: (d: PanelData | null) => void
+}) {
+  const isOpen = openDed === groupeKey
+  const sousComptes = useMemo(() => (isOpen && groupeKey) ? getSousComptes(lignes, groupeKey) : [], [isOpen, lignes, groupeKey])
+  const hasDetail = groupeKey ? getSousComptes(lignes, groupeKey).length > 0 : false
+  const maxVal = sousComptes.length > 0 ? Math.max(...sousComptes.map(s => Math.abs(s.valeur))) : 1
+
+  return (
+    <>
+      <div
+        onClick={() => groupeKey && setOpenDed(isOpen ? null : groupeKey)}
+        style={{ display: 'flex', alignItems: 'center', padding: '5px 14px 5px 28px', borderTop: '0.5px solid rgba(0,0,0,0.04)', background: 'rgba(0,0,0,0.015)', cursor: hasDetail ? 'pointer' : 'default', gap: 6 }}
+      >
+        <span style={{ fontSize: 11, color: '#B8A98A' }}>↳</span>
+        <span style={{ fontSize: 11, color: '#8C9BAB', flex: 1 }}>{value < 0 ? '+' : '−'} {label}</span>
+        {hasDetail && (
+          <span style={{ fontSize: 9, color: '#B8A98A', transition: 'transform 0.2s', display: 'inline-block', transform: isOpen ? 'rotate(90deg)' : 'none', marginRight: 8 }}>▶</span>
+        )}
+        <span style={{ fontSize: 11, fontWeight: 500, color: '#8C9BAB' }}>{fmt(Math.abs(value))}</span>
+      </div>
+
+      {isOpen && sousComptes.length > 0 && (
+        <div style={{ margin: '2px 8px 4px 20px', background: '#fff', border: '0.5px solid rgba(0,0,0,0.06)', borderRadius: 8, overflow: 'hidden' }}>
+          {sousComptes.map((sc, j) => {
+            const pctBar = Math.abs(sc.valeur) / maxVal * 100
+            const active = panelData?.compte === sc.prefix
+            return (
+              <div key={j}
+                onClick={() => setPanelData(active ? null : { compte: sc.prefix, label: sc.label, valeur: sc.valeur, ecritures: sc.ecritures })}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderBottom: j < sousComptes.length-1 ? '0.5px solid rgba(0,0,0,0.04)' : 'none', cursor: 'pointer', background: active ? 'rgba(184,169,138,0.08)' : 'transparent' }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#B8A98A', minWidth: 70, fontFamily: 'monospace' }}>{formatCompte(sc.prefix)}</span>
+                <span style={{ flex: 1, fontSize: 12, color: '#1A1A1A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sc.label}</span>
+                <div style={{ width: 50, height: 4, background: 'rgba(0,0,0,0.06)', borderRadius: 2, flexShrink: 0 }}>
+                  <div style={{ height: '100%', width: `${pctBar}%`, background: sc.valeur >= 0 ? '#D85A30' : '#1D9E75', borderRadius: 2 }} />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 500, color: sc.valeur >= 0 ? '#D85A30' : '#1D9E75', minWidth: 80, textAlign: 'right' }}>{fmt(Math.abs(sc.valeur))}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </>
+  )
+}
+
+// ── SigRow — nouvelle présentation N / N-1 en colonnes ───────────────────────
 function SigRow({
   icon, label, value, pct, color, highlight, explain,
-  deductions, delta, lignes, groupeKey, panelData, setPanelData,
-  lignesN1, caN1
+  deductions, lignes, groupeKey, panelData, setPanelData,
+  lignesN1, caN1, openDed, setOpenDed
 }: {
   icon: string; label: string; value: number; pct?: number; color?: string
   highlight?: boolean; explain: string
   deductions?: { label: string; value: number; groupeKey?: string }[]
-  delta?: { val: number; pct: number } | null
   lignes: LigneFEC[]; groupeKey?: string
   panelData: PanelData | null; setPanelData: (d: PanelData | null) => void
   lignesN1?: LigneFEC[]; caN1?: number
+  openDed: string | null; setOpenDed: (k: string | null) => void
 }) {
   const [open, setOpen] = useState(false)
   const sousComptes = useMemo(() => groupeKey ? getSousComptes(lignes, groupeKey) : [], [lignes, groupeKey])
-  const valN1 = (lignesN1 && groupeKey) ? getSousComptes(lignesN1, groupeKey).reduce((s, sc) => s + sc.valeur, 0) : null
-  const pctN1 = (valN1 !== null && caN1 && caN1 !== 0) ? valN1 / caN1 * 100 : null
-  const variation = (valN1 !== null && valN1 !== 0) ? ((value - valN1) / Math.abs(valN1)) * 100 : null
   const hasDetail = sousComptes.length > 0
+
+  // Valeur N-1
+  const valN1 = (lignesN1 && lignesN1.length > 0 && groupeKey)
+    ? getSousComptes(lignesN1, groupeKey).reduce((s, sc) => s + sc.valeur, 0)
+    : null
+  const pctN1 = (valN1 !== null && caN1 && caN1 > 0) ? valN1 / caN1 * 100 : null
+  const variation = (valN1 !== null && valN1 !== 0) ? ((value - valN1) / Math.abs(valN1)) * 100 : null
+
   const maxVal = sousComptes.length > 0 ? Math.max(...sousComptes.map(s => Math.abs(s.valeur))) : 1
   const c = color || (highlight ? '#B8A98A' : '#8C9BAB')
   const bg = highlight ? '#1A1A1A' : '#fff'
   const textColor = highlight ? '#fff' : '#1A1A1A'
-  const mutedColor = highlight ? 'rgba(255,255,255,0.5)' : '#8C9BAB'
+  const mutedColor = highlight ? 'rgba(255,255,255,0.45)' : '#8C9BAB'
+  const n1Color = highlight ? 'rgba(255,255,255,0.35)' : '#8C9BAB'
+  const n1PctColor = highlight ? 'rgba(255,255,255,0.22)' : '#B4B2A9'
 
-  // Drill-down pour les déductions
-  const [openDed, setOpenDed] = useState<string | null>(null)
-  const dedSousComptes = useMemo(() => {
-    if (!openDed) return []
-    return getSousComptes(lignes, openDed)
-  }, [lignes, openDed])
+  // Colonnes : icon(32) | label+valeur(flex) | N(120) | N-1(120) | évolution(96) | chevron(20)
+  const gridCols = '32px 1fr 120px 120px 96px 20px'
 
   return (
     <>
-      {deductions?.map((d, i) => {
-        const dedSC = openDed === d.groupeKey ? dedSousComptes : []
-        const dedMax = dedSC.length > 0 ? Math.max(...dedSC.map(s => Math.abs(s.valeur))) : 1
-        return (
-          <div key={i}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px 4px 20px' }}>
-              <div style={{ flex: 1, height: 0.5, background: 'rgba(0,0,0,0.08)' }} />
-              <div onClick={() => d.groupeKey ? setOpenDed(openDed === d.groupeKey ? null : d.groupeKey) : null}
-                style={{ fontSize: 10, fontWeight: 600, color: d.value < 0 ? '#3B6D11' : '#993C1D', background: d.value < 0 ? 'rgba(29,158,117,0.08)' : 'rgba(216,90,48,0.08)', padding: '2px 8px', borderRadius: 20, whiteSpace: 'nowrap', cursor: d.groupeKey ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 4 }}>
-                {d.value < 0 ? '+' : '−'} {d.label}
-                {d.groupeKey && getSousComptes(lignes, d.groupeKey).length > 0 && (
-                  <span style={{ fontSize: 9, transition: 'transform 0.2s', display: 'inline-block', transform: openDed === d.groupeKey ? 'rotate(90deg)' : 'none' }}>▶</span>
-                )}
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 500, color: d.value < 0 ? '#1D9E75' : '#D85A30' }}>{fmt(Math.abs(d.value))}</span>
-              <div style={{ flex: 1, height: 0.5, background: 'rgba(0,0,0,0.08)' }} />
-            </div>
-            {openDed === d.groupeKey && dedSC.length > 0 && (
-              <div style={{ margin: '2px 8px 4px 20px', background: '#fff', border: '0.5px solid rgba(0,0,0,0.06)', borderRadius: 8, overflow: 'hidden' }}>
-                {dedSC.map((sc, j) => {
-                  const pctBar = Math.abs(sc.valeur) / dedMax * 100
-                  const active = panelData?.compte === sc.prefix
-                  return (
-                    <div key={j} onClick={() => setPanelData(active ? null : { compte: sc.prefix, label: sc.label, valeur: sc.valeur, ecritures: sc.ecritures })}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderBottom: j < dedSC.length-1 ? '0.5px solid rgba(0,0,0,0.04)' : 'none', cursor: 'pointer', background: active ? 'rgba(184,169,138,0.08)' : 'transparent' }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#B8A98A', minWidth: 70, fontFamily: 'monospace' }}>{formatCompte(sc.prefix)}</span>
-                      <span style={{ flex: 1, fontSize: 12, color: '#1A1A1A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sc.label}</span>
-                      <div style={{ width: 50, height: 4, background: 'rgba(0,0,0,0.06)', borderRadius: 2, flexShrink: 0 }}>
-                        <div style={{ height: '100%', width: `${pctBar}%`, background: sc.valeur >= 0 ? '#D85A30' : '#1D9E75', borderRadius: 2 }} />
-                      </div>
-                      <span style={{ fontSize: 12, fontWeight: 500, color: sc.valeur >= 0 ? '#D85A30' : '#1D9E75', minWidth: 80, textAlign: 'right' }}>{fmt(Math.abs(sc.valeur))}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        )
-      })}
+      {/* Déductions au-dessus de la ligne */}
+      {deductions?.map((d, i) => (
+        <DedLine
+          key={i}
+          label={d.label}
+          value={d.value}
+          groupeKey={d.groupeKey}
+          lignes={lignes}
+          openDed={openDed}
+          setOpenDed={setOpenDed}
+          panelData={panelData}
+          setPanelData={setPanelData}
+        />
+      ))}
 
-      <div onClick={() => hasDetail && setOpen(o => !o)}
-        style={{ display: 'flex', alignItems: 'center', gap: 10, background: bg, border: `0.5px solid ${highlight ? '#1A1A1A' : 'rgba(0,0,0,0.06)'}`, borderLeft: `3px solid ${c}`, borderRadius: '0 10px 10px 0', padding: '12px 16px', marginBottom: 2, cursor: hasDetail ? 'pointer' : 'default', transition: 'all 0.15s' }}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: highlight ? 'rgba(184,169,138,0.15)' : `${c}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 16 }}>
+      {/* Ligne principale */}
+      <div
+        onClick={() => hasDetail && setOpen(o => !o)}
+        style={{
+          display: 'grid', gridTemplateColumns: gridCols, alignItems: 'center',
+          background: bg,
+          border: `0.5px solid ${highlight ? '#1A1A1A' : 'rgba(0,0,0,0.06)'}`,
+          borderLeft: `3px solid ${c}`,
+          borderRadius: '0 10px 10px 0',
+          padding: '10px 14px 10px 10px',
+          marginBottom: 2,
+          cursor: hasDetail ? 'pointer' : 'default',
+          transition: 'background 0.15s',
+        }}
+      >
+        {/* Icône */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>
           {icon}
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 10, fontWeight: 600, color: mutedColor, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{label}</div>
-          <div style={{ fontSize: 22, fontWeight: 600, color: highlight ? '#fff' : (color || textColor), lineHeight: 1 }}>{fmt(value)}</div>
-          {pct !== undefined && <div style={{ fontSize: 11, color: mutedColor, marginTop: 3 }}>{fmtP(pct)} du CA</div>}
-          {valN1 !== null && (
-            <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:4 }}>
-              <span style={{ fontSize:11, color:'#8C9BAB' }}>N-1 {fmt(valN1)}</span>
-              {pctN1 !== null && <span style={{ fontSize:10, color:'#8C9BAB' }}>{fmtP(pctN1)}</span>}
-              {variation !== null && (
-                <span style={{ fontSize:11, fontWeight:500, color: variation >= 0 ? '#1D9E75' : '#D85A30' }}>
-                  {variation >= 0 ? '▲' : '▼'} {Math.abs(Math.round(variation * 10) / 10).toFixed(1)}%
-                </span>
-              )}
-            </div>
+
+        {/* Label + valeur principale (colonne gauche) */}
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: mutedColor, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>
+            {label}
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 600, color: highlight ? '#fff' : (color || textColor), lineHeight: 1 }}>
+            {fmt(value)}
+          </div>
+          {pct !== undefined && (
+            <div style={{ fontSize: 11, color: mutedColor, marginTop: 2 }}>{fmtP(pct)} du CA</div>
           )}
         </div>
-        {delta && (
-          <span style={{ fontSize: 10, fontWeight: 500, color: delta.val >= 0 ? '#1D9E75' : '#D85A30', whiteSpace: 'nowrap' }}>
-            {delta.val >= 0 ? '▲' : '▼'} {delta.val >= 0 ? '+' : ''}{fmt(delta.val)}
-          </span>
-        )}
-        {hasDetail && (
-          <span style={{ fontSize: 10, color: highlight ? 'rgba(255,255,255,0.4)' : '#8C9BAB', transition: 'transform 0.2s', display: 'inline-block', transform: open ? 'rotate(90deg)' : 'none', marginLeft: 4 }}>▶</span>
-        )}
+
+        {/* Colonne N */}
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: highlight ? (color || '#B8A98A') : (color || '#1A1A1A') }}>
+            {fmt(value)}
+          </div>
+          {pct !== undefined && (
+            <div style={{ fontSize: 10, color: mutedColor, marginTop: 1 }}>{fmtP(pct)}</div>
+          )}
+        </div>
+
+        {/* Colonne N-1 */}
+        <div style={{ textAlign: 'right' }}>
+          {valN1 !== null ? (
+            <>
+              <div style={{ fontSize: 13, fontWeight: 500, color: n1Color }}>{fmt(valN1)}</div>
+              {pctN1 !== null && (
+                <div style={{ fontSize: 10, color: n1PctColor, marginTop: 1 }}>{fmtP(pctN1)}</div>
+              )}
+            </>
+          ) : (
+            <div style={{ fontSize: 12, color: n1Color }}>—</div>
+          )}
+        </div>
+
+        {/* Colonne évolution */}
+        <div style={{ textAlign: 'center' }}>
+          {variation !== null && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 3,
+              fontSize: 10, fontWeight: 600,
+              color: variation >= 0 ? '#0F6E56' : '#993C1D',
+              background: variation >= 0 ? '#E1F5EE' : '#FAECE7',
+              padding: '3px 7px', borderRadius: 20, whiteSpace: 'nowrap',
+            }}>
+              {variation >= 0 ? '▲' : '▼'} {Math.abs(Math.round(variation * 10) / 10).toFixed(1)} %
+            </span>
+          )}
+        </div>
+
+        {/* Chevron drill-down */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+          {hasDetail && (
+            <span style={{ fontSize: 10, color: highlight ? 'rgba(255,255,255,0.35)' : '#8C9BAB', transition: 'transform 0.2s', display: 'inline-block', transform: open ? 'rotate(90deg)' : 'none' }}>▶</span>
+          )}
+        </div>
       </div>
 
+      {/* Drill-down comptes N */}
       {open && sousComptes.length > 0 && (
         <div style={{ margin: '0 0 4px 0', background: '#fff', border: '0.5px solid rgba(0,0,0,0.06)', borderRadius: 8, overflow: 'hidden' }}>
           {sousComptes.map((sc, i) => {
             const pctBar = Math.abs(sc.valeur) / maxVal * 100
             const active = panelData?.compte === sc.prefix
             return (
-              <div key={i} onClick={() => setPanelData(active ? null : { compte: sc.prefix, label: sc.label, valeur: sc.valeur, ecritures: sc.ecritures })}
+              <div key={i}
+                onClick={() => setPanelData(active ? null : { compte: sc.prefix, label: sc.label, valeur: sc.valeur, ecritures: sc.ecritures })}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderBottom: i < sousComptes.length-1 ? '0.5px solid rgba(0,0,0,0.04)' : 'none', cursor: 'pointer', background: active ? 'rgba(184,169,138,0.08)' : 'transparent', transition: 'background 0.1s' }}>
                 <span style={{ fontSize: 11, fontWeight: 600, color: '#B8A98A', minWidth: 70, fontFamily: 'monospace' }}>{formatCompte(sc.prefix)}</span>
                 <span style={{ flex: 1, fontSize: 12, color: '#1A1A1A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sc.label}</span>
@@ -310,11 +389,32 @@ function SigRow({
   )
 }
 
+// ── En-tête des colonnes ─────────────────────────────────────────────────────
+function ColHeader({ anneeActive, anneeN1 }: { anneeActive: number; anneeN1: number }) {
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: '32px 1fr 120px 120px 96px 20px',
+      padding: '0 14px 8px 10px',
+      marginBottom: 4,
+    }}>
+      <div />
+      <div style={{ fontSize: 9, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.09em' }}>Indicateur</div>
+      <div style={{ fontSize: 9, fontWeight: 600, color: '#1A1A1A', textTransform: 'uppercase', letterSpacing: '0.09em', textAlign: 'right' }}>N — {anneeActive}</div>
+      <div style={{ fontSize: 9, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.09em', textAlign: 'right' }}>N-1 — {anneeN1}</div>
+      <div style={{ fontSize: 9, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.09em', textAlign: 'center' }}>Évolution</div>
+      <div />
+    </div>
+  )
+}
+
+// ── Page principale ──────────────────────────────────────────────────────────
 export default function ProfitabilityPage() {
   const [exercices, setExercices] = useState<Record<number,{annee:number;lignes:LigneFEC[]}>>({})
   const { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1 } = usePeriod(new Date().getFullYear())
   const [loading, setLoading] = useState(true)
   const [panelData, setPanelData] = useState<PanelData | null>(null)
+  const [openDed, setOpenDed] = useState<string | null>(null)
 
   useEffect(() => {
     sb.auth.getUser().then(async ({ data: { user } }) => {
@@ -344,7 +444,6 @@ export default function ProfitabilityPage() {
     return exercices[anneeActive]?.lignes ?? []
   }, [exercices, anneeActive, periodeTab, dateDebut, dateFin])
 
-  // ── Lignes N-1 adaptatives ──────────────────────────────────────────────────
   const lignesN1: LigneFEC[] = (() => {
     if (periodeTab === 'perso' && dateDebut && dateFin) {
       const dN1 = decalerAnMoins1(dateDebut)
@@ -365,13 +464,18 @@ export default function ProfitabilityPage() {
     const ventes = lignesN1.filter(l => ['701','702','703','704','705','706','707','708'].some(p => l.CompteNum.startsWith(p)))
     return Math.abs(ventes.reduce((s,l) => s + (l.Debit - l.Credit), 0))
   })() : 0
+
   const anneesDisponibles = Object.keys(exercices).map(Number).sort((a,b) => b-a)
   const sig = useMemo(() => lignesActives.length > 0 ? calculerSIG(lignesActives) : null, [lignesActives])
   const sigN1 = useMemo(() => lignesN1.length > 0 ? calculerSIG(lignesN1) : null, [lignesN1])
   const show = (v: number) => Math.abs(v) > 0.5
-  const delta = (v: number, vN1: number | undefined) => !vN1 || !sigN1 ? null : { val: v - vN1, pct: (v - vN1) / Math.abs(vN1) * 100 }
 
-  const rowProps = { lignes: lignesActives, panelData, setPanelData, lignesN1, caN1 }
+  const rowProps = {
+    lignes: lignesActives,
+    panelData, setPanelData,
+    lignesN1, caN1,
+    openDed, setOpenDed,
+  }
 
   if (loading) return (
     <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
@@ -387,9 +491,22 @@ export default function ProfitabilityPage() {
     <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
       <Sidebar activePage="profitability"/>
       <div style={{ flex:1, display:'flex', flexDirection:'column' }}>
+
+        {/* ── Topbar — inchangée ── */}
         <div style={{ background:'#fff', borderBottom:'0.5px solid rgba(0,0,0,0.07)', padding:'0 24px', height:52, display:'flex', alignItems:'center', gap:12, flexShrink:0, position:'sticky' as const, top:0, zIndex:10 }}>
           <span style={{ fontSize:14, fontWeight:500, color:'#1A1A1A' }}>Rentabilité</span>
-          {sig && <PeriodSelector annees={anneesDisponibles} anneeActive={anneeActive} setAnneeActive={setAnneeActive} periodeTab={periodeTab} setPeriodeTab={setPeriodeTab} dateDebut={dateDebut} setDateDebut={setDateDebut} dateFin={dateFin} setDateFin={setDateFin} anneeN1={anneeN1} setAnneeN1={setAnneeN1} dateDebutN1={dateDebutN1} setDateDebutN1={setDateDebutN1} dateFinN1={dateFinN1} setDateFinN1={setDateFinN1} />}
+          {sig && (
+            <PeriodSelector
+              annees={anneesDisponibles}
+              anneeActive={anneeActive} setAnneeActive={setAnneeActive}
+              periodeTab={periodeTab} setPeriodeTab={setPeriodeTab}
+              dateDebut={dateDebut} setDateDebut={setDateDebut}
+              dateFin={dateFin} setDateFin={setDateFin}
+              anneeN1={anneeN1} setAnneeN1={setAnneeN1}
+              dateDebutN1={dateDebutN1} setDateDebutN1={setDateDebutN1}
+              dateFinN1={dateFinN1} setDateFinN1={setDateFinN1}
+            />
+          )}
         </div>
 
         <div style={{ flex:1, padding:24, overflowY:'auto' }}>
@@ -401,28 +518,94 @@ export default function ProfitabilityPage() {
           ) : (
             <div style={{ display:'flex', gap:16, alignItems:'flex-start', maxWidth:1200 }}>
               <div style={{ flex:1, minWidth:0 }}>
-                <AlvioInsight payload={{ page:'profitability', annee:anneeActive, periode: periodeTab==='perso'&&dateDebut&&dateFin?`${dateDebut} → ${dateFin}`:undefined, indicateurs:{ ca:sig.ca, mb:sig.mb, ebe:sig.ebe, rex:sig.rex, rnet:sig.rnet, tauxMb:sig.tauxMb, tauxEbe:sig.tauxEbe, tauxRex:sig.tauxRex, tauxRnet:sig.tauxRnet, tauxPers:sig.tauxPers, pers64:sig.pers64 } }} />
 
-                <div style={{ fontSize:11, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Soldes intermédiaires de gestion</div>
+                <AlvioInsight payload={{
+                  page:'profitability', annee:anneeActive,
+                  periode: periodeTab==='perso'&&dateDebut&&dateFin ? `${dateDebut} → ${dateFin}` : undefined,
+                  indicateurs:{ ca:sig.ca, mb:sig.mb, ebe:sig.ebe, rex:sig.rex, rnet:sig.rnet, tauxMb:sig.tauxMb, tauxEbe:sig.tauxEbe, tauxRex:sig.tauxRex, tauxRnet:sig.tauxRnet, tauxPers:sig.tauxPers, pers64:sig.pers64 }
+                }} />
 
-                <SigRow icon="💰" label="Chiffre d'affaires" value={sig.ca} pct={100} color="#B8A98A" explain="Total de vos ventes hors taxes" groupeKey="prodVendue" delta={delta(sig.ca, sigN1?.ca)} {...rowProps} lignesN1={lignesN1} caN1={caN1} />
+                <div style={{ fontSize:11, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>
+                  Soldes intermédiaires de gestion
+                </div>
 
-                {show(sig.venteMarchandises) && <SigRow icon="🏪" label="Ventes de marchandises" value={sig.venteMarchandises} pct={sig.ca>0?sig.venteMarchandises/sig.ca*100:0} color="#B8A98A" explain="Revente de marchandises" groupeKey="venteMarchandises" delta={delta(sig.venteMarchandises, sigN1?.venteMarchandises)} {...rowProps} lignesN1={lignesN1} caN1={caN1} />}
-                {show(sig.margeCommerciale) && <SigRow icon="🏪" label="Marge commerciale" value={sig.margeCommerciale} pct={sig.ca>0?sig.margeCommerciale/sig.ca*100:0} color="#B8A98A" explain="Ventes − coût d'achat marchandises" groupeKey="venteMarchandises" deductions={show(sig.coutMarchandises)?[{label:'Coût d\'achat des marchandises',value:sig.coutMarchandises,groupeKey:'coutMarchandises'}]:[]} delta={delta(sig.margeCommerciale, sigN1?.margeCommerciale)} {...rowProps} lignesN1={lignesN1} caN1={caN1} />}
+                <ColHeader anneeActive={anneeActive} anneeN1={anneeActive - 1} />
 
-                {(show(sig.prodStockee)||show(sig.prodImmobilisee)) && <SigRow icon="🏭" label="Production de l'exercice" value={sig.productionExercice} pct={sig.ca>0?sig.productionExercice/sig.ca*100:0} explain="CA + stockage + immobilisation" groupeKey="prodVendue" deductions={[...(show(sig.prodStockee)?[{label:'Production stockée',value:-sig.prodStockee,groupeKey:'prodStockee'}]:[]),...(show(sig.prodImmobilisee)?[{label:'Production immobilisée',value:-sig.prodImmobilisee,groupeKey:'prodImmobilisee'}]:[])]} delta={null} {...rowProps} lignesN1={lignesN1} caN1={caN1} />}
+                <SigRow icon="💰" label="Chiffre d'affaires" value={sig.ca} pct={100} color="#B8A98A" explain="Total de vos ventes hors taxes" groupeKey="prodVendue" {...rowProps} />
 
-                <SigRow icon="⚙️" label="Valeur ajoutée" value={sig.valeurAjoutee} pct={sig.ca>0?sig.valeurAjoutee/sig.ca*100:0} explain="Richesse créée par l'entreprise" groupeKey="consommationsExt" deductions={[{label:'Consommations externes',value:sig.consommationsExt,groupeKey:'consommationsExt'},...(show(sig.subventions)?[{label:'Subventions d\'exploitation',value:-sig.subventions,groupeKey:'subventions'}]:[])]} delta={delta(sig.valeurAjoutee, sigN1?.valeurAjoutee)} {...rowProps} lignesN1={lignesN1} caN1={caN1} />
+                {show(sig.venteMarchandises) && <SigRow icon="🏪" label="Ventes de marchandises" value={sig.venteMarchandises} pct={sig.ca>0?sig.venteMarchandises/sig.ca*100:0} color="#B8A98A" explain="Revente de marchandises" groupeKey="venteMarchandises" {...rowProps} />}
 
-                <SigRow icon="⚡" label="EBE — Excédent Brut d'Exploitation" value={sig.ebe} pct={sig.tauxEbe} color={sig.tauxEbe>=10?'#1D9E75':'#D85A30'} highlight={true} explain="Baromètre de rentabilité opérationnelle" groupeKey="chargesPersonnel" deductions={[...(show(sig.impotsTaxes)?[{label:'Impôts & taxes',value:sig.impotsTaxes,groupeKey:'impotsTaxes'}]:[]),{label:'Charges de personnel',value:sig.chargesPersonnel,groupeKey:'chargesPersonnel'}]} delta={delta(sig.ebe, sigN1?.ebe)} {...rowProps} lignesN1={lignesN1} caN1={caN1} />
+                {show(sig.margeCommerciale) && (
+                  <SigRow icon="🏪" label="Marge commerciale" value={sig.margeCommerciale} pct={sig.ca>0?sig.margeCommerciale/sig.ca*100:0} color="#B8A98A" explain="Ventes − coût d'achat marchandises" groupeKey="venteMarchandises"
+                    deductions={show(sig.coutMarchandises) ? [{ label:"Coût d'achat des marchandises", value:sig.coutMarchandises, groupeKey:'coutMarchandises' }] : []}
+                    {...rowProps}
+                  />
+                )}
 
-                <SigRow icon="🎯" label="Résultat d'exploitation" value={sig.rex} pct={sig.tauxRex} color={sig.rex>=0?'#1D9E75':'#D85A30'} explain="Rentabilité du cœur de métier" groupeKey="dotations" deductions={[...(show(sig.dotations)?[{label:'Dotations aux amortissements',value:sig.dotations,groupeKey:'dotations'}]:[]),...(show(sig.reprises)?[{label:'Reprises sur provisions',value:-sig.reprises,groupeKey:'reprises'}]:[]),...(show(sig.autresProduits)?[{label:'Autres produits (75)',value:-sig.autresProduits,groupeKey:'autresProduits'}]:[]),...(show(sig.autresCharges)?[{label:'Autres charges (65)',value:sig.autresCharges,groupeKey:'autresCharges'}]:[])]} delta={delta(sig.rex, sigN1?.rex)} {...rowProps} lignesN1={lignesN1} caN1={caN1} />
+                {(show(sig.prodStockee)||show(sig.prodImmobilisee)) && (
+                  <SigRow icon="🏭" label="Production de l'exercice" value={sig.productionExercice} pct={sig.ca>0?sig.productionExercice/sig.ca*100:0} explain="CA + stockage + immobilisation" groupeKey="prodVendue"
+                    deductions={[
+                      ...(show(sig.prodStockee) ? [{ label:'Production stockée', value:-sig.prodStockee, groupeKey:'prodStockee' }] : []),
+                      ...(show(sig.prodImmobilisee) ? [{ label:'Production immobilisée', value:-sig.prodImmobilisee, groupeKey:'prodImmobilisee' }] : []),
+                    ]}
+                    {...rowProps}
+                  />
+                )}
 
-                {show(sig.resultatFinancier) && <SigRow icon="🏦" label="Résultat courant avant impôts" value={sig.rcai} pct={sig.ca>0?sig.rcai/sig.ca*100:0} color={sig.rcai>=0?'#1D9E75':'#D85A30'} explain="REX + résultat financier" groupeKey="produitsFinanciers" deductions={[...(show(sig.produitsFinanciers)?[{label:'Produits financiers',value:-sig.produitsFinanciers,groupeKey:'produitsFinanciers'}]:[]),...(show(sig.chargesFinancieres)?[{label:'Charges financières',value:sig.chargesFinancieres,groupeKey:'chargesFinancieres'}]:[])]} delta={delta(sig.rcai, sigN1?.rcai)} {...rowProps} lignesN1={lignesN1} caN1={caN1} />}
+                <SigRow icon="⚙️" label="Valeur ajoutée" value={sig.valeurAjoutee} pct={sig.ca>0?sig.valeurAjoutee/sig.ca*100:0} explain="Richesse créée par l'entreprise" groupeKey="consommationsExt"
+                  deductions={[
+                    { label:'Consommations externes', value:sig.consommationsExt, groupeKey:'consommationsExt' },
+                    ...(show(sig.subventions) ? [{ label:"Subventions d'exploitation", value:-sig.subventions, groupeKey:'subventions' }] : []),
+                  ]}
+                  {...rowProps}
+                />
 
-                {show(sig.resultatExcep) && <SigRow icon="⚠️" label="Résultat exceptionnel" value={sig.resultatExcep} pct={sig.ca>0?sig.resultatExcep/sig.ca*100:0} color={sig.resultatExcep>=0?'#1D9E75':'#D85A30'} explain="Éléments ponctuels hors activité" groupeKey="produitsExcep" deductions={[...(show(sig.produitsExcep)?[{label:'Produits exceptionnels',value:-sig.produitsExcep,groupeKey:'produitsExcep'}]:[]),...(show(sig.chargesExcep)?[{label:'Charges exceptionnelles',value:sig.chargesExcep,groupeKey:'chargesExcep'}]:[])]} delta={delta(sig.resultatExcep, sigN1?.resultatExcep)} {...rowProps} lignesN1={lignesN1} caN1={caN1} />}
+                <SigRow icon="⚡" label="EBE — Excédent Brut d'Exploitation" value={sig.ebe} pct={sig.tauxEbe} color={sig.tauxEbe>=10?'#1D9E75':'#D85A30'} highlight={true} explain="Baromètre de rentabilité opérationnelle" groupeKey="chargesPersonnel"
+                  deductions={[
+                    ...(show(sig.impotsTaxes) ? [{ label:'Impôts & taxes', value:sig.impotsTaxes, groupeKey:'impotsTaxes' }] : []),
+                    { label:'Charges de personnel', value:sig.chargesPersonnel, groupeKey:'chargesPersonnel' },
+                  ]}
+                  {...rowProps}
+                />
 
-                <SigRow icon="✅" label="Résultat net" value={sig.rnet} pct={sig.tauxRnet} color={sig.rnet>=0?'#1D9E75':'#D85A30'} explain="Ce que vous gardez après tout" groupeKey="is" deductions={[...(show(sig.participation)?[{label:'Participation des salariés',value:sig.participation,groupeKey:'participation'}]:[]),...(show(sig.is)?[{label:'Impôt sur les sociétés',value:sig.is,groupeKey:'is'}]:[])]} delta={delta(sig.rnet, sigN1?.rnet)} {...rowProps} lignesN1={lignesN1} caN1={caN1} />
+                <SigRow icon="🎯" label="Résultat d'exploitation" value={sig.rex} pct={sig.tauxRex} color={sig.rex>=0?'#1D9E75':'#D85A30'} explain="Rentabilité du cœur de métier" groupeKey="dotations"
+                  deductions={[
+                    ...(show(sig.dotations) ? [{ label:'Dotations aux amortissements', value:sig.dotations, groupeKey:'dotations' }] : []),
+                    ...(show(sig.reprises) ? [{ label:'Reprises sur provisions', value:-sig.reprises, groupeKey:'reprises' }] : []),
+                    ...(show(sig.autresProduits) ? [{ label:'Autres produits (75)', value:-sig.autresProduits, groupeKey:'autresProduits' }] : []),
+                    ...(show(sig.autresCharges) ? [{ label:'Autres charges (65)', value:sig.autresCharges, groupeKey:'autresCharges' }] : []),
+                  ]}
+                  {...rowProps}
+                />
+
+                {show(sig.resultatFinancier) && (
+                  <SigRow icon="🏦" label="Résultat courant avant impôts" value={sig.rcai} pct={sig.ca>0?sig.rcai/sig.ca*100:0} color={sig.rcai>=0?'#1D9E75':'#D85A30'} explain="REX + résultat financier" groupeKey="produitsFinanciers"
+                    deductions={[
+                      ...(show(sig.produitsFinanciers) ? [{ label:'Produits financiers', value:-sig.produitsFinanciers, groupeKey:'produitsFinanciers' }] : []),
+                      ...(show(sig.chargesFinancieres) ? [{ label:'Charges financières', value:sig.chargesFinancieres, groupeKey:'chargesFinancieres' }] : []),
+                    ]}
+                    {...rowProps}
+                  />
+                )}
+
+                {show(sig.resultatExcep) && (
+                  <SigRow icon="⚠️" label="Résultat exceptionnel" value={sig.resultatExcep} pct={sig.ca>0?sig.resultatExcep/sig.ca*100:0} color={sig.resultatExcep>=0?'#1D9E75':'#D85A30'} explain="Éléments ponctuels hors activité" groupeKey="produitsExcep"
+                    deductions={[
+                      ...(show(sig.produitsExcep) ? [{ label:'Produits exceptionnels', value:-sig.produitsExcep, groupeKey:'produitsExcep' }] : []),
+                      ...(show(sig.chargesExcep) ? [{ label:'Charges exceptionnelles', value:sig.chargesExcep, groupeKey:'chargesExcep' }] : []),
+                    ]}
+                    {...rowProps}
+                  />
+                )}
+
+                <SigRow icon="✅" label="Résultat net" value={sig.rnet} pct={sig.tauxRnet} color={sig.rnet>=0?'#1D9E75':'#D85A30'} explain="Ce que vous gardez après tout" groupeKey="is"
+                  deductions={[
+                    ...(show(sig.participation) ? [{ label:'Participation des salariés', value:sig.participation, groupeKey:'participation' }] : []),
+                    ...(show(sig.is) ? [{ label:'Impôt sur les sociétés', value:sig.is, groupeKey:'is' }] : []),
+                  ]}
+                  {...rowProps}
+                />
+
               </div>
 
               {panelData && <SidePanel data={panelData} onClose={() => setPanelData(null)} />}
