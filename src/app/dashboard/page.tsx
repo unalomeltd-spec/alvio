@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { usePeriod } from '@/hooks/usePeriod'
 import { createClient } from '@supabase/supabase-js'
 import AppSidebar from '@/components/Sidebar'
 import PeriodSelector from '@/components/PeriodSelector'
@@ -111,13 +112,7 @@ function PeriodBar({ annees, anneeActive, setAnneeActive, periodeTab, setPeriode
 
 export default function DashboardPage() {
   const [exercices, setExercices] = useState<Record<number, {annee:number;lignes:LigneFEC[];nomFichier:string}>>({})
-  const [anneeActive, setAnneeActive] = useState(new Date().getFullYear())
-  const [periodeTab, setPeriodeTab] = useState<'exercice'|'perso'>('exercice')
-  const [dateDebut, setDateDebut] = useState('')
-  const [dateFin, setDateFin] = useState('')
-  const [anneeN1, setAnneeN1] = useState(new Date().getFullYear() - 1)
-  const [dateDebutN1, setDateDebutN1] = useState('')
-  const [dateFinN1, setDateFinN1] = useState('')
+  const { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1 } = usePeriod(new Date().getFullYear())
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [erreur, setErreur] = useState('')

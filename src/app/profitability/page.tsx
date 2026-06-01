@@ -288,13 +288,7 @@ function SigRow({
 
 export default function ProfitabilityPage() {
   const [exercices, setExercices] = useState<Record<number,{annee:number;lignes:LigneFEC[]}>>({})
-  const [anneeActive, setAnneeActive] = useState(new Date().getFullYear())
-  const [periodeTab, setPeriodeTab] = useState<'exercice'|'perso'>('exercice')
-  const [dateDebut, setDateDebut] = useState('')
-  const [dateFin, setDateFin] = useState('')
-  const [anneeN1, setAnneeN1] = useState(new Date().getFullYear() - 1)
-  const [dateDebutN1, setDateDebutN1] = useState('')
-  const [dateFinN1, setDateFinN1] = useState('')
+  const { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1 } = usePeriod(new Date().getFullYear())
   const [loading, setLoading] = useState(true)
   const [panelData, setPanelData] = useState<PanelData | null>(null)
 
@@ -362,7 +356,7 @@ export default function ProfitabilityPage() {
     <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
       <Sidebar activePage="profitability"/>
       <div style={{ flex:1, display:'flex', flexDirection:'column' }}>
-        <div style={{ background:'#fff', borderBottom:'0.5px solid rgba(0,0,0,0.07)', padding:'0 24px', height:52, display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
+        <div style={{ background:'#fff', borderBottom:'0.5px solid rgba(0,0,0,0.07)', padding:'0 24px', height:52, display:'flex', alignItems:'center', gap:12, flexShrink:0, position:'sticky' as const, top:0, zIndex:10 }}>
           <span style={{ fontSize:14, fontWeight:500, color:'#1A1A1A' }}>Rentabilité</span>
           {sig && <PeriodSelector annees={anneesDisponibles} anneeActive={anneeActive} setAnneeActive={setAnneeActive} periodeTab={periodeTab} setPeriodeTab={setPeriodeTab} dateDebut={dateDebut} setDateDebut={setDateDebut} dateFin={dateFin} setDateFin={setDateFin} anneeN1={anneeN1} setAnneeN1={setAnneeN1} dateDebutN1={dateDebutN1} setDateDebutN1={setDateDebutN1} dateFinN1={dateFinN1} setDateFinN1={setDateFinN1} />}
         </div>
