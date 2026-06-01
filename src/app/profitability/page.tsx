@@ -63,7 +63,7 @@ function getSousComptes(lignes: LigneFEC[], groupeKey: string) {
       result.push({ prefix: num, label: lib, valeur: v, ecritures })
     }
   }
-  return result.sort((a, b) => Math.abs(b.valeur) - Math.abs(a.valeur))
+  return result.sort((a, b) => a.prefix.localeCompare(b.prefix))
 }
 
 function formatCompte(num: string): string {
