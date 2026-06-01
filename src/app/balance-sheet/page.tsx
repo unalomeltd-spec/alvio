@@ -137,14 +137,15 @@ function SidePanel({ data, onClose }: { data: PanelData; onClose: () => void }) 
   )
 }
 
-function BilanLigne({ label, groupeKeys, lignes, panelData, setPanelData, color, indent, bold, isTotal, isSousTotal }: {
+function BilanLigne({ label, groupeKeys, lignes, panelData, setPanelData, color, indent, bold, isTotal, isSousTotal, filterSign }: {
   label: string; groupeKeys: string[]; lignes: LigneFEC[]
   panelData: PanelData | null; setPanelData: (d: PanelData | null) => void
-  color?: string; indent?: boolean; bold?: boolean; isTotal?: boolean; isSousTotal?: boolean
+  color?: string; indent?: boolean; bold?: boolean; isTotal?: boolean; isSousTotal?: boolean; filterSign?: 'actif' | 'passif'
 }) {
   const [open, setOpen] = useState(false)
-  const sousComptes = useMemo(() => getSousComptes(lignes, groupeKeys), [lignes, groupeKeys])
-  const valeur = sousComptes.reduce((s, c) => s + c.valeur, 0)
+  const sousComptesRaw = useMemo(() => getSousComptes(lignes, groupeKeys), [lignes, groupeKeys])
+  const sousComptes = filterSign === 'actif' ? sousComptesRaw.filter(s => s.valeur > 0) : filterSign === 'passif' ? sousComptesRaw.filter(s => s.valeur < 0) : sousComptesRaw
+  const valeur = filterSign === 'passif' ? Math.abs(sousComptes.reduce((s, c) => s + c.valeur, 0)) : sousComptes.reduce((s, c) => s + c.valeur, 0)
   const hasDetail = sousComptes.length > 0
   const maxVal = sousComptes.length > 0 ? Math.max(...sousComptes.map(s => Math.abs(s.valeur))) : 1
 
@@ -395,20 +396,20 @@ export default function BalanceSheetPage() {
                         <>
                           <div style={{ padding:'7px 16px 3px', fontSize:10, fontWeight:600, color:'#B8A98A', textTransform:'uppercase', letterSpacing:'0.06em', background:'rgba(184,169,138,0.04)' }}>Créances</div>
                           <BilanLigne label="Clients et comptes rattachés" groupeKeys={['creancesClients']} color="#1A1A1A" indent {...rp} />
-                          <BilanLigne label="Provisions créances douteuses" groupeKeys={['provCreances']} color="#D85A30" indent {...rp} />
-                          <BilanLigne label="Créances fiscales (État)" groupeKeys={['creancesEtat']} color="#1A1A1A" indent {...rp} />
-                          <BilanLigne label="Autres créances" groupeKeys={['autresCreances']} color="#8C9BAB" indent {...rp} />
-                          <BilanLigne label="Créances nettes" groupeKeys={['creancesClients','provCreances','creancesEtat','autresCreances']} color="#1A1A1A" isSousTotal {...rp} />
+                          <BilanLigne label="Provisions créances douteuses" groupeKeys={['provCreances']} color="#D85A30" filterSign="actif" indent {...rp} />
+                          <BilanLigne label="Créances fiscales (État)" groupeKeys={['creancesEtat']} color="#1A1A1A" filterSign="actif" indent {...rp} />
+                          <BilanLigne label="Autres créances" groupeKeys={['autresCreances']} color="#8C9BAB" filterSign="actif" indent {...rp} />
+                          <BilanLigne label="Créances nettes" groupeKeys={['creancesClients','provCreances','creancesEtat','autresCreances']} color="#1A1A1A" filterSign="actif" isSousTotal {...rp} />
                         </>
                       )}
                       <BilanLigne label="Valeurs mobilières de placement" groupeKeys={['vmp']} color="#5C6670" indent {...rp} />
                       {totalTresoA !== 0 && (
                         <>
                           <div style={{ padding:'7px 16px 3px', fontSize:10, fontWeight:600, color:'#B8A98A', textTransform:'uppercase', letterSpacing:'0.06em', background:'rgba(184,169,138,0.04)' }}>Trésorerie</div>
-                          <BilanLigne label="Banques et CCP" groupeKeys={['banques']} color="#1D9E75" indent {...rp} />
-                          <BilanLigne label="Caisse" groupeKeys={['caisse']} color="#1D9E75" indent {...rp} />
-                          <BilanLigne label="Valeurs à l'encaissement" groupeKeys={['autresTresoA']} color="#1D9E75" indent {...rp} />
-                          <BilanLigne label="Total disponibilités" groupeKeys={['banques','caisse','autresTresoA']} color="#1D9E75" isSousTotal {...rp} />
+                          <BilanLigne label="Banques et CCP" groupeKeys={['banques']} color="#1D9E75" filterSign="actif" indent {...rp} />
+                          <BilanLigne label="Caisse" groupeKeys={['caisse']} color="#1D9E75" filterSign="actif" indent {...rp} />
+                          <BilanLigne label="Valeurs à l'encaissement" groupeKeys={['autresTresoA']} color="#1D9E75" filterSign="actif" indent {...rp} />
+                          <BilanLigne label="Total disponibilités" groupeKeys={['banques','caisse','autresTresoA']} color="#1D9E75" filterSign="actif" isSousTotal {...rp} />
                         </>
                       )}
                       <BilanLigne label="Charges à répartir" groupeKeys={['chargesRepartir']} color="#8C9BAB" indent {...rp} />
@@ -425,12 +426,12 @@ export default function BalanceSheetPage() {
                     </div>
 
                     <Section title="Capitaux propres" total={Math.abs(totalCapPropres)} color="#1D9E75" defaultOpen={true}>
-                      <BilanLigne label="Capital et primes d'émission" groupeKeys={['capital']} color="#1D9E75" indent {...rp} />
-                      <BilanLigne label="Réserves" groupeKeys={['reserves']} color="#1D9E75" indent {...rp} />
-                      <BilanLigne label="Report à nouveau" groupeKeys={['reportANouveau']} color="#1D9E75" indent {...rp} />
-                      <BilanLigne label="Résultat de l'exercice" groupeKeys={['resultatN']} color="#1D9E75" indent {...rp} />
-                      <BilanLigne label="Subventions d'investissement" groupeKeys={['subventionsInvest']} color="#8C9BAB" indent {...rp} />
-                      <BilanLigne label="Provisions réglementées" groupeKeys={['provReglementees']} color="#8C9BAB" indent {...rp} />
+                      <BilanLigne label="Capital et primes d'émission" groupeKeys={['capital']} color="#1D9E75" filterSign="passif" indent {...rp} />
+                      <BilanLigne label="Réserves" groupeKeys={['reserves']} color="#1D9E75" filterSign="passif" indent {...rp} />
+                      <BilanLigne label="Report à nouveau" groupeKeys={['reportANouveau']} color="#1D9E75" filterSign="passif" indent {...rp} />
+                      <BilanLigne label="Résultat de l'exercice" groupeKeys={['resultatN']} color="#1D9E75" filterSign="passif" indent {...rp} />
+                      <BilanLigne label="Subventions d'investissement" groupeKeys={['subventionsInvest']} color="#8C9BAB" filterSign="passif" indent {...rp} />
+                      <BilanLigne label="Provisions réglementées" groupeKeys={['provReglementees']} color="#8C9BAB" filterSign="passif" indent {...rp} />
                     </Section>
 
                     {Math.abs(totalProvRisques) > 0.5 && (
@@ -444,18 +445,18 @@ export default function BalanceSheetPage() {
                       {Math.abs(totalDettesLT) > 0.5 && (
                         <>
                           <div style={{ padding:'7px 16px 3px', fontSize:10, fontWeight:600, color:'#B8A98A', textTransform:'uppercase', letterSpacing:'0.06em', background:'rgba(184,169,138,0.04)' }}>Dettes financières</div>
-                          <BilanLigne label="Emprunts obligataires" groupeKeys={['empruntsOblig']} color="#D85A30" indent {...rp} />
-                          <BilanLigne label="Emprunts établissements de crédit" groupeKeys={['empruntsEtab']} color="#D85A30" indent {...rp} />
-                          <BilanLigne label="Autres emprunts et dettes" groupeKeys={['autresEmprunts']} color="#D85A30" indent {...rp} />
-                          <BilanLigne label="Total dettes financières" groupeKeys={['empruntsOblig','empruntsEtab','autresEmprunts']} color="#D85A30" isSousTotal {...rp} />
+                          <BilanLigne label="Emprunts obligataires" groupeKeys={['empruntsOblig']} color="#D85A30" filterSign="passif" indent {...rp} />
+                          <BilanLigne label="Emprunts établissements de crédit" groupeKeys={['empruntsEtab']} color="#D85A30" filterSign="passif" indent {...rp} />
+                          <BilanLigne label="Autres emprunts et dettes" groupeKeys={['autresEmprunts']} color="#D85A30" filterSign="passif" indent {...rp} />
+                          <BilanLigne label="Total dettes financières" groupeKeys={['empruntsOblig','empruntsEtab','autresEmprunts']} color="#D85A30" filterSign="passif" isSousTotal {...rp} />
                         </>
                       )}
                       <div style={{ padding:'7px 16px 3px', fontSize:10, fontWeight:600, color:'#B8A98A', textTransform:'uppercase', letterSpacing:'0.06em', background:'rgba(184,169,138,0.04)' }}>Dettes d'exploitation</div>
-                      <BilanLigne label="Fournisseurs et comptes rattachés" groupeKeys={['dettesFourn']} color="#D85A30" indent {...rp} />
-                      <BilanLigne label="Dettes sociales (personnel, URSSAF)" groupeKeys={['dettesSociales']} color="#D85A30" indent {...rp} />
-                      <BilanLigne label="Dettes fiscales (IS, TVA)" groupeKeys={['dettesFiscales']} color="#D85A30" indent {...rp} />
-                      <BilanLigne label="Autres dettes" groupeKeys={['autresDettes']} color="#8C9BAB" indent {...rp} />
-                      <BilanLigne label="Concours bancaires courants" groupeKeys={['concoursBancaires']} color="#993C1D" indent {...rp} />
+                      <BilanLigne label="Fournisseurs et comptes rattachés" groupeKeys={['dettesFourn']} color="#D85A30" filterSign="passif" indent {...rp} />
+                      <BilanLigne label="Dettes sociales (personnel, URSSAF)" groupeKeys={['dettesSociales']} color="#D85A30" filterSign="passif" indent {...rp} />
+                      <BilanLigne label="Dettes fiscales (IS, TVA)" groupeKeys={['dettesFiscales']} color="#D85A30" filterSign="passif" indent {...rp} />
+                      <BilanLigne label="Autres dettes" groupeKeys={['autresDettes']} color="#8C9BAB" filterSign="passif" indent {...rp} />
+                      <BilanLigne label="Concours bancaires courants" groupeKeys={['concoursBancaires']} color="#993C1D" filterSign="passif" indent {...rp} />
                     </Section>
 
                     <BilanLigne label="Total passif" groupeKeys={['capital','reserves','reportANouveau','resultatN','subventionsInvest','provReglementees','provRisques','provCharges','empruntsOblig','empruntsEtab','autresEmprunts','dettesFourn','dettesSociales','dettesFiscales','autresDettes','concoursBancaires']} isTotal {...rp} />
