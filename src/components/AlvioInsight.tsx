@@ -15,7 +15,6 @@ export default function AlvioInsight({ payload }: AlvioInsightProps) {
   const prevPayloadRef = useRef<string>('')
   const typingRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Fetch analyse
   useEffect(() => {
     const key = JSON.stringify(payload)
     if (key === prevPayloadRef.current) return
@@ -44,7 +43,6 @@ export default function AlvioInsight({ payload }: AlvioInsightProps) {
       })
   }, [payload])
 
-  // Apparition + effet machine à écrire
   useEffect(() => {
     if (loading || !analyse) return
     const appearTimer = setTimeout(() => {
@@ -67,49 +65,39 @@ export default function AlvioInsight({ payload }: AlvioInsightProps) {
 
   return (
     <div style={{
-      marginBottom: 28,
+      marginBottom: 24,
       opacity: visible ? 1 : 0,
       transform: visible ? 'translateY(0)' : 'translateY(8px)',
       transition: 'opacity 0.5s ease, transform 0.5s ease',
       fontFamily: "'Plus Jakarta Sans', sans-serif",
     }}>
       <div style={{
-        background: '#1A1A1A',
-        borderRadius: 14,
-        padding: '20px 24px',
+        background: '#fff',
+        border: '0.5px solid rgba(184,169,138,0.3)',
+        borderLeft: '3px solid #B8A98A',
+        borderRadius: '0 12px 12px 0',
+        padding: '16px 20px',
         position: 'relative',
         overflow: 'hidden',
       }}>
-        {/* Accent ligne gauche */}
-        <div style={{
-          position: 'absolute',
-          left: 0, top: 0, bottom: 0,
-          width: 3,
-          background: 'linear-gradient(180deg, #B8A98A 0%, rgba(184,169,138,0.2) 100%)',
-          borderRadius: '14px 0 0 14px',
-        }} />
-
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-          {/* Avatar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
           <div style={{
-            width: 36, height: 36,
+            width: 32, height: 32,
             borderRadius: '50%',
-            background: 'rgba(184,169,138,0.15)',
-            border: '1px solid rgba(184,169,138,0.3)',
+            background: 'rgba(184,169,138,0.12)',
+            border: '0.5px solid rgba(184,169,138,0.3)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
           }}>
-            <svg width="16" height="16" viewBox="0 0 28 28" fill="none">
+            <svg width="15" height="15" viewBox="0 0 28 28" fill="none">
               <path d="M14 2C14 2 8 8 8 14C8 18.4 10.6 22.2 14 24C17.4 22.2 20 18.4 20 14C20 8 14 2 14 2Z" fill="#B8A98A"/>
               <circle cx="14" cy="14" r="2.5" fill="#fff"/>
             </svg>
           </div>
 
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#F2F3F5', letterSpacing: '0.02em' }}>
-              Alvio
-            </div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A', letterSpacing: '0.02em' }}>Alvio</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
               <div style={{
                 width: 6, height: 6, borderRadius: '50%',
@@ -130,13 +118,13 @@ export default function AlvioInsight({ payload }: AlvioInsightProps) {
         </div>
 
         {/* Contenu */}
-        <div style={{ paddingLeft: 48 }}>
+        <div>
           {loading ? (
             <div style={{ display: 'flex', gap: 4, alignItems: 'center', height: 20 }}>
               {[0, 1, 2].map(i => (
                 <div key={i} style={{
                   width: 6, height: 6, borderRadius: '50%',
-                  background: 'rgba(184,169,138,0.6)',
+                  background: 'rgba(184,169,138,0.5)',
                   animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
                 }} />
               ))}
@@ -144,7 +132,7 @@ export default function AlvioInsight({ payload }: AlvioInsightProps) {
           ) : (
             <div style={{
               fontSize: 13,
-              color: 'rgba(242,243,245,0.85)',
+              color: '#1A1A1A',
               lineHeight: 1.7,
               letterSpacing: '0.01em',
             }}>
@@ -165,18 +153,9 @@ export default function AlvioInsight({ payload }: AlvioInsightProps) {
       </div>
 
       <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
-        }
-        @keyframes bounce {
-          0%, 60%, 100% { transform: translateY(0); }
-          30% { transform: translateY(-5px); }
-        }
-        @keyframes blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
-        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
       `}</style>
     </div>
   )
