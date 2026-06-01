@@ -177,7 +177,8 @@ function SidePanel({ data, onClose }: { data: PanelData; onClose: () => void }) 
 
 function SigRow({
   icon, label, value, pct, color, highlight, explain,
-  deductions, delta, lignes, groupeKey, panelData, setPanelData
+  deductions, delta, lignes, groupeKey, panelData, setPanelData,
+  lignesN1, caN1
 }: {
   icon: string; label: string; value: number; pct?: number; color?: string
   highlight?: boolean; explain: string
@@ -185,9 +186,13 @@ function SigRow({
   delta?: { val: number; pct: number } | null
   lignes: LigneFEC[]; groupeKey?: string
   panelData: PanelData | null; setPanelData: (d: PanelData | null) => void
+  lignesN1?: LigneFEC[]; caN1?: number
 }) {
   const [open, setOpen] = useState(false)
   const sousComptes = useMemo(() => groupeKey ? getSousComptes(lignes, groupeKey) : [], [lignes, groupeKey])
+  const valN1 = (lignesN1 && groupeKey) ? getSousComptes(lignesN1, groupeKey).reduce((s, sc) => s + sc.valeur, 0) : null
+  const pctN1 = (valN1 !== null && caN1 && caN1 !== 0) ? valN1 / caN1 * 100 : null
+  const variation = (valN1 !== null && valN1 !== 0) ? ((value - valN1) / Math.abs(valN1)) * 100 : null
   const hasDetail = sousComptes.length > 0
   const maxVal = sousComptes.length > 0 ? Math.max(...sousComptes.map(s => Math.abs(s.valeur))) : 1
   const c = color || (highlight ? '#B8A98A' : '#8C9BAB')
@@ -253,6 +258,17 @@ function SigRow({
           <div style={{ fontSize: 10, fontWeight: 600, color: mutedColor, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{label}</div>
           <div style={{ fontSize: 22, fontWeight: 600, color: highlight ? '#fff' : (color || textColor), lineHeight: 1 }}>{fmt(value)}</div>
           {pct !== undefined && <div style={{ fontSize: 11, color: mutedColor, marginTop: 3 }}>{fmtP(pct)} du CA</div>}
+          {valN1 !== null && (
+            <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:4 }}>
+              <span style={{ fontSize:11, color:'#8C9BAB' }}>N-1 {fmt(valN1)}</span>
+              {pctN1 !== null && <span style={{ fontSize:10, color:'#8C9BAB' }}>{fmtP(pctN1)}</span>}
+              {variation !== null && (
+                <span style={{ fontSize:11, fontWeight:500, color: variation >= 0 ? '#1D9E75' : '#D85A30' }}>
+                  {variation >= 0 ? '▲' : '▼'} {Math.abs(Math.round(variation * 10) / 10).toFixed(1)}%
+                </span>
+              )}
+            </div>
+          )}
         </div>
         {delta && (
           <span style={{ fontSize: 10, fontWeight: 500, color: delta.val >= 0 ? '#1D9E75' : '#D85A30', whiteSpace: 'nowrap' }}>
@@ -321,20 +337,27 @@ export default function ProfitabilityPage() {
     return exercices[anneeActive]?.lignes ?? []
   }, [exercices, anneeActive, periodeTab, dateDebut, dateFin])
 
-  const lignesN1: LigneFEC[] = useMemo(() => {
-    if (dateDebutN1 && dateFinN1) {
+  // ── Lignes N-1 adaptatives ──────────────────────────────────────────────────
+  const lignesN1: LigneFEC[] = (() => {
+    if (periodeTab === 'perso' && dateDebut && dateFin) {
+      const dN1 = decalerAnMoins1(dateDebut)
+      const fN1 = decalerAnMoins1(dateFin)
       const merged: LigneFEC[] = []
       for (const a of Object.keys(exercices).map(Number).sort((x,y) => x-y)) {
         const ex = exercices[a]; if (!ex) continue
         const dates = ex.lignes.map((l:LigneFEC) => toIso(l.EcritureDate)).filter(Boolean).sort()
-        if (dates.length && toIso(dates[dates.length-1]) >= dateDebutN1 && toIso(dates[0]) <= dateFinN1)
-          merged.push(...filtrerLignes(ex.lignes, 'perso', dateDebutN1, dateFinN1))
+        if (dates.length && toIso(dates[dates.length-1]) >= dN1 && toIso(dates[0]) <= fN1)
+          merged.push(...filtrerLignes(ex.lignes, 'perso', dN1, fN1))
       }
       if (merged.length > 0) return merged
     }
-    return exercices[anneeN1]?.lignes ?? []
-  }, [exercices, anneeN1, dateDebutN1, dateFinN1])
+    return exercices[anneeActive - 1]?.lignes ?? []
+  })()
 
+  const caN1 = lignesN1.length > 0 ? (() => {
+    const ventes = lignesN1.filter(l => ['701','702','703','704','705','706','707','708'].some(p => l.CompteNum.startsWith(p)))
+    return Math.abs(ventes.reduce((s,l) => s + (l.Debit - l.Credit), 0))
+  })() : 0
   const anneesDisponibles = Object.keys(exercices).map(Number).sort((a,b) => b-a)
   const sig = useMemo(() => lignesActives.length > 0 ? calculerSIG(lignesActives) : null, [lignesActives])
   const sigN1 = useMemo(() => lignesN1.length > 0 ? calculerSIG(lignesN1) : null, [lignesN1])
