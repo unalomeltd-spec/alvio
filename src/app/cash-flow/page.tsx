@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import Sidebar from '@/components/Sidebar'
 import PeriodSelector from '@/components/PeriodSelector'
 import { calculerIndicateurs, filtrerLignes, getMonthlyCash } from '@/hooks/useFEC'
+import { usePCG } from '@/hooks/usePCG'
 import AlvioInsight from '@/components/AlvioInsight'
 import type { LigneFEC, Indicateurs } from '@/hooks/useFEC'
 
@@ -22,6 +23,7 @@ export default function CashFlowPage() {
   const [exercices, setExercices] = useState<Record<number,{annee:number;lignes:LigneFEC[]}>>({})
   const { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1 } = usePeriod(new Date().getFullYear())
   const [loading, setLoading] = useState(true)
+  const { mappings, pcgLoading } = usePCG()
 
   useEffect(() => {
     sb.auth.getUser().then(async ({ data: { user } }) => {
@@ -51,13 +53,15 @@ export default function CashFlowPage() {
     return exercices[anneeActive]?.lignes ?? []
   })()
 
+  const pcg = mappings?.sig ?? {}
+  const hasPCG = Object.keys(pcg).length > 0
   const anneesDisponibles = Object.keys(exercices).map(Number).sort((a,b) => b-a)
-  const ind: Indicateurs | null = lignesActives.length > 0 ? calculerIndicateurs(lignesActives) : null
-  const monthly = lignesActives.length > 0 ? getMonthlyCash(lignesActives) : []
+  const ind: Indicateurs | null = (lignesActives.length > 0 && hasPCG) ? calculerIndicateurs(lignesActives, pcg) : null
+  const monthly = (lignesActives.length > 0 && hasPCG) ? getMonthlyCash(lignesActives, pcg) : []
   const maxVal = monthly.length > 0 ? Math.max(...monthly.map(m => Math.abs(m.val))) || 1 : 1
   const joursCharges = ind && ind.ebe > 0 ? Math.round(ind.treso / (ind.ebe / 365)) : 0
 
-  if (loading) return (
+  if (loading || pcgLoading) return (
     <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
       <Sidebar activePage="cash-flow"/>
       <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>

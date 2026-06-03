@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import type { PCGGroupe } from '@/hooks/usePCG'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -65,43 +66,95 @@ export function filtrerLignes(lignes: LigneFEC[], periodeTab: 'exercice'|'perso'
   })
 }
 
-export function calculerIndicateurs(lignes: LigneFEC[]): Indicateurs {
-  const solde = (rs: string[]) => { let t = 0; for (const l of lignes) for (const r of rs) if (l.CompteNum.startsWith(r)) { t += l.Debit - l.Credit; break }; return t }
-  const ca = -solde(['701','702','703','704','705','706','707','708'])
-  const achats = solde(['601','602','603','604','605','606','607','608','609'])
-  const ext = solde(['61','62'])
-  const mb = ca - achats - ext
-  const imp63 = solde(['63'])
-  const va = mb - imp63
-  const pers64 = solde(['64'])
-  const ebe = va - pers64
-  const dot68 = solde(['681','686','687'])
-  const rex = ebe - dot68
-  const fin66 = solde(['66']); const fin76 = -solde(['76'])
-  const rfin = fin76 - fin66
-  const exc67 = solde(['67']); const exc77 = -solde(['77'])
-  const is695 = solde(['695','696','697','698','699'])
-  const rnet = rex + rfin + (exc77 - exc67) - is695
-  const treso = solde(['51','53'])
-  const creances = solde(['41'])
-  const dettes = -solde(['40','42','43'])
-  const bfr = creances - dettes
+// Calcule le solde d'un indicateur PCG depuis les lignes FEC et le mapping Supabase
+function soldePCG(lignes: LigneFEC[], indicateur: string, pcg: PCGGroupe): number {
+  const groupe = pcg[indicateur]
+  if (!groupe) return 0
+  let total = 0
+  for (const l of lignes) {
+    for (const g of groupe) {
+      if (g.prefixes.some(p => l.CompteNum.startsWith(p))) {
+        total += (l.Debit - l.Credit) * g.sign
+        break
+      }
+    }
+  }
+  return total
+}
+
+export function calculerIndicateurs(lignes: LigneFEC[], pcg: PCGGroupe): Indicateurs {
+  const s = (indicateur: string) => soldePCG(lignes, indicateur, pcg)
+
+  const ventesMarchandises    = s('ventesMarchandises')
+  const coutMarchandises      = s('coutMarchandises')
+  const margeCommerciale      = ventesMarchandises - coutMarchandises
+  const productionVendue      = s('productionVendue')
+  const productionStockee     = s('productionStockee')
+  const productionImmobilisee = s('productionImmobilisee')
+  const productionExercice    = productionVendue + productionStockee + productionImmobilisee
+  const consommationsExt      = s('consommationsIntermediaires')
+  const subventions           = s('subventions')
+  const valeurAjoutee         = margeCommerciale + productionExercice - consommationsExt
+  const impotsTaxes           = s('impotsTaxes')
+  const chargesPersonnel      = s('chargesPersonnel')
+  const ebe                   = valeurAjoutee + subventions - impotsTaxes - chargesPersonnel
+  const dotations             = s('dotations')
+  const reprises              = s('reprises')
+  const transfertsCharges     = s('transfertsCharges')
+  const autresProduits        = s('autresProduits')
+  const autresCharges         = s('autresCharges')
+  const rex                   = ebe - dotations + reprises + transfertsCharges + autresProduits - autresCharges
+  const produitsFinanciers    = s('produitsFinanciers')
+  const chargesFinancieres    = s('chargesFinancieres')
+  const rfin                  = produitsFinanciers - chargesFinancieres
+  const produitsExcep         = s('produitsExceptionnels')
+  const chargesExcep          = s('chargesExceptionnelles')
+  const participation         = s('participation')
+  const is                    = s('is')
+  const rnet                  = rex + rfin + (produitsExcep - chargesExcep) - participation - is
+  const treso                 = s('tresorerie')
+  const creances              = s('creancesClients')
+  const dettes                = s('dettesFournisseurs')
+  const bfr                   = creances - dettes
+  const ca                    = productionVendue + ventesMarchandises
+
   return {
-    ca, achats, ext, mb, imp63, va, pers64, ebe, dot68, rex,
-    fin66, fin76, rfin, exc67, exc77, is695, rnet,
-    treso, creances, dettes, bfr,
-    tauxMb: ca > 0 ? mb/ca*100 : 0,
-    tauxEbe: ca > 0 ? ebe/ca*100 : 0,
-    tauxRex: ca > 0 ? rex/ca*100 : 0,
+    ca,
+    achats: coutMarchandises + consommationsExt,
+    ext: consommationsExt,
+    mb: margeCommerciale,
+    imp63: impotsTaxes,
+    va: valeurAjoutee,
+    pers64: chargesPersonnel,
+    ebe,
+    dot68: dotations,
+    rex,
+    fin66: chargesFinancieres,
+    fin76: produitsFinanciers,
+    rfin,
+    exc67: chargesExcep,
+    exc77: produitsExcep,
+    is695: is,
+    rnet,
+    treso,
+    creances,
+    dettes,
+    bfr,
+    tauxMb:   ca > 0 ? margeCommerciale/ca*100 : 0,
+    tauxEbe:  ca > 0 ? ebe/ca*100 : 0,
+    tauxRex:  ca > 0 ? rex/ca*100 : 0,
     tauxRnet: ca > 0 ? rnet/ca*100 : 0,
-    tauxPers: ca > 0 ? pers64/ca*100 : 0,
+    tauxPers: ca > 0 ? chargesPersonnel/ca*100 : 0,
   }
 }
 
-export function getMonthlyCash(lignes: LigneFEC[]): {m:string; val:number}[] {
+export function getMonthlyCash(lignes: LigneFEC[], pcg: PCGGroupe): {m:string; val:number}[] {
+  const tresoGroupe = pcg['tresorerie']
+  if (!tresoGroupe) return []
   const byMonth: Record<string,number> = {}
   for (const l of lignes) {
-    if (l.CompteNum.startsWith('51') || l.CompteNum.startsWith('53')) {
+    const match = tresoGroupe.some(g => g.prefixes.some(p => l.CompteNum.startsWith(p)))
+    if (match) {
       const d = l.EcritureDate || ''
       const m = d.length === 8 ? d.slice(0,4)+'-'+d.slice(4,6) : d.length >= 7 ? d.slice(0,7) : 'ND'
       byMonth[m] = (byMonth[m] || 0) + (l.Debit - l.Credit)
@@ -168,14 +221,12 @@ export function useFEC() {
   })()
 
   const anneesDisponibles = Object.keys(exercices).map(Number).sort((a,b) => b-a)
-  const ind = lignesActives.length > 0 ? calculerIndicateurs(lignesActives) : null
-  const indN1 = exercices[anneeActive-1] ? calculerIndicateurs(exercices[anneeActive-1].lignes) : null
 
   return {
     exercices, anneeActive, setAnneeActive,
     periodeTab, setPeriodeTab,
     dateDebut, setDateDebut, dateFin, setDateFin,
     loading, userId, lignesActives,
-    anneesDisponibles, ind, indN1,
+    anneesDisponibles,
   }
 }

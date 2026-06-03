@@ -7,6 +7,7 @@ import PeriodSelector from '@/components/PeriodSelector'
 import AlvioInsight from '@/components/AlvioInsight'
 import DashboardBriefing from '@/components/DashboardBriefing'
 import { calculerIndicateurs, getMonthlyCash, filtrerLignes } from '@/hooks/useFEC'
+import { usePCG } from '@/hooks/usePCG'
 import type { LigneFEC, Indicateurs } from '@/hooks/useFEC'
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -66,56 +67,13 @@ function MiniBar({ data }: { data: { m: string; val: number }[] }) {
   )
 }
 
-function PeriodBar({ annees, anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin }: any) {
-  const [ddOpen, setDdOpen] = useState(false)
-  const label = periodeTab === 'perso' && dateDebut && dateFin
-    ? `${dateDebut.slice(8,10)}/${dateDebut.slice(5,7)} → ${dateFin.slice(8,10)}/${dateFin.slice(5,7)}`
-    : `Exercice ${anneeActive}`
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
-      {annees.length > 1 && (
-        <div style={{ display: 'flex', background: '#F2F3F5', borderRadius: 6, padding: 2, gap: 2 }}>
-          {annees.map((a: number) => (
-            <div key={a} onClick={() => { setAnneeActive(a); setPeriodeTab('exercice') }}
-              style={{ padding: '4px 10px', borderRadius: 5, fontSize: 11, fontWeight: 500, cursor: 'pointer', background: anneeActive === a && periodeTab === 'exercice' ? '#fff' : 'transparent', color: anneeActive === a && periodeTab === 'exercice' ? '#1A1A1A' : '#8C9BAB', boxShadow: anneeActive === a && periodeTab === 'exercice' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>
-              {a}
-            </div>
-          ))}
-        </div>
-      )}
-      <div style={{ position: 'relative' }}>
-        <button onClick={() => setDdOpen(o => !o)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F2F3F5', border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 500, color: '#1A1A1A', cursor: 'pointer' }}>
-          {label}
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="#8C9BAB" strokeWidth="1.5" strokeLinecap="round"/></svg>
-        </button>
-        {ddOpen && (
-          <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', border: '0.5px solid rgba(0,0,0,0.12)', borderRadius: 8, padding: 8, zIndex: 100, minWidth: 200, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-            <div onClick={() => { setPeriodeTab('exercice'); setDdOpen(false) }}
-              style={{ padding: '7px 10px', borderRadius: 5, fontSize: 12, cursor: 'pointer', color: periodeTab === 'exercice' ? '#B8A98A' : '#1A1A1A', background: periodeTab === 'exercice' ? 'rgba(184,169,138,0.08)' : 'transparent' }}>
-              Exercice complet
-            </div>
-            <div style={{ padding: '7px 10px', fontSize: 11, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 4 }}>Personnalisé</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px' }}>
-              <input type="date" value={dateDebut} onChange={e => { setDateDebut(e.target.value); setPeriodeTab('perso') }}
-                style={{ border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 5, padding: '3px 6px', fontSize: 11, outline: 'none', color: '#1A1A1A' }} />
-              <span style={{ fontSize: 11, color: '#8C9BAB' }}>→</span>
-              <input type="date" value={dateFin} onChange={e => { setDateFin(e.target.value); setPeriodeTab('perso') }}
-                style={{ border: '0.5px solid rgba(0,0,0,0.15)', borderRadius: 5, padding: '3px 6px', fontSize: 11, outline: 'none', color: '#1A1A1A' }} />
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 export default function DashboardPage() {
   const [exercices, setExercices] = useState<Record<number, {annee:number;lignes:LigneFEC[];nomFichier:string}>>({})
   const { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1 } = usePeriod(new Date().getFullYear())
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [erreur, setErreur] = useState('')
+  const { mappings, pcgLoading } = usePCG()
 
   useEffect(() => {
     const load = async () => {
@@ -148,6 +106,7 @@ export default function DashboardPage() {
   })()
 
   const anneesDisponibles = Object.keys(exercices).map(Number).sort((a,b) => b-a)
+
   const lignesN1: LigneFEC[] = (() => {
     if (dateDebutN1 && dateFinN1) {
       const merged: LigneFEC[] = []
@@ -161,9 +120,12 @@ export default function DashboardPage() {
     }
     return exercices[anneeN1]?.lignes ?? []
   })()
-  const ind: Indicateurs | null = lignesActives.length > 0 ? calculerIndicateurs(lignesActives) : null
-  const indN1: Indicateurs | null = lignesN1.length > 0 ? calculerIndicateurs(lignesN1) : null
-  const monthly = ind ? getMonthlyCash(lignesActives) : []
+
+  const pcg = mappings?.sig ?? {}
+  const hasPCG = Object.keys(pcg).length > 0
+  const ind: Indicateurs | null = (lignesActives.length > 0 && hasPCG) ? calculerIndicateurs(lignesActives, pcg) : null
+  const indN1: Indicateurs | null = (lignesN1.length > 0 && hasPCG) ? calculerIndicateurs(lignesN1, pcg) : null
+  const monthly = (ind && hasPCG) ? getMonthlyCash(lignesActives, pcg) : []
 
   const handleFEC = async (file: File) => {
     setUploading(true); setErreur('')
@@ -193,21 +155,7 @@ export default function DashboardPage() {
     finally { setUploading(false) }
   }
 
-  const alvioMessage = (): string => {
-    if (!ind) return ''
-    const pts: string[] = []
-    if (ind.ca > 0) {
-      if (ind.tauxMb > 50) pts.push(`Marge brute solide à ${fmtP(ind.tauxMb)}`)
-      else if (ind.tauxMb < 25) pts.push(`Marge brute faible à ${fmtP(ind.tauxMb)} — achats à revoir`)
-      if (ind.tauxEbe >= 15) pts.push(`Excellent EBITDA à ${fmtP(ind.tauxEbe)} du CA`)
-      else if (ind.tauxEbe < 5) pts.push(`EBITDA sous 5% (${fmtP(ind.tauxEbe)}) — structure de coûts à optimiser`)
-      if (ind.treso < 0) pts.push(`Trésorerie négative — situation à surveiller`)
-      else if (ind.treso > ind.ca * 0.3) pts.push(`Trésorerie confortable à ${fmtP(ind.treso/ind.ca*100)} du CA`)
-    }
-    return pts.length ? pts.join('. ') + '.' : 'Importez un FEC pour obtenir une analyse personnalisée.'
-  }
-
-  if (loading) return (
+  if (loading || pcgLoading) return (
     <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans', sans-serif" }}>
       <AppSidebar activePage="dashboard"/>
       <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -221,8 +169,6 @@ export default function DashboardPage() {
     <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans', sans-serif" }}>
       <AppSidebar activePage="dashboard"/>
       <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
-
-        {/* Topbar */}
         <div style={{ background:'#fff', borderBottom:'0.5px solid rgba(0,0,0,0.07)', padding:'0 24px', height:52, display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
             <span style={{ fontSize:14, fontWeight:500, color:'#1A1A1A' }}>Synthèse</span>
@@ -233,12 +179,9 @@ export default function DashboardPage() {
                 dateFin={dateFin} setDateFin={setDateFin} anneeN1={anneeN1} setAnneeN1={setAnneeN1} dateDebutN1={dateDebutN1} setDateDebutN1={setDateDebutN1} dateFinN1={dateFinN1} setDateFinN1={setDateFinN1} />
             )}
           </div>
-          
         </div>
-
         <div style={{ flex:1, padding:24, overflowY:'auto' }}>
           {erreur && <div style={{ background:'rgba(216,90,48,0.08)', border:'0.5px solid rgba(216,90,48,0.3)', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#D85A30' }}>{erreur}</div>}
-
           {!ind ? (
             <div style={{ maxWidth:520, margin:'80px auto', textAlign:'center' }}>
               <div style={{ width:64, height:64, borderRadius:16, background:'rgba(184,169,138,0.1)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 20px', fontSize:28 }}>📂</div>
@@ -251,7 +194,6 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div style={{ maxWidth:1100 }}>
-
               <DashboardBriefing
                 prenom={(() => { try { const raw = localStorage.getItem('sb-gsflplpmiukbwuewivps-auth-token'); const u = JSON.parse(raw || '{}'); const meta = u?.user?.user_metadata; return meta?.prenom || meta?.full_name?.split(' ')[0] || u?.user?.email?.split('@')[0] || ''; } catch(e) { return ''; } })()}
                 metrics={{
@@ -263,20 +205,14 @@ export default function DashboardPage() {
                   tauxMb: ind.tauxMb,
                   ebitda: ind.ebe,
                   tauxEbe: ind.tauxEbe,
-                  detteFournisseurs: (() => { let t=0; for(const l of lignesActives) if(l.CompteNum.startsWith('40')){t+=l.Credit-l.Debit}; return t })(),
-                  creancesClients: (() => { let t=0; for(const l of lignesActives) if(l.CompteNum.startsWith('41')){t+=l.Debit-l.Credit}; return t })(),
+                  detteFournisseurs: ind.dettes,
+                  creancesClients: ind.creances,
                   deltaCA: indN1 && indN1.ca ? (ind.ca - indN1.ca) / Math.abs(indN1.ca) * 100 : undefined,
                   deltaMb: indN1 && indN1.mb ? (ind.mb - indN1.mb) / Math.abs(indN1.mb) * 100 : undefined,
                   deltaEbe: indN1 && indN1.ebe ? (ind.ebe - indN1.ebe) / Math.abs(indN1.ebe) * 100 : undefined,
                   deltaRnet: indN1 && indN1.rnet ? (ind.rnet - indN1.rnet) / Math.abs(indN1.rnet) * 100 : undefined,
                 }}
               />
-
-
-
-
-
-              {/* Navigation vers les autres pages */}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
                 {[
                   { href:'/profitability', label:'Rentabilité', icon:'profitability', desc:`MB ${fmtP(ind.tauxMb)} · EBITDA ${fmtP(ind.tauxEbe)}`, color:'#B8A98A' },
@@ -298,7 +234,6 @@ export default function DashboardPage() {
                   </a>
                 ))}
               </div>
-
             </div>
           )}
         </div>
