@@ -66,17 +66,32 @@ export function filtrerLignes(lignes: LigneFEC[], periodeTab: 'exercice'|'perso'
   })
 }
 
-// Calcule le solde d'un indicateur via l'index global (sans double comptage inter-indicateurs)
+// Résout un compte FEC vers une entrée PCG par remontée de préfixe
+// Ex: 6071001 → essaie 6071001, 607100, 60710, 6071, 607, 60, 6
+// Garantit qu'un compte analytique à N chiffres trouve toujours son ancêtre PCG
+function resolveByPrefix(compteNum: string, index: PCGIndex): { indicateur: string; sign: 1|-1; label: string } | null {
+  // D'abord essayer via l'index trié (préfixes les plus longs en premier)
+  for (const e of index.entries) {
+    if (compteNum.startsWith(e.prefix)) return e
+  }
+  // Fallback : remontée caractère par caractère si l'index ne couvre pas
+  for (let len = compteNum.length - 1; len >= 1; len--) {
+    const sub = compteNum.slice(0, len)
+    for (const e of index.entries) {
+      if (e.prefix === sub) return e
+    }
+  }
+  return null
+}
+
+// Calcule le solde d'un indicateur via l'index global
+// La remontée de préfixe garantit qu'aucune ligne n'est ignorée silencieusement
 function soldePCG(lignes: LigneFEC[], indicateur: string, index: PCGIndex): number {
   let total = 0
   for (const l of lignes) {
-    for (const e of index.entries) {
-      if (l.CompteNum.startsWith(e.prefix)) {
-        if (e.indicateur === indicateur) {
-          total += (l.Debit - l.Credit) * e.sign
-        }
-        break // premier préfixe trouvé = le plus spécifique, on s'arrête
-      }
+    const resolved = resolveByPrefix(l.CompteNum, index)
+    if (resolved && resolved.indicateur === indicateur) {
+      total += (l.Debit - l.Credit) * resolved.sign
     }
   }
   return total
@@ -151,15 +166,11 @@ export function calculerIndicateurs(lignes: LigneFEC[], pcg: PCGGroupe, index: P
 export function getMonthlyCash(lignes: LigneFEC[], pcg: PCGGroupe, index: PCGIndex): {m:string; val:number}[] {
   const byMonth: Record<string,number> = {}
   for (const l of lignes) {
-    for (const e of index.entries) {
-      if (l.CompteNum.startsWith(e.prefix)) {
-        if (e.indicateur === 'tresorerie') {
-          const d = l.EcritureDate || ''
-          const m = d.length === 8 ? d.slice(0,4)+'-'+d.slice(4,6) : d.length >= 7 ? d.slice(0,7) : 'ND'
-          byMonth[m] = (byMonth[m] || 0) + (l.Debit - l.Credit) * e.sign
-        }
-        break
-      }
+    const resolved = resolveByPrefix(l.CompteNum, index)
+    if (resolved && resolved.indicateur === 'tresorerie') {
+      const d = l.EcritureDate || ''
+      const m = d.length === 8 ? d.slice(0,4)+'-'+d.slice(4,6) : d.length >= 7 ? d.slice(0,7) : 'ND'
+      byMonth[m] = (byMonth[m] || 0) + (l.Debit - l.Credit) * resolved.sign
     }
   }
   return Object.entries(byMonth).sort(([a],[b]) => a.localeCompare(b)).slice(-12).map(([m,v]) => ({ m: m.slice(5)||m, val: v }))
@@ -207,10 +218,8 @@ export function useFEC() {
         }
         setExercices(map)
         setAnneeActive(data[0].annee)
-        // Prendre le type_pcg du FEC le plus récent (ou classique par défaut)
         setTypePcg((data[0].type_pcg as 'classique'|'asso') || 'classique')
       } else {
-        // Pas de FEC encore — on charge quand même le PCG classique par défaut
         setTypePcg('classique')
       }
       setLoading(false)
