@@ -38,6 +38,10 @@ export default function EntreprisePage() {
   const [uploadMsg, setUploadMsg] = useState('')
   const [deletingAnnee, setDeletingAnnee] = useState<number | null>(null)
   const [exKpis, setExKpis] = useState<Record<number,{ca:number;mb:number;tauxMb:number;ebe:number;tauxEbe:number;rnet:number;treso:number}>>({})
+  const [typePcg, setTypePcg] = useState<'classique' | 'asso'>('classique')
+  const [savingTypePcg, setSavingTypePcg] = useState(false)
+  const [savedTypePcg, setSavedTypePcg] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
     const charger = async () => {
@@ -45,6 +49,7 @@ export default function EntreprisePage() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { window.location.href = '/'; return }
+        setUserId(user.id)
         const meta = user.user_metadata ?? {}
         if (meta.entreprise && meta.siren) {
           const sirenVal = meta.siren as string
@@ -56,9 +61,13 @@ export default function EntreprisePage() {
           } catch { setEntreprise(meta.entreprise as EntrepriseInfo); setSiren(sirenVal) }
         }
         const { data: fecData } = await supabase
-          .from('fec_exercices').select('annee, nom_fichier, ecritures')
+          .from('fec_exercices').select('annee, nom_fichier, ecritures, type_pcg')
           .eq('user_id', user.id).order('annee', { ascending: false })
         if (fecData) {
+          // Lire type_pcg depuis le premier exercice (tous partagent la même valeur)
+          if (fecData.length > 0 && fecData[0].type_pcg) {
+            setTypePcg(fecData[0].type_pcg as 'classique' | 'asso')
+          }
           const kpisMap: Record<number,any> = {}
           for (const r of fecData) {
             const l = r.ecritures as Array<{CompteNum:string;Debit:number;Credit:number}>
@@ -82,6 +91,21 @@ export default function EntreprisePage() {
     }
     charger()
   }, [])
+
+  const handleTypePcgChange = async (val: 'classique' | 'asso') => {
+    if (!userId) return
+    setTypePcg(val)
+    setSavingTypePcg(true)
+    setSavedTypePcg(false)
+    try {
+      await supabase.from('fec_exercices')
+        .update({ type_pcg: val })
+        .eq('user_id', userId)
+      setSavedTypePcg(true)
+      setTimeout(() => setSavedTypePcg(false), 2500)
+    } catch (e) { console.error(e) }
+    finally { setSavingTypePcg(false) }
+  }
 
   const handleSirenLookup = async (v: string) => {
     const clean = v.replace(/\D/g, '').slice(0, 9)
@@ -132,7 +156,7 @@ export default function EntreprisePage() {
       }).filter(l => l.CompteNum)
       const dateStr = lignes.find(l => l.EcritureDate)?.EcritureDate || ''
       const annee = dateStr.length >= 4 ? parseInt(dateStr.includes('-') ? dateStr.slice(0,4) : dateStr.slice(4,8) || dateStr.slice(0,4)) : new Date().getFullYear()
-      await supabase.from('fec_exercices').upsert({ user_id: user.id, annee, ecritures: lignes, nom_fichier: file.name }, { onConflict: 'user_id,annee' })
+      await supabase.from('fec_exercices').upsert({ user_id: user.id, annee, ecritures: lignes, nom_fichier: file.name, type_pcg: typePcg }, { onConflict: 'user_id,annee' })
       setFecExercices(prev => {
         const filtered = prev.filter(f => f.annee !== annee)
         return [{ annee, nom_fichier: file.name, nb_ecritures: lignes.length }, ...filtered].sort((a,b) => b.annee - a.annee)
@@ -250,6 +274,46 @@ export default function EntreprisePage() {
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Bloc Plan comptable */}
+                <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'18px 20px' }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:500, color:'#1A1A1A', marginBottom:3 }}>Plan comptable</div>
+                      <div style={{ fontSize:11, color:'#8C9BAB' }}>
+                        {typePcg === 'classique'
+                          ? 'PCG général — entreprises commerciales, artisans, professions libérales'
+                          : 'Plan comptable associatif — associations loi 1901, fondations (ANC 2018-06)'}
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:0, background:'#F2F3F5', borderRadius:8, padding:3 }}>
+                      {(['classique', 'asso'] as const).map((val) => (
+                        <button
+                          key={val}
+                          onClick={() => handleTypePcgChange(val)}
+                          disabled={savingTypePcg}
+                          style={{
+                            background: typePcg === val ? '#1A1A1A' : 'transparent',
+                            color: typePcg === val ? '#F2F3F5' : '#8C9BAB',
+                            border: 'none',
+                            borderRadius: 6,
+                            padding: '6px 16px',
+                            fontSize: 12,
+                            fontWeight: typePcg === val ? 500 : 400,
+                            cursor: savingTypePcg ? 'wait' : 'pointer',
+                            transition: 'all .15s',
+                            fontFamily: "'Plus Jakarta Sans', sans-serif",
+                          }}
+                        >
+                          {val === 'classique' ? 'Classique' : 'Associatif'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {savedTypePcg && (
+                    <div style={{ marginTop:10, fontSize:11, color:'#1D9E75' }}>✓ Plan comptable mis à jour</div>
+                  )}
                 </div>
 
                 {fecExercices.length > 0 && (

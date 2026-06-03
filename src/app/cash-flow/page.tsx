@@ -23,17 +23,19 @@ export default function CashFlowPage() {
   const [exercices, setExercices] = useState<Record<number,{annee:number;lignes:LigneFEC[]}>>({})
   const { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1 } = usePeriod(new Date().getFullYear())
   const [loading, setLoading] = useState(true)
-  const { mappings, pcgLoading } = usePCG()
+  const [typePcg, setTypePcg] = useState<'classique'|'asso'>('classique')
+  const { mappings, pcgLoading } = usePCG(typePcg)
 
   useEffect(() => {
     sb.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { window.location.href = '/'; return }
-      const { data } = await sb.from('fec_exercices').select('annee, ecritures').eq('user_id', user.id).order('annee', { ascending: false })
+      const { data } = await sb.from('fec_exercices').select('annee, ecritures, type_pcg').eq('user_id', user.id).order('annee', { ascending: false })
       if (data && data.length > 0) {
         const map: Record<number,any> = {}
         for (const row of data) map[row.annee] = { annee: row.annee, lignes: row.ecritures as LigneFEC[] }
         setExercices(map)
         if (typeof window === 'undefined' || !localStorage.getItem('alvio-period')) setAnneeActive(data[0].annee)
+        setTypePcg((data[0].type_pcg as 'classique'|'asso') || 'classique')
       }
       setLoading(false)
     })
@@ -54,10 +56,11 @@ export default function CashFlowPage() {
   })()
 
   const pcg = mappings?.sig ?? {}
-  const hasPCG = Object.keys(pcg).length > 0
+  const index = mappings?.allIndex
+  const hasPCG = Object.keys(pcg).length > 0 && !!index
   const anneesDisponibles = Object.keys(exercices).map(Number).sort((a,b) => b-a)
-  const ind: Indicateurs | null = (lignesActives.length > 0 && hasPCG) ? calculerIndicateurs(lignesActives, pcg) : null
-  const monthly = (lignesActives.length > 0 && hasPCG) ? getMonthlyCash(lignesActives, pcg) : []
+  const ind: Indicateurs | null = (lignesActives.length > 0 && hasPCG) ? calculerIndicateurs(lignesActives, pcg, index!) : null
+  const monthly = (lignesActives.length > 0 && hasPCG) ? getMonthlyCash(lignesActives, pcg, index!) : []
   const maxVal = monthly.length > 0 ? Math.max(...monthly.map(m => Math.abs(m.val))) || 1 : 1
   const joursCharges = ind && ind.ebe > 0 ? Math.round(ind.treso / (ind.ebe / 365)) : 0
 

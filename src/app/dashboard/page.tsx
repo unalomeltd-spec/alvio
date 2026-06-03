@@ -71,20 +71,22 @@ export default function DashboardPage() {
   const [exercices, setExercices] = useState<Record<number, {annee:number;lignes:LigneFEC[];nomFichier:string}>>({})
   const { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1 } = usePeriod(new Date().getFullYear())
   const [loading, setLoading] = useState(true)
+  const [typePcg, setTypePcg] = useState<'classique'|'asso'>('classique')
   const [uploading, setUploading] = useState(false)
   const [erreur, setErreur] = useState('')
-  const { mappings, pcgLoading } = usePCG()
+  const { mappings, pcgLoading } = usePCG(typePcg)
 
   useEffect(() => {
     const load = async () => {
       const { data: { user } } = await sb.auth.getUser()
       if (!user) { window.location.href = '/'; return }
-      const { data } = await sb.from('fec_exercices').select('annee, ecritures, nom_fichier').eq('user_id', user.id).order('annee', { ascending: false })
+      const { data } = await sb.from('fec_exercices').select('annee, ecritures, nom_fichier, type_pcg').eq('user_id', user.id).order('annee', { ascending: false })
       if (data && data.length > 0) {
         const map: Record<number, any> = {}
         for (const row of data) map[row.annee] = { annee: row.annee, lignes: row.ecritures as LigneFEC[], nomFichier: row.nom_fichier || `FEC ${row.annee}` }
         setExercices(map)
         if (typeof window === 'undefined' || !localStorage.getItem('alvio-period')) setAnneeActive(data[0].annee)
+        setTypePcg((data[0].type_pcg as 'classique'|'asso') || 'classique')
       }
       setLoading(false)
     }
@@ -122,10 +124,11 @@ export default function DashboardPage() {
   })()
 
   const pcg = mappings?.sig ?? {}
-  const hasPCG = Object.keys(pcg).length > 0
-  const ind: Indicateurs | null = (lignesActives.length > 0 && hasPCG) ? calculerIndicateurs(lignesActives, pcg) : null
-  const indN1: Indicateurs | null = (lignesN1.length > 0 && hasPCG) ? calculerIndicateurs(lignesN1, pcg) : null
-  const monthly = (ind && hasPCG) ? getMonthlyCash(lignesActives, pcg) : []
+  const index = mappings?.allIndex
+  const hasPCG = Object.keys(pcg).length > 0 && !!index
+  const ind: Indicateurs | null = (lignesActives.length > 0 && hasPCG) ? calculerIndicateurs(lignesActives, pcg, index!) : null
+  const indN1: Indicateurs | null = (lignesN1.length > 0 && hasPCG) ? calculerIndicateurs(lignesN1, pcg, index!) : null
+  const monthly = (ind && hasPCG) ? getMonthlyCash(lignesActives, pcg, index!) : []
 
   const handleFEC = async (file: File) => {
     setUploading(true); setErreur('')

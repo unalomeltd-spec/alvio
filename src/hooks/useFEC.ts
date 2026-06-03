@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import type { PCGGroupe } from '@/hooks/usePCG'
+import type { PCGGroupe, PCGIndex } from '@/hooks/usePCG'
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -66,24 +66,24 @@ export function filtrerLignes(lignes: LigneFEC[], periodeTab: 'exercice'|'perso'
   })
 }
 
-// Calcule le solde d'un indicateur PCG depuis les lignes FEC et le mapping Supabase
-function soldePCG(lignes: LigneFEC[], indicateur: string, pcg: PCGGroupe): number {
-  const groupe = pcg[indicateur]
-  if (!groupe) return 0
+// Calcule le solde d'un indicateur via l'index global (sans double comptage inter-indicateurs)
+function soldePCG(lignes: LigneFEC[], indicateur: string, index: PCGIndex): number {
   let total = 0
   for (const l of lignes) {
-    for (const g of groupe) {
-      if (g.prefixes.some(p => l.CompteNum.startsWith(p))) {
-        total += (l.Debit - l.Credit) * g.sign
-        break
+    for (const e of index.entries) {
+      if (l.CompteNum.startsWith(e.prefix)) {
+        if (e.indicateur === indicateur) {
+          total += (l.Debit - l.Credit) * e.sign
+        }
+        break // premier préfixe trouvé = le plus spécifique, on s'arrête
       }
     }
   }
   return total
 }
 
-export function calculerIndicateurs(lignes: LigneFEC[], pcg: PCGGroupe): Indicateurs {
-  const s = (indicateur: string) => soldePCG(lignes, indicateur, pcg)
+export function calculerIndicateurs(lignes: LigneFEC[], pcg: PCGGroupe, index: PCGIndex): Indicateurs {
+  const s = (indicateur: string) => soldePCG(lignes, indicateur, index)
 
   const ventesMarchandises    = s('ventesMarchandises')
   const coutMarchandises      = s('coutMarchandises')
@@ -148,16 +148,18 @@ export function calculerIndicateurs(lignes: LigneFEC[], pcg: PCGGroupe): Indicat
   }
 }
 
-export function getMonthlyCash(lignes: LigneFEC[], pcg: PCGGroupe): {m:string; val:number}[] {
-  const tresoGroupe = pcg['tresorerie']
-  if (!tresoGroupe) return []
+export function getMonthlyCash(lignes: LigneFEC[], pcg: PCGGroupe, index: PCGIndex): {m:string; val:number}[] {
   const byMonth: Record<string,number> = {}
   for (const l of lignes) {
-    const match = tresoGroupe.some(g => g.prefixes.some(p => l.CompteNum.startsWith(p)))
-    if (match) {
-      const d = l.EcritureDate || ''
-      const m = d.length === 8 ? d.slice(0,4)+'-'+d.slice(4,6) : d.length >= 7 ? d.slice(0,7) : 'ND'
-      byMonth[m] = (byMonth[m] || 0) + (l.Debit - l.Credit)
+    for (const e of index.entries) {
+      if (l.CompteNum.startsWith(e.prefix)) {
+        if (e.indicateur === 'tresorerie') {
+          const d = l.EcritureDate || ''
+          const m = d.length === 8 ? d.slice(0,4)+'-'+d.slice(4,6) : d.length >= 7 ? d.slice(0,7) : 'ND'
+          byMonth[m] = (byMonth[m] || 0) + (l.Debit - l.Credit) * e.sign
+        }
+        break
+      }
     }
   }
   return Object.entries(byMonth).sort(([a],[b]) => a.localeCompare(b)).slice(-12).map(([m,v]) => ({ m: m.slice(5)||m, val: v }))
@@ -186,13 +188,18 @@ export function useFEC() {
   const [dateFin, setDateFin] = useState('')
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string|null>(null)
+  const [typePcg, setTypePcg] = useState<'classique'|'asso'|null>(null)
 
   useEffect(() => {
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { window.location.href = '/'; return }
       setUserId(user.id)
-      const { data } = await supabase.from('fec_exercices').select('annee, ecritures, nom_fichier').eq('user_id', user.id).order('annee', { ascending: false })
+      const { data } = await supabase
+        .from('fec_exercices')
+        .select('annee, ecritures, nom_fichier, type_pcg')
+        .eq('user_id', user.id)
+        .order('annee', { ascending: false })
       if (data && data.length > 0) {
         const map: Record<number, ExerciceData> = {}
         for (const row of data) {
@@ -200,6 +207,11 @@ export function useFEC() {
         }
         setExercices(map)
         setAnneeActive(data[0].annee)
+        // Prendre le type_pcg du FEC le plus récent (ou classique par défaut)
+        setTypePcg((data[0].type_pcg as 'classique'|'asso') || 'classique')
+      } else {
+        // Pas de FEC encore — on charge quand même le PCG classique par défaut
+        setTypePcg('classique')
       }
       setLoading(false)
     }
@@ -227,6 +239,6 @@ export function useFEC() {
     periodeTab, setPeriodeTab,
     dateDebut, setDateDebut, dateFin, setDateFin,
     loading, userId, lignesActives,
-    anneesDisponibles,
+    anneesDisponibles, typePcg,
   }
 }
