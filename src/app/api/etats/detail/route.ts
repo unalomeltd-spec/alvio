@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+// ============================================================
+// ALVIO — Drill down comptable
+// Retourne les écritures détaillées par préfixe de compte
+// Cohérent avec le moteur v3 : même exclusion AN 6/7,
+// même normalisation des montants
+// ============================================================
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const annee = parseInt(searchParams.get('annee') || '0')
-  const userId = searchParams.get('user_id') || ''
+  const annee    = parseInt(searchParams.get('annee')    || '0')
+  const userId   = searchParams.get('user_id') || ''
   const prefixes = (searchParams.get('prefixes') || '').split(',').filter(Boolean)
 
   if (!annee || !userId || prefixes.length === 0) {
@@ -29,46 +36,61 @@ export async function GET(request: NextRequest) {
 
   const lignes = data.ecritures as any[]
 
-  // Filtrer les lignes qui correspondent aux préfixes demandés
-  // Exclure les AN pour les classes 6 et 7
-  const byCompte: Record<string, { lib: string; debit: number; credit: number; ecritures: any[] }> = {}
+  const byCompte: Record<string, {
+    lib: string
+    debit: number
+    credit: number
+    ecritures: {
+      date: string
+      lib: string
+      piece: string
+      debit: number
+      credit: number
+      journal: string
+    }[]
+  }> = {}
 
   for (const l of lignes) {
-    const compte = l.CompteNum || ''
-    const journal = l.JournalCode || ''
-    const classe = compte[0]
+    const compte  = (l.CompteNum || '').trim()
+    const journal = (l.JournalCode || '').trim().toUpperCase()
+    const classe  = compte[0]
 
-    // Exclure AN des classes 6 et 7
+    if (!compte) continue
+
+    // Même règle d'exclusion que le moteur v3
     if (journal === 'AN' && (classe === '6' || classe === '7')) continue
 
-    const match = prefixes.some(p => compte.startsWith(p))
-    if (!match) continue
+    if (!prefixes.some(p => compte.startsWith(p))) continue
+
+    // Normalisation montants — même logique que parseLigne() dans le moteur
+    const debit  = typeof l.Debit  === 'string' ? parseFloat(l.Debit.replace(',',  '.')) || 0 : (l.Debit  || 0)
+    const credit = typeof l.Credit === 'string' ? parseFloat(l.Credit.replace(',', '.')) || 0 : (l.Credit || 0)
 
     if (!byCompte[compte]) {
       byCompte[compte] = { lib: l.CompteLib || '', debit: 0, credit: 0, ecritures: [] }
     }
-    byCompte[compte].debit += l.Debit || 0
-    byCompte[compte].credit += l.Credit || 0
+
+    byCompte[compte].debit  += debit
+    byCompte[compte].credit += credit
     byCompte[compte].ecritures.push({
-      date: l.EcritureDate || '',
-      lib: l.EcritureLib || '',
-      piece: l.PieceRef || '',
-      debit: l.Debit || 0,
-      credit: l.Credit || 0,
-      journal: l.JournalCode || '',
+      date:    l.EcritureDate || '',
+      lib:     l.EcritureLib  || '',
+      piece:   l.PieceRef     || '',
+      debit:   Math.round(debit  * 100) / 100,
+      credit:  Math.round(credit * 100) / 100,
+      journal,
     })
   }
 
-  // Construire la réponse
   const comptes = Object.entries(byCompte)
     .map(([num, v]) => ({
       num,
-      lib: v.lib,
-      debit: Math.round(v.debit * 100) / 100,
-      credit: Math.round(v.credit * 100) / 100,
-      solde: Math.round((v.debit - v.credit) * 100) / 100,
+      lib:         v.lib,
+      debit:       Math.round(v.debit  * 100) / 100,
+      credit:      Math.round(v.credit * 100) / 100,
+      solde:       Math.round((v.debit - v.credit) * 100) / 100,
       nbEcritures: v.ecritures.length,
-      ecritures: v.ecritures.sort((a, b) => a.date.localeCompare(b.date)),
+      ecritures:   v.ecritures.sort((a, b) => a.date.localeCompare(b.date)),
     }))
     .filter(c => Math.abs(c.solde) > 0.01)
     .sort((a, b) => a.num.localeCompare(b.num))

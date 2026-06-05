@@ -8,22 +8,32 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 const fmt = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' €'
 
-function getMonthlyCash(lignes: any[]): { m: string; val: number }[] {
+// Calcule la trésorerie mensuelle depuis les écritures de la classe 5
+// Retourne le solde cumulé mois par mois (débit - crédit sur comptes 50→58)
+// Même règles d'exclusion que le moteur v3
+function getMonthlyCash(ecritures: any[]): { m: string; val: number }[] {
   const byMonth: Record<string, number> = {}
-  for (const l of lignes) {
-    const compte = l.CompteNum || ''
-    const journal = l.JournalCode || ''
-    if (!compte.startsWith('5') || journal === 'AN') continue
-    const c2 = compte.slice(0, 2)
+
+  for (const l of ecritures) {
+    const compte  = (l.CompteNum || '').trim()
+    const journal = (l.JournalCode || '').trim().toUpperCase()
+    const c2      = compte.slice(0, 2)
+
+    if (journal === 'AN') continue
     if (c2 < '50' || c2 > '58') continue
-    const d = l.EcritureDate || ''
+
+    const d = typeof l.EcritureDate === 'string' ? l.EcritureDate : ''
     let m = ''
     if (d.length === 8) m = d.slice(0, 4) + '-' + d.slice(4, 6)
     else if (d.length >= 7) m = d.slice(0, 7)
     else continue
-    byMonth[m] = (byMonth[m] || 0) + (l.Debit - l.Credit)
+
+    const debit  = typeof l.Debit  === 'string' ? parseFloat(l.Debit.replace(',',  '.')) || 0 : (l.Debit  || 0)
+    const credit = typeof l.Credit === 'string' ? parseFloat(l.Credit.replace(',', '.')) || 0 : (l.Credit || 0)
+
+    byMonth[m] = (byMonth[m] || 0) + (debit - credit)
   }
-  // Cumul mensuel
+
   const sorted = Object.entries(byMonth).sort(([a], [b]) => a.localeCompare(b)).slice(-12)
   let cumul = 0
   return sorted.map(([m, v]) => {
@@ -33,19 +43,23 @@ function getMonthlyCash(lignes: any[]): { m: string; val: number }[] {
 }
 
 export default function CashFlowPage() {
-  const [etats, setEtats] = useState<any>(null)
-  const [monthly, setMonthly] = useState<{ m: string; val: number }[]>([])
-  const [annees, setAnnees] = useState<number[]>([])
+  const [etats, setEtats]             = useState<any>(null)
+  const [monthly, setMonthly]         = useState<{ m: string; val: number }[]>([])
+  const [annees, setAnnees]           = useState<number[]>([])
   const [anneeActive, setAnneeActive] = useState<number>(new Date().getFullYear())
-  const [loading, setLoading] = useState(true)
-  const [userId, setUserId] = useState<string>('')
+  const [loading, setLoading]         = useState(true)
+  const [userId, setUserId]           = useState<string>('')
 
   useEffect(() => {
     const load = async () => {
       const { data: { user } } = await sb.auth.getUser()
       if (!user) { window.location.href = '/'; return }
       setUserId(user.id)
-      const { data } = await sb.from('fec_exercices').select('annee').eq('user_id', user.id).order('annee', { ascending: false })
+      const { data } = await sb
+        .from('fec_exercices')
+        .select('annee')
+        .eq('user_id', user.id)
+        .order('annee', { ascending: false })
       if (data && data.length > 0) {
         const anneesDispos = data.map((r: any) => r.annee as number)
         setAnnees(anneesDispos)
@@ -59,22 +73,15 @@ export default function CashFlowPage() {
   }, [])
 
   const chargerDonnees = async (uid: string, annee: number) => {
-    // Charger états financiers
     const res = await fetch(`/api/etats?annee=${annee}&user_id=${uid}`)
-    if (res.ok) {
-      const data = await res.json()
-      setEtats(data)
-    }
-    // Charger lignes FEC pour graphique mensuel
+    if (res.ok) setEtats(await res.json())
     const { data: fecData } = await sb
       .from('fec_exercices')
       .select('ecritures')
       .eq('user_id', uid)
       .eq('annee', annee)
       .single()
-    if (fecData?.ecritures) {
-      setMonthly(getMonthlyCash(fecData.ecritures))
-    }
+    if (fecData?.ecritures) setMonthly(getMonthlyCash(fecData.ecritures))
   }
 
   const changerAnnee = async (annee: number) => {
@@ -84,15 +91,15 @@ export default function CashFlowPage() {
     await chargerDonnees(userId, annee)
   }
 
-  const bilan = etats?.bilan
-  const sig = etats?.sig
-  const tresorerie = bilan?.actif?.tresorerie ?? 0
-  const creances = bilan?.actif?.creancesClients ?? 0
-  const dettes = bilan?.passif?.dettesFournisseurs ?? 0
-  const bfr = creances - dettes
-  const jTreso = sig?.ca > 0 ? Math.round(tresorerie / sig.ca * 365) : 0
-  const jCreances = sig?.ca > 0 ? Math.round(creances / sig.ca * 365) : 0
-  const jDettes = sig?.ca > 0 ? Math.round(dettes / sig.ca * 365) : 0
+  const bilan      = etats?.bilan
+  const sig        = etats?.sig
+  const tresorerie = bilan?.actif?.tresorerie          ?? 0
+  const creances   = bilan?.actif?.creancesClients     ?? 0
+  const dettes     = bilan?.passif?.dettesFournisseurs ?? 0
+  const bfr        = creances - dettes
+  const jTreso     = sig?.ca > 0 ? Math.round(tresorerie / sig.ca * 365) : 0
+  const jCreances  = sig?.ca > 0 ? Math.round(creances   / sig.ca * 365) : 0
+  const jDettes    = sig?.ca > 0 ? Math.round(dettes     / sig.ca * 365) : 0
 
   if (loading) return (
     <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
@@ -124,15 +131,14 @@ export default function CashFlowPage() {
             <div style={{ maxWidth:1000 }}>
               {sig && <AlvioInsight payload={{ page:'cash-flow', annee:anneeActive, indicateurs:{ tresorerie, bfr, creancesClients: creances, dettesFournisseurs: dettes, jTreso, jCreances, jDettes } }} />}
 
-              {/* KPIs trésorerie */}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:24 }}>
                 {[
-                  { label:'Trésorerie nette', value: tresorerie, sub: `${jTreso} jours de CA`, color: tresorerie >= 0 ? '#1D9E75' : '#D85A30' },
-                  { label:'Créances clients', value: creances, sub: `${jCreances} jours de CA`, color:'#8C9BAB' },
-                  { label:'Dettes fournisseurs', value: dettes, sub: `${jDettes} jours de CA`, color:'#8C9BAB' },
-                  { label:'BFR', value: bfr, sub: bfr > 0 ? 'À financer' : 'Ressource nette', color: bfr <= 0 ? '#1D9E75' : '#D85A30' },
-                  { label:'Actif total', value: bilan.actif.totalActif, sub: 'Total bilan', color:'#B8A98A' },
-                  { label:'Capitaux propres', value: bilan.passif.capitauxPropres, sub: 'Fonds propres', color: bilan.passif.capitauxPropres >= 0 ? '#1D9E75' : '#D85A30' },
+                  { label:'Trésorerie nette',   value: tresorerie,               sub: `${jTreso} jours de CA`,    color: tresorerie >= 0 ? '#1D9E75' : '#D85A30' },
+                  { label:'Créances clients',    value: creances,                 sub: `${jCreances} jours de CA`, color:'#8C9BAB' },
+                  { label:'Dettes fournisseurs', value: dettes,                   sub: `${jDettes} jours de CA`,   color:'#8C9BAB' },
+                  { label:'BFR',                 value: bfr,                      sub: bfr > 0 ? 'À financer' : 'Ressource nette', color: bfr <= 0 ? '#1D9E75' : '#D85A30' },
+                  { label:'Actif total',         value: bilan.actif.totalActif,   sub: 'Total bilan',              color:'#B8A98A' },
+                  { label:'Capitaux propres',    value: bilan.passif.capitauxPropres, sub: 'Fonds propres',        color: bilan.passif.capitauxPropres >= 0 ? '#1D9E75' : '#D85A30' },
                 ].map((k, i) => (
                   <div key={i} style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'16px 20px', borderTop:`3px solid ${k.color}` }}>
                     <div style={{ fontSize:10, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>{k.label}</div>
@@ -142,7 +148,6 @@ export default function CashFlowPage() {
                 ))}
               </div>
 
-              {/* Graphique mensuel */}
               {monthly.length > 0 && (
                 <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:24, marginBottom:24 }}>
                   <div style={{ fontSize:12, fontWeight:600, color:'#1A1A1A', marginBottom:16 }}>Évolution de la trésorerie — {anneeActive}</div>
@@ -158,14 +163,13 @@ export default function CashFlowPage() {
                 </div>
               )}
 
-              {/* Analyse BFR */}
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:24 }}>
                 <div style={{ fontSize:12, fontWeight:600, color:'#1A1A1A', marginBottom:16 }}>Analyse du Besoin en Fonds de Roulement</div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:16 }}>
                   {[
-                    { label:'Créances clients (41x)', value: creances, note: `Délai moyen : ${jCreances}j`, color:'#D85A30' },
-                    { label:'Dettes fournisseurs (40x)', value: dettes, note: `Délai moyen : ${jDettes}j`, color:'#1D9E75' },
-                    { label:'BFR net', value: bfr, note: bfr > 0 ? 'Besoin à financer' : 'Ressource de financement', color: bfr <= 0 ? '#1D9E75' : '#D85A30' },
+                    { label:'Créances clients (41x)',    value: creances, note: `Délai moyen : ${jCreances}j`, color:'#D85A30' },
+                    { label:'Dettes fournisseurs (40x)', value: dettes,   note: `Délai moyen : ${jDettes}j`,  color:'#1D9E75' },
+                    { label:'BFR net',                   value: bfr,      note: bfr > 0 ? 'Besoin à financer' : 'Ressource de financement', color: bfr <= 0 ? '#1D9E75' : '#D85A30' },
                   ].map((item, i) => (
                     <div key={i} style={{ padding:16, background:'#F2F3F5', borderRadius:8, borderLeft:`3px solid ${item.color}` }}>
                       <div style={{ fontSize:11, color:'#8C9BAB', marginBottom:6 }}>{item.label}</div>
