@@ -140,80 +140,31 @@ export default function EntreprisePage() {
       if (!user) return
       const text = await file.text()
       const lines = text.split('\n').filter(l => l.trim())
-      if (lines.length < 2) { setUploadMsg('Fichier vide ou illisible'); setUploading(false); return }
-      const sep = lines[0].includes('\t') ? '\t' : lines[0].includes(';') ? ';' : '|'
-      const header = lines[0].split(sep).map(h => h.trim().replace(/"/g, ''))
-      const getIdx = (exactNames: string[], partialNames: string[]) => {
-        for (const n of exactNames) {
-          const i = header.findIndex(h => h.toLowerCase() === n.toLowerCase())
-          if (i >= 0) return i
-        }
-        for (const n of partialNames) {
-          const i = header.findIndex(h => h.toLowerCase().includes(n.toLowerCase()))
-          if (i >= 0) return i
-        }
-        return -1
-      }
-      const iDate   = getIdx(['EcritureDate'], ['ecrituredate', 'datepiece', 'date'])
-      const iCompte = getIdx(['CompteNum'], ['comptenum', 'compte'])
-      const iLib    = getIdx(['CompteLib'], ['comptelib', 'libellecompte'])
-      const iEcLib  = getIdx(['EcritureLib'], ['ecriturelib', 'libelle'])
-      const iPiece  = getIdx(['PieceRef'], ['pieceref', 'piece'])
-      const iDebit  = getIdx(['Debit', 'MontantDebit'], ['debit', 'montantdebit'])
-      const iCredit = getIdx(['Credit', 'MontantCredit'], ['credit', 'montantcredit'])
-      if (iDate < 0 || iCompte < 0) {
-        setUploadMsg('Format FEC non reconnu — colonnes : ' + header.join(', '))
-        setUploading(false); return
-      }
-      const lignes = lines.slice(1).flatMap(l => {
+      const header = lines[0].split(/[;\t|]/).map(h => h.trim().replace(/"/g, ''))
+      const sep = lines[0].includes(';') ? ';' : lines[0].includes('\t') ? '\t' : '|'
+      const getIdx = (names: string[]) => { for (const n of names) { const i = header.findIndex(h => h.toLowerCase().includes(n.toLowerCase())); if (i >= 0) return i } return -1 }
+      const iDate = getIdx(['EcritureDate','ecrituredate','date'])
+      const iCompte = getIdx(['CompteNum','comptenum','compte'])
+      const iDebit = getIdx(['Debit','debit','montantdebit'])
+      const iCredit = getIdx(['Credit','credit','montantcredit'])
+      if (iDate < 0 || iCompte < 0) { setUploadMsg('Format FEC non reconnu'); setUploading(false); return }
+      const lignes = lines.slice(1).map(l => {
         const cols = l.split(sep).map(c => c.trim().replace(/"/g, ''))
-        const compteNum = cols[iCompte] || ''
-        if (!compteNum) return []
-        const debit  = parseFloat((cols[iDebit]  || '0').replace(',', '.')) || 0
-        const credit = parseFloat((cols[iCredit] || '0').replace(',', '.')) || 0
-        return [{
-          EcritureDate: cols[iDate]  || '',
-          CompteNum:    compteNum,
-          CompteLib:    iLib   >= 0 ? (cols[iLib]   || '') : '',
-          EcritureLib:  iEcLib >= 0 ? (cols[iEcLib] || '') : '',
-          PieceRef:     iPiece >= 0 ? (cols[iPiece] || '') : '',
-          Debit:  debit,
-          Credit: credit,
-        }]
-      })
-      if (lignes.length === 0) { setUploadMsg('Aucune ecriture valide trouvee'); setUploading(false); return }
-      const dateStr = lignes.find(l => l.EcritureDate && l.EcritureDate.length >= 8)?.EcritureDate || ''
-      let annee: number
-      if (dateStr.includes('-')) {
-        annee = parseInt(dateStr.slice(0, 4))
-      } else if (dateStr.length === 8) {
-        annee = parseInt(dateStr.slice(0, 4))
-      } else {
-        const match = file.name.match(/FEC(\d{4})/)
-        annee = match ? parseInt(match[1]) : new Date().getFullYear()
-      }
-      if (isNaN(annee) || annee < 2000 || annee > 2100) {
-        const match = file.name.match(/FEC(\d{4})/)
-        annee = match ? parseInt(match[1]) : new Date().getFullYear()
-      }
-      await supabase.from('fec_exercices').upsert(
-        { user_id: user.id, annee, ecritures: lignes, nom_fichier: file.name, type_pcg: typePcg },
-        { onConflict: 'user_id,annee' }
-      )
+        const debit = parseFloat(cols[iDebit]?.replace(',', '.') || '0') || 0
+        const credit = parseFloat(cols[iCredit]?.replace(',', '.') || '0') || 0
+        return { EcritureDate: cols[iDate] || '', CompteNum: cols[iCompte] || '', Debit: debit, Credit: credit }
+      }).filter(l => l.CompteNum)
+      const dateStr = lignes.find(l => l.EcritureDate)?.EcritureDate || ''
+      const annee = dateStr.length >= 4 ? parseInt(dateStr.includes('-') ? dateStr.slice(0,4) : dateStr.slice(4,8) || dateStr.slice(0,4)) : new Date().getFullYear()
+      await supabase.from('fec_exercices').upsert({ user_id: user.id, annee, ecritures: lignes, nom_fichier: file.name, type_pcg: typePcg }, { onConflict: 'user_id,annee' })
       setFecExercices(prev => {
         const filtered = prev.filter(f => f.annee !== annee)
         return [{ annee, nom_fichier: file.name, nb_ecritures: lignes.length }, ...filtered].sort((a,b) => b.annee - a.annee)
       })
-      setUploadMsg('FEC ' + annee + ' \u2014 ' + lignes.length.toLocaleString('fr-FR') + ' \u00e9critures import\u00e9es')
-    } catch (err) {
-      setUploadMsg("Erreur lors de l'import")
-      console.error(err)
-    } finally {
-      setUploading(false)
-      e.target.value = ''
-    }
+      setUploadMsg(`FEC ${annee} importé — ${lignes.length.toLocaleString('fr-FR')} écritures`)
+    } catch (err) { setUploadMsg('Erreur lors de l\'import'); console.error(err) }
+    finally { setUploading(false); e.target.value = '' }
   }
-
 
   const handleDelete = async (annee: number) => {
     setDeletingAnnee(annee)

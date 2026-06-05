@@ -45,16 +45,15 @@ function calculerSIG(lignes: LigneFEC[], pcg: PCGGroupe, index: PCGIndex) {
   const productionExercice    = productionVendue + productionStockee + productionImmobilisee
   const consommationsExt      = s('consommationsIntermediaires')
   const subventions           = s('subventions')
-  const valeurAjoutee         = margeCommerciale + productionExercice - consommationsExt + subventions
+  const valeurAjoutee         = margeCommerciale + productionExercice - consommationsExt
   const impotsTaxes           = s('impotsTaxes')
   const chargesPersonnel      = s('chargesPersonnel')
-  const ebe                   = valeurAjoutee - impotsTaxes - chargesPersonnel
+  const ebe                   = valeurAjoutee + subventions - impotsTaxes - chargesPersonnel
   const dotations             = s('dotations')
   const reprises              = s('reprises')
-  const transfertsCharges     = s('transfertsCharges')
   const autresProduits        = s('autresProduits')
   const autresCharges         = s('autresCharges')
-  const rex                   = ebe - dotations + reprises + transfertsCharges + autresProduits - autresCharges
+  const rex                   = ebe - dotations + reprises + autresProduits - autresCharges
   const produitsFinanciers    = s('produitsFinanciers')
   const chargesFinancieres    = s('chargesFinancieres')
   const resultatFinancier     = produitsFinanciers - chargesFinancieres
@@ -71,7 +70,7 @@ function calculerSIG(lignes: LigneFEC[], pcg: PCGGroupe, index: PCGIndex) {
     productionVendue, productionStockee, productionImmobilisee, productionExercice,
     consommationsExt, subventions, valeurAjoutee,
     impotsTaxes, chargesPersonnel, ebe,
-    dotations, reprises, transfertsCharges, autresProduits, autresCharges, rex,
+    dotations, reprises, autresProduits, autresCharges, rex,
     produitsFinanciers, chargesFinancieres, resultatFinancier, rcai,
     produitsExcep, chargesExcep, resultatExcep,
     participation, is, resultatNet,

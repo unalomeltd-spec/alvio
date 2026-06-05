@@ -115,10 +115,9 @@ export function calculerIndicateurs(lignes: LigneFEC[], pcg: PCGGroupe, index: P
   const ebe                   = valeurAjoutee + subventions - impotsTaxes - chargesPersonnel
   const dotations             = s('dotations')
   const reprises              = s('reprises')
-  const transfertsCharges     = s('transfertsCharges')
   const autresProduits        = s('autresProduits')
   const autresCharges         = s('autresCharges')
-  const rex                   = ebe - dotations + reprises + transfertsCharges + autresProduits - autresCharges
+  const rex                   = ebe - dotations + reprises + autresProduits - autresCharges
   const produitsFinanciers    = s('produitsFinanciers')
   const chargesFinancieres    = s('chargesFinancieres')
   const rfin                  = produitsFinanciers - chargesFinancieres

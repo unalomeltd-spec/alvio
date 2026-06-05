@@ -54,11 +54,82 @@ function buildIndex(rows: { compte_prefix: string; compte_label: string; indicat
   return { entries }
 }
 
+
+function fallbackParClasse(compteNum: string): { indicateur: string; sign: 1|-1; label: string } | null {
+  const cl  = compteNum[0]
+  const sc  = compteNum.slice(0, 2)
+  const ssc = compteNum.slice(0, 3)
+  if (cl === '1') {
+    if (sc >= '10' && sc <= '13') return { indicateur: 'capital', sign: -1, label: 'Capitaux propres' }
+    if (sc === '14')              return { indicateur: 'provisionsReglementees', sign: -1, label: 'Provisions reglementees' }
+    if (sc === '15')              return { indicateur: 'provisions', sign: -1, label: 'Provisions pour risques' }
+    if (sc >= '16' && sc <= '19') return { indicateur: 'autresEmprunts', sign: -1, label: 'Emprunts et dettes LT' }
+  }
+  if (cl === '2') {
+    if (sc === '20')              return { indicateur: 'immobIncorporelBrut', sign: 1, label: 'Immo incorporelles' }
+    if (sc >= '21' && sc <= '25') return { indicateur: 'immobCorporelBrut', sign: 1, label: 'Immo corporelles' }
+    if (sc >= '26' && sc <= '27') return { indicateur: 'immobFinancierBrut', sign: 1, label: 'Immo financieres' }
+    if (ssc === '280')            return { indicateur: 'immobIncorporelAmort', sign: -1, label: 'Amort incorporels' }
+    if (sc === '28')              return { indicateur: 'immobCorporelAmort', sign: -1, label: 'Amort corporels' }
+    if (sc === '29')              return { indicateur: 'immobCorporelAmort', sign: -1, label: 'Depreciations immo' }
+  }
+  if (cl === '3') {
+    if (sc === '30' || sc === '36' || sc === '37') return { indicateur: 'stocksMarchandises', sign: 1, label: 'Stocks marchandises' }
+    if (sc >= '31' && sc <= '32') return { indicateur: 'stocksMP', sign: 1, label: 'Matieres premieres' }
+    if (sc >= '33' && sc <= '34') return { indicateur: 'stocksEncours', sign: 1, label: 'En-cours' }
+    if (sc === '35')              return { indicateur: 'stocksProduits', sign: 1, label: 'Produits finis' }
+    if (sc === '39')              return { indicateur: 'stocksMarchandises', sign: -1, label: 'Depreciations stocks' }
+  }
+  if (cl === '4') {
+    if (sc === '40')                return { indicateur: 'dettesFournisseurs', sign: -1, label: 'Fournisseurs' }
+    if (sc === '41')                return { indicateur: 'creancesClients', sign: 1, label: 'Clients' }
+    if (sc === '42' || sc === '43') return { indicateur: 'dettesSociales', sign: -1, label: 'Personnel et orga sociaux' }
+    if (ssc === '445')              return { indicateur: 'creancesEtat', sign: 1, label: 'TVA deductible' }
+    if (sc === '44')                return { indicateur: 'dettesFiscales', sign: -1, label: 'Etat et collectivites' }
+    if (sc === '45')                return { indicateur: 'autresDettes', sign: -1, label: 'Groupe et associes' }
+    if (ssc === '486')              return { indicateur: 'autresCreances', sign: 1, label: 'Charges constatees avance' }
+    if (ssc === '487')              return { indicateur: 'autresDettes', sign: -1, label: 'Produits constates avance' }
+    if (sc === '46' || sc === '47' || sc === '48') return { indicateur: 'autresCreances', sign: 1, label: 'Debiteurs divers' }
+    if (sc === '49')                return { indicateur: 'creancesClients', sign: -1, label: 'Depreciations creances' }
+  }
+  if (cl === '5') {
+    if (sc >= '50' && sc <= '58') return { indicateur: 'tresorerie', sign: 1, label: 'Comptes financiers' }
+    if (sc === '59')              return { indicateur: 'tresorerie', sign: -1, label: 'Depreciations financieres' }
+  }
+  if (cl === '6') {
+    if (sc === '60') {
+      if (ssc === '603') return { indicateur: 'coutMarchandises', sign: 1, label: 'Variation de stocks' }
+      return { indicateur: 'coutMarchandises', sign: 1, label: 'Achats' }
+    }
+    if (sc === '61' || sc === '62') return { indicateur: 'consommationsIntermediaires', sign: 1, label: 'Services exterieurs' }
+    if (sc === '63') return { indicateur: 'impotsTaxes', sign: 1, label: 'Impots et taxes' }
+    if (sc === '64') return { indicateur: 'chargesPersonnel', sign: 1, label: 'Charges de personnel' }
+    if (sc === '65') return { indicateur: 'autresCharges', sign: 1, label: 'Autres charges' }
+    if (sc === '66') return { indicateur: 'chargesFinancieres', sign: 1, label: 'Charges financieres' }
+    if (sc === '67') return { indicateur: 'chargesExceptionnelles', sign: 1, label: 'Charges exceptionnelles' }
+    if (sc === '68') return { indicateur: 'dotations', sign: 1, label: 'Dotations' }
+    if (sc === '69') return { indicateur: 'is', sign: 1, label: 'IS' }
+  }
+  if (cl === '7') {
+    if (sc === '70') return { indicateur: 'ventesMarchandises', sign: -1, label: 'Ventes' }
+    if (sc === '71') return { indicateur: 'productionStockee', sign: -1, label: 'Production stockee' }
+    if (sc === '72') return { indicateur: 'productionImmobilisee', sign: -1, label: 'Production immobilisee' }
+    if (sc === '73') return { indicateur: 'productionVendue', sign: -1, label: 'Ventes produits' }
+    if (sc === '74') return { indicateur: 'subventions', sign: -1, label: 'Subventions exploitation' }
+    if (sc === '75') return { indicateur: 'autresProduits', sign: -1, label: 'Autres produits' }
+    if (sc === '76') return { indicateur: 'produitsFinanciers', sign: -1, label: 'Produits financiers' }
+    if (sc === '77') return { indicateur: 'produitsExceptionnels', sign: -1, label: 'Produits exceptionnels' }
+    if (sc === '78') return { indicateur: 'reprises', sign: -1, label: 'Reprises' }
+    if (sc === '79') return { indicateur: 'autresProduits', sign: -1, label: 'Transferts de charges (ancien)' }
+  }
+  return null
+}
+
 function resolveCompte(compteNum: string, index: PCGIndex): { indicateur: string; sign: 1|-1; label: string } | null {
   for (const e of index.entries) {
     if (compteNum.startsWith(e.prefix)) return e
   }
-  return null
+  return fallbackParClasse(compteNum)
 }
 
 export function getSousComptes(

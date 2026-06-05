@@ -279,17 +279,10 @@ export default function BalanceSheetPage() {
                       <span style={{ fontSize:13, fontWeight:500, color:'#B8A98A' }}>{fmt(totalActif)}</span>
                     </div>
                     <Section title="Actif immobilisé" total={totalActifImmo} color="#8C9BAB" defaultOpen={true}>
-                      {totalImmobIncorp !== 0 && (<>
-                        <div style={{ padding:'7px 16px 3px', fontSize:10, fontWeight:600, color:'#B8A98A', textTransform:'uppercase', letterSpacing:'0.06em', background:'rgba(184,169,138,0.04)' }}>Incorporelles</div>
-                        <BilanLigne label="Valeur brute" groupeKeys={['immobIncorporelBrut']} color="#8C9BAB" indent {...rp} />
-                        <BilanLigne label="Amortissements" groupeKeys={['immobIncorporelAmort']} color="#D85A30" indent {...rp} />
-                        <BilanLigne label="Immob. incorporelles nettes" groupeKeys={['immobIncorporelBrut','immobIncorporelAmort']} color="#8C9BAB" isSousTotal {...rp} />
-                      </>)}
-                      {totalImmobCorp !== 0 && (<>
-                        <div style={{ padding:'7px 16px 3px', fontSize:10, fontWeight:600, color:'#B8A98A', textTransform:'uppercase', letterSpacing:'0.06em', background:'rgba(184,169,138,0.04)' }}>Corporelles</div>
-                        <BilanLigne label="Valeur brute" groupeKeys={['immobCorporelBrut']} color="#8C9BAB" indent {...rp} />
-                        <BilanLigne label="Amortissements" groupeKeys={['immobCorporelAmort']} color="#D85A30" indent {...rp} />
-                        <BilanLigne label="Immob. corporelles nettes" groupeKeys={['immobCorporelBrut','immobCorporelAmort']} color="#8C9BAB" isSousTotal {...rp} />
+                      {(totalImmobIncorp !== 0 || totalImmobCorp !== 0) && (<>
+                        <BilanLigne label="Valeur brute" groupeKeys={['immobIncorporelBrut','immobCorporelBrut']} color="#8C9BAB" indent {...rp} />
+                        <BilanLigne label="Amortissements" groupeKeys={['immobIncorporelAmort','immobCorporelAmort']} color="#D85A30" indent {...rp} />
+                        <BilanLigne label="Immobilisations nettes" groupeKeys={['immobIncorporelBrut','immobIncorporelAmort','immobCorporelBrut','immobCorporelAmort']} color="#8C9BAB" isSousTotal {...rp} />
                       </>)}
                       {totalImmobFin !== 0 && (<>
                         <div style={{ padding:'7px 16px 3px', fontSize:10, fontWeight:600, color:'#B8A98A', textTransform:'uppercase', letterSpacing:'0.06em', background:'rgba(184,169,138,0.04)' }}>Financières</div>

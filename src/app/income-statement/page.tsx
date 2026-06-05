@@ -252,7 +252,7 @@ export default function IncomeStatementPage() {
     const mb = s('ventesMarchandises') - s('coutMarchandises')
     const va = mb + s('productionVendue') + s('productionStockee') + s('productionImmobilisee') - s('consommationsIntermediaires')
     const ebe = va + s('subventions') - s('impotsTaxes') - s('chargesPersonnel')
-    const rex = ebe - s('dotations') + s('reprises') + s('transfertsCharges') + s('autresProduits') - s('autresCharges')
+    const rex = ebe - s('dotations') + s('reprises') + s('autresProduits') - s('autresCharges')
     const rfin = s('produitsFinanciers') - s('chargesFinancieres')
     const rnet = rex + rfin + s('produitsExceptionnels') - s('chargesExceptionnelles') - s('participation') - s('is')
     return { ca, rnet, rex, rfin, mb, tauxMb: ca>0?mb/ca*100:0, tauxRnet: ca>0?rnet/ca*100:0 }
@@ -265,7 +265,7 @@ export default function IncomeStatementPage() {
     const mb = s('ventesMarchandises') - s('coutMarchandises')
     const va = mb + s('productionVendue') + s('productionStockee') + s('productionImmobilisee') - s('consommationsIntermediaires')
     const ebe = va + s('subventions') - s('impotsTaxes') - s('chargesPersonnel')
-    const rex = ebe - s('dotations') + s('reprises') + s('transfertsCharges') + s('autresProduits') - s('autresCharges')
+    const rex = ebe - s('dotations') + s('reprises') + s('autresProduits') - s('autresCharges')
     const rfin = s('produitsFinanciers') - s('chargesFinancieres')
     const rnet = rex + rfin + s('produitsExceptionnels') - s('chargesExceptionnelles') - s('participation') - s('is')
     return { ca, rnet, rex, rfin, mb, tauxMb: ca>0?mb/ca*100:0, tauxRnet: ca>0?rnet/ca*100:0 }
@@ -318,8 +318,8 @@ export default function IncomeStatementPage() {
                     <CrRow label="Production immobilisée" groupeKeys={['productionImmobilisee']} {...rowProps} indent />
                     <CrRow label="Subventions d'exploitation" groupeKeys={['subventions']} {...rowProps} indent />
                     <CrRow label="Autres produits de gestion courante" groupeKeys={['autresProduits']} {...rowProps} indent />
-                    <CrRow label="Reprises sur prov. et transferts de charges" groupeKeys={['reprises','transfertsCharges']} {...rowProps} indent />
-                    <CrRow label="Total produits d'exploitation" groupeKeys={['ventesMarchandises','productionVendue','productionStockee','productionImmobilisee','subventions','autresProduits','reprises','transfertsCharges']} {...rowProps} sub color="#B8A98A" />
+                    <CrRow label="Reprises sur provisions" groupeKeys={['reprises']} {...rowProps} indent />
+                    <CrRow label="Total produits d'exploitation" groupeKeys={['ventesMarchandises','productionVendue','productionStockee','productionImmobilisee','subventions','autresProduits','reprises']} {...rowProps} sub color="#B8A98A" />
                   </Section>
 
                   <Section title="Charges d'exploitation" defaultOpen={true}>
