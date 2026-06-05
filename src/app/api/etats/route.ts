@@ -190,7 +190,7 @@ function calculer(lignes: LigneFEC[], annee: number): Etats {
       } else if (c2 === '63') {
         impotsTaxes += solde
       } else if (c2 === '64') {
-        if (c3 === '649') remboursementsPers += solde
+        if (c3 === '649') remboursementsPers += (c - d)
         else chargesPersonnel += solde
       } else if (c2 === '65') {
         autresChargesExploit += solde
