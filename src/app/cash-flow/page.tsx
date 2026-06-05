@@ -1,70 +1,100 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { usePeriod } from '@/hooks/usePeriod'
 import { createClient } from '@supabase/supabase-js'
 import Sidebar from '@/components/Sidebar'
-import PeriodSelector from '@/components/PeriodSelector'
-import { calculerIndicateurs, filtrerLignes, getMonthlyCash } from '@/hooks/useFEC'
-import { usePCG } from '@/hooks/usePCG'
 import AlvioInsight from '@/components/AlvioInsight'
-import type { LigneFEC, Indicateurs } from '@/hooks/useFEC'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 const fmt = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' €'
 
-function toIso(d: string): string {
-  if (!d) return ''
-  if (d.includes('-')) return d.slice(0, 10)
-  if (d.length === 8) return d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8)
-  return d
+function getMonthlyCash(lignes: any[]): { m: string; val: number }[] {
+  const byMonth: Record<string, number> = {}
+  for (const l of lignes) {
+    const compte = l.CompteNum || ''
+    const journal = l.JournalCode || ''
+    if (!compte.startsWith('5') || journal === 'AN') continue
+    const c2 = compte.slice(0, 2)
+    if (c2 < '50' || c2 > '58') continue
+    const d = l.EcritureDate || ''
+    let m = ''
+    if (d.length === 8) m = d.slice(0, 4) + '-' + d.slice(4, 6)
+    else if (d.length >= 7) m = d.slice(0, 7)
+    else continue
+    byMonth[m] = (byMonth[m] || 0) + (l.Debit - l.Credit)
+  }
+  // Cumul mensuel
+  const sorted = Object.entries(byMonth).sort(([a], [b]) => a.localeCompare(b)).slice(-12)
+  let cumul = 0
+  return sorted.map(([m, v]) => {
+    cumul += v
+    return { m: m.slice(5) || m, val: Math.round(cumul * 100) / 100 }
+  })
 }
 
 export default function CashFlowPage() {
-  const [exercices, setExercices] = useState<Record<number,{annee:number;lignes:LigneFEC[]}>>({})
-  const { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1 } = usePeriod(new Date().getFullYear())
+  const [etats, setEtats] = useState<any>(null)
+  const [monthly, setMonthly] = useState<{ m: string; val: number }[]>([])
+  const [annees, setAnnees] = useState<number[]>([])
+  const [anneeActive, setAnneeActive] = useState<number>(new Date().getFullYear())
   const [loading, setLoading] = useState(true)
-  const [typePcg, setTypePcg] = useState<'classique'|'asso'>('classique')
-  const { mappings, pcgLoading } = usePCG(typePcg)
+  const [userId, setUserId] = useState<string>('')
 
   useEffect(() => {
-    sb.auth.getUser().then(async ({ data: { user } }) => {
+    const load = async () => {
+      const { data: { user } } = await sb.auth.getUser()
       if (!user) { window.location.href = '/'; return }
-      const { data } = await sb.from('fec_exercices').select('annee, ecritures, type_pcg').eq('user_id', user.id).order('annee', { ascending: false })
+      setUserId(user.id)
+      const { data } = await sb.from('fec_exercices').select('annee').eq('user_id', user.id).order('annee', { ascending: false })
       if (data && data.length > 0) {
-        const map: Record<number,any> = {}
-        for (const row of data) map[row.annee] = { annee: row.annee, lignes: row.ecritures as LigneFEC[] }
-        setExercices(map)
-        if (typeof window === 'undefined' || !localStorage.getItem('alvio-period')) setAnneeActive(data[0].annee)
-        setTypePcg((data[0].type_pcg as 'classique'|'asso') || 'classique')
+        const anneesDispos = data.map((r: any) => r.annee as number)
+        setAnnees(anneesDispos)
+        const annee = anneesDispos[0]
+        setAnneeActive(annee)
+        await chargerDonnees(user.id, annee)
       }
       setLoading(false)
-    })
+    }
+    load()
   }, [])
 
-  const lignesActives: LigneFEC[] = (() => {
-    if (periodeTab === 'perso' && dateDebut && dateFin) {
-      const merged: LigneFEC[] = []
-      for (const a of Object.keys(exercices).map(Number).sort((x,y) => x-y)) {
-        const ex = exercices[a]; if (!ex) continue
-        const dates = ex.lignes.map((l:LigneFEC) => toIso(l.EcritureDate)).filter(Boolean).sort()
-        if (dates.length && toIso(dates[dates.length-1]) >= dateDebut && toIso(dates[0]) <= dateFin)
-          merged.push(...filtrerLignes(ex.lignes, 'perso', dateDebut, dateFin))
-      }
-      if (merged.length > 0) return merged
+  const chargerDonnees = async (uid: string, annee: number) => {
+    // Charger états financiers
+    const res = await fetch(`/api/etats?annee=${annee}&user_id=${uid}`)
+    if (res.ok) {
+      const data = await res.json()
+      setEtats(data)
     }
-    return exercices[anneeActive]?.lignes ?? []
-  })()
+    // Charger lignes FEC pour graphique mensuel
+    const { data: fecData } = await sb
+      .from('fec_exercices')
+      .select('ecritures')
+      .eq('user_id', uid)
+      .eq('annee', annee)
+      .single()
+    if (fecData?.ecritures) {
+      setMonthly(getMonthlyCash(fecData.ecritures))
+    }
+  }
 
-  const pcg = mappings?.sig ?? {}
-  const index = mappings?.allIndex
-  const hasPCG = Object.keys(pcg).length > 0 && !!index
-  const anneesDisponibles = Object.keys(exercices).map(Number).sort((a,b) => b-a)
-  const ind: Indicateurs | null = (lignesActives.length > 0 && hasPCG) ? calculerIndicateurs(lignesActives, pcg, index!) : null
-  const monthly = (lignesActives.length > 0 && hasPCG) ? getMonthlyCash(lignesActives, pcg, index!) : []
-  const maxVal = monthly.length > 0 ? Math.max(...monthly.map(m => Math.abs(m.val))) || 1 : 1
-  const joursCharges = ind && ind.ebe > 0 ? Math.round(ind.treso / (ind.ebe / 365)) : 0
+  const changerAnnee = async (annee: number) => {
+    setAnneeActive(annee)
+    setEtats(null)
+    setMonthly([])
+    await chargerDonnees(userId, annee)
+  }
 
-  if (loading || pcgLoading) return (
+  const bilan = etats?.bilan
+  const sig = etats?.sig
+  const tresorerie = bilan?.actif?.tresorerie ?? 0
+  const creances = bilan?.actif?.creancesClients ?? 0
+  const dettes = bilan?.passif?.dettesFournisseurs ?? 0
+  const bfr = creances - dettes
+  const jTreso = sig?.ca > 0 ? Math.round(tresorerie / sig.ca * 365) : 0
+  const jCreances = sig?.ca > 0 ? Math.round(creances / sig.ca * 365) : 0
+  const jDettes = sig?.ca > 0 ? Math.round(dettes / sig.ca * 365) : 0
+
+  if (loading) return (
     <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
       <Sidebar activePage="cash-flow"/>
       <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -80,55 +110,69 @@ export default function CashFlowPage() {
       <div style={{ flex:1, display:'flex', flexDirection:'column' }}>
         <div style={{ background:'#fff', borderBottom:'0.5px solid rgba(0,0,0,0.07)', padding:'0 24px', height:52, display:'flex', alignItems:'center', gap:12, flexShrink:0, position:'sticky' as const, top:0, zIndex:10 }}>
           <span style={{ fontSize:14, fontWeight:500, color:'#1A1A1A' }}>Trésorerie</span>
-          {ind && <PeriodSelector annees={anneesDisponibles} anneeActive={anneeActive} setAnneeActive={setAnneeActive} periodeTab={periodeTab} setPeriodeTab={setPeriodeTab} dateDebut={dateDebut} setDateDebut={setDateDebut} dateFin={dateFin} setDateFin={setDateFin} anneeN1={anneeN1} setAnneeN1={setAnneeN1} dateDebutN1={dateDebutN1} setDateDebutN1={setDateDebutN1} dateFinN1={dateFinN1} setDateFinN1={setDateFinN1} />}
+          {annees.length > 1 && annees.map(a => (
+            <button key={a} onClick={() => changerAnnee(a)} style={{ fontSize:12, fontWeight:500, padding:'4px 10px', borderRadius:6, border:'0.5px solid rgba(0,0,0,0.12)', background: a === anneeActive ? '#1A1A1A' : '#fff', color: a === anneeActive ? '#fff' : '#1A1A1A', cursor:'pointer' }}>{a}</button>
+          ))}
         </div>
         <div style={{ flex:1, padding:24, overflowY:'auto' }}>
-          {!ind ? (
+          {!bilan ? (
             <div style={{ maxWidth:480, margin:'60px auto', textAlign:'center', background:'#fff', borderRadius:10, border:'0.5px solid rgba(0,0,0,0.06)', padding:24 }}>
               <div style={{ fontSize:14, fontWeight:500, color:'#1A1A1A', marginBottom:8 }}>Aucune donnée disponible</div>
               <a href="/dashboard" style={{ background:'#1A1A1A', color:'#fff', borderRadius:8, padding:'10px 20px', fontSize:13, textDecoration:'none' }}>Aller à la Synthèse</a>
             </div>
           ) : (
-            <div style={{ maxWidth:960 }}>
-              <AlvioInsight payload={{ page:'cash-flow', annee:anneeActive, periode: periodeTab==='perso'&&dateDebut&&dateFin?`${dateDebut} → ${dateFin}`:undefined, indicateurs:{ ca:ind.ca, treso:ind.treso, ebe:ind.ebe, bfr:ind.bfr, tauxMb:ind.tauxMb } }} />
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:20 }}>
+            <div style={{ maxWidth:1000 }}>
+              {sig && <AlvioInsight payload={{ page:'cash-flow', annee:anneeActive, indicateurs:{ tresorerie, bfr, creancesClients: creances, dettesFournisseurs: dettes, jTreso, jCreances, jDettes } }} />}
+
+              {/* KPIs trésorerie */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:24 }}>
                 {[
-                  { label:'Trésorerie nette', val:fmt(ind.treso), color:ind.treso>=0?'#1D9E75':'#D85A30', accent:ind.treso>=0?'#1D9E75':'#D85A30' },
-                  { label:'EBITDA', val:fmt(ind.ebe), color:ind.ebe>=0?'#1D9E75':'#D85A30', accent:'#B8A98A' },
-                  { label:'Jours de trésorerie', val:joursCharges>0?`${joursCharges} jours`:'—', color:joursCharges>60?'#1D9E75':joursCharges>30?'#B8A98A':'#D85A30', accent:'#8C9BAB' },
-                ].map(k => (
-                  <div key={k.label} style={{ background:'#fff', borderRadius:10, border:'0.5px solid rgba(0,0,0,0.06)', borderTop:`3px solid ${k.accent}`, padding:'14px 16px' }}>
-                    <div style={{ fontSize:10, fontWeight:500, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>{k.label}</div>
-                    <div style={{ fontSize:22, fontWeight:500, color:k.color }}>{k.val}</div>
+                  { label:'Trésorerie nette', value: tresorerie, sub: `${jTreso} jours de CA`, color: tresorerie >= 0 ? '#1D9E75' : '#D85A30' },
+                  { label:'Créances clients', value: creances, sub: `${jCreances} jours de CA`, color:'#8C9BAB' },
+                  { label:'Dettes fournisseurs', value: dettes, sub: `${jDettes} jours de CA`, color:'#8C9BAB' },
+                  { label:'BFR', value: bfr, sub: bfr > 0 ? 'À financer' : 'Ressource nette', color: bfr <= 0 ? '#1D9E75' : '#D85A30' },
+                  { label:'Actif total', value: bilan.actif.totalActif, sub: 'Total bilan', color:'#B8A98A' },
+                  { label:'Capitaux propres', value: bilan.passif.capitauxPropres, sub: 'Fonds propres', color: bilan.passif.capitauxPropres >= 0 ? '#1D9E75' : '#D85A30' },
+                ].map((k, i) => (
+                  <div key={i} style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'16px 20px', borderTop:`3px solid ${k.color}` }}>
+                    <div style={{ fontSize:10, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>{k.label}</div>
+                    <div style={{ fontSize:22, fontWeight:600, color:'#1A1A1A' }}>{fmt(k.value)}</div>
+                    <div style={{ fontSize:11, color: k.color, marginTop:4, fontWeight:500 }}>{k.sub}</div>
                   </div>
                 ))}
               </div>
+
+              {/* Graphique mensuel */}
               {monthly.length > 0 && (
-                <div style={{ background:'#fff', borderRadius:10, border:'0.5px solid rgba(0,0,0,0.06)', padding:'18px 20px', marginBottom:16 }}>
-                  <div style={{ fontSize:13, fontWeight:500, color:'#1A1A1A', marginBottom:16 }}>Évolution de la trésorerie cumulée</div>
-                  <div style={{ display:'flex', alignItems:'flex-end', gap:4, height:120 }}>
-                    {monthly.map((m,i) => {
-                      const h = Math.max(Math.abs(m.val)/maxVal*100, 4)
-                      return (
-                        <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
-                          <div style={{ width:'100%', height:`${h}%`, minHeight:4, background:i===monthly.length-1?'#1A1A1A':m.val>=0?'#1D9E75':'#D85A30', borderRadius:'3px 3px 0 0' }}/>
-                          <span style={{ fontSize:9, color:'#8C9BAB', whiteSpace:'nowrap' }}>{m.m}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
+                <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:24, marginBottom:24 }}>
+                  <div style={{ fontSize:12, fontWeight:600, color:'#1A1A1A', marginBottom:16 }}>Évolution de la trésorerie — {anneeActive}</div>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <LineChart data={monthly} margin={{ top:5, right:20, left:10, bottom:5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
+                      <XAxis dataKey="m" tick={{ fontSize:10, fill:'#8C9BAB' }} />
+                      <YAxis tick={{ fontSize:10, fill:'#8C9BAB' }} tickFormatter={v => new Intl.NumberFormat('fr-FR', { notation:'compact' }).format(v)} />
+                      <Tooltip formatter={(v: any) => fmt(v)} labelStyle={{ color:'#1A1A1A', fontWeight:500 }} contentStyle={{ border:'0.5px solid rgba(0,0,0,0.08)', borderRadius:8, fontSize:12 }} />
+                      <Line type="monotone" dataKey="val" stroke="#1A1A1A" strokeWidth={2} dot={{ fill:'#B8A98A', r:3 }} activeDot={{ r:5, fill:'#1A1A1A' }} />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
               )}
-              <div style={{ background:'#fff', borderRadius:10, border:'0.5px solid rgba(0,0,0,0.06)', padding:'18px 20px' }}>
-                <div style={{ fontSize:13, fontWeight:500, color:'#1A1A1A', marginBottom:12 }}>Besoin en fonds de roulement (BFR)</div>
-                <div style={{ display:'flex', alignItems:'center', gap:16 }}>
-                  <div style={{ flex:1, height:10, background:'#F2F3F5', borderRadius:5, overflow:'hidden' }}>
-                    <div style={{ height:'100%', width:`${Math.min(Math.abs(ind.bfr)/Math.max(Math.abs(ind.treso),Math.abs(ind.bfr),1)*100,100)}%`, background:ind.bfr>0?'#D85A30':'#1D9E75', borderRadius:5 }}/>
-                  </div>
-                  <div style={{ fontSize:14, fontWeight:500, color:ind.bfr>0?'#D85A30':'#1D9E75', minWidth:110, textAlign:'right' }}>{fmt(ind.bfr)}</div>
-                </div>
-                <div style={{ fontSize:11, color:'#8C9BAB', marginTop:8 }}>
-                  {ind.bfr>0?"BFR positif : vos clients vous doivent plus que vous devez à vos fournisseurs.":"BFR négatif : vos fournisseurs vous financent — situation favorable."}
+
+              {/* Analyse BFR */}
+              <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:24 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:'#1A1A1A', marginBottom:16 }}>Analyse du Besoin en Fonds de Roulement</div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:16 }}>
+                  {[
+                    { label:'Créances clients (41x)', value: creances, note: `Délai moyen : ${jCreances}j`, color:'#D85A30' },
+                    { label:'Dettes fournisseurs (40x)', value: dettes, note: `Délai moyen : ${jDettes}j`, color:'#1D9E75' },
+                    { label:'BFR net', value: bfr, note: bfr > 0 ? 'Besoin à financer' : 'Ressource de financement', color: bfr <= 0 ? '#1D9E75' : '#D85A30' },
+                  ].map((item, i) => (
+                    <div key={i} style={{ padding:16, background:'#F2F3F5', borderRadius:8, borderLeft:`3px solid ${item.color}` }}>
+                      <div style={{ fontSize:11, color:'#8C9BAB', marginBottom:6 }}>{item.label}</div>
+                      <div style={{ fontSize:18, fontWeight:600, color:'#1A1A1A', marginBottom:4 }}>{fmt(item.value)}</div>
+                      <div style={{ fontSize:11, color: item.color, fontWeight:500 }}>{item.note}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
