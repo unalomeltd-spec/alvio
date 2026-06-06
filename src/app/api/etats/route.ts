@@ -848,11 +848,10 @@ function getDestinationEffective(
     (compteNum.startsWith('44566') || compteNum.startsWith('44587') || compteNum.startsWith('44584'))
   ) {
     if (solde >= 0) {
-      agg['creancesEtat'] += solde
+      return { destination: 'creancesEtat', valeur: solde }
     } else {
-      agg['dettesFiscales'] += -solde
+      return { destination: 'dettesFiscales', valeur: -solde }
     }
-    continue
   }
 
   // Trésorerie actif créditrice → découvert → passif
