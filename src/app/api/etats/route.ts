@@ -739,6 +739,68 @@ function classifyCompte(compteNum: string): ClassificationResult | null {
   if (compteNum.startsWith('54')) return { destination: 'tresorerieActif', sens: 1 }
   if (compteNum.startsWith('58')) return { destination: 'tresorerieActif', sens: 1 }
   if (compteNum.startsWith('59')) return { destination: 'deprecTreso', sens: -1 }
+
+  // ─── Fallbacks hiérarchiques ─────────────────────────────────
+  // Couvrent les sous-comptes personnalisés absents du référentiel
+  // Préfixes 2 chiffres — déduits des règles de sous-comptes
+  if (compteNum.startsWith('10')) return { destination: 'capital', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('11')) return { destination: 'reportNouveau', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('12')) return { destination: 'reportNouveau', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('13')) return { destination: 'subventionsInvest', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('14')) return { destination: 'provisionsReglementees', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('15')) return { destination: 'provisionsRisques', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('16')) return { destination: 'empruntsOblig', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('17')) return { destination: 'autresEmpruntsLT', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('18')) return { destination: 'autresDettes', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('20')) return { destination: 'immoIncorpBrut', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('21')) return { destination: 'immoCorpBrut', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('23')) return { destination: 'immoCorpBrut', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('25')) return { destination: 'immoFinBrut', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('26')) return { destination: 'immoFinBrut', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('27')) return { destination: 'immoFinBrut', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('28')) return { destination: 'amortCorp', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('29')) return { destination: 'amortCorp', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('39')) return { destination: 'deprecStocks', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('40')) return { destination: 'dettesFournisseurs', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('41')) return { destination: 'creancesClients', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('42')) return { destination: 'dettesSociales', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('43')) return { destination: 'dettesSociales', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('44')) return { destination: 'dettesFiscales', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('45')) return { destination: 'autresCreances', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('46')) return { destination: 'autresCreances', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('47')) return { destination: 'autresCreances', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('48')) return { destination: 'chargesConstatees', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('49')) return { destination: 'deprecCreances', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('50')) return { destination: 'tresorerieActif', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('51')) return { destination: 'tresorerieActif', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('53')) return { destination: 'tresorerieActif', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('60')) return { destination: 'autresAchats', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('61')) return { destination: 'servicesExt', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('62')) return { destination: 'servicesExt', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('63')) return { destination: 'impotsTaxes', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('64')) return { destination: 'chargesPersonnel', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('65')) return { destination: 'autresChargesExploit', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('66')) return { destination: 'chargesFinancieres', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('67')) return { destination: 'chargesExcep', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('68')) return { destination: 'dotationsExploit', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('69')) return { destination: 'is', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('70')) return { destination: 'productionVendue', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('71')) return { destination: 'productionStockee', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('72')) return { destination: 'productionImmobilisee', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('74')) return { destination: 'subventionsExploit', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('75')) return { destination: 'autresProduits', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('76')) return { destination: 'produitsFinanciers', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('77')) return { destination: 'produitsExcep', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('78')) return { destination: 'reprises', sens: -1 } // fallback 2 chiffres
+  if (compteNum.startsWith('79')) return { destination: 'autresProduits', sens: -1 } // fallback 2 chiffres
+  // Préfixes 1 chiffre — dernier recours
+  if (compteNum.startsWith('1')) return { destination: 'autresEmpruntsLT', sens: -1 } // fallback 1 chiffre
+  if (compteNum.startsWith('2')) return { destination: 'immoCorpBrut', sens: 1 } // fallback 1 chiffre
+  if (compteNum.startsWith('3')) return { destination: 'stocksMatieres', sens: 1 } // fallback 1 chiffre
+  if (compteNum.startsWith('4')) return { destination: 'autresCreances', sens: 1 } // fallback 1 chiffre
+  if (compteNum.startsWith('5')) return { destination: 'tresorerieActif', sens: 1 } // fallback 1 chiffre
+  if (compteNum.startsWith('6')) return { destination: 'autresChargesExploit', sens: 1 } // fallback 1 chiffre
+  if (compteNum.startsWith('7')) return { destination: 'autresProduits', sens: -1 } // fallback 1 chiffre
   return null // Compte non reconnu par le PCG 2025
 }
 
