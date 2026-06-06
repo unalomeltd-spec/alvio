@@ -142,7 +142,7 @@ function classifyCompte(compteNum: string): ClassificationResult | null {
   if (compteNum.startsWith('44566')) return { destination: 'creancesEtat', sens: 1 }
   if (compteNum.startsWith('44581')) return { destination: 'dettesFiscales', sens: -1 }
   if (compteNum.startsWith('44583')) return { destination: 'creancesEtat', sens: 1 }
-  if (compteNum.startsWith('44586')) return { destination: 'dettesFiscales', sens: -1 }
+  if (compteNum.startsWith('44586')) return { destination: 'creancesEtat', sens: 1 } // TVA sur FNP — débiteur=créance / créditeur→dette via basculement
   if (compteNum.startsWith('44587')) return { destination: 'creancesEtat', sens: 1 }
   // ──────── 4 chiffres
   if (compteNum.startsWith('1011')) return { destination: 'capitalNonAppele', sens: -1 }
@@ -845,7 +845,7 @@ function getDestinationEffective(
   // Créditeur = taxe due (dette) / Débiteur = crédit de taxe (créance)
   if (
     destination === 'creancesEtat' &&
-    (compteNum.startsWith('44566') || compteNum.startsWith('44587') || compteNum.startsWith('44584'))
+    (compteNum.startsWith('44566') || compteNum.startsWith('44587') || compteNum.startsWith('44584') || compteNum.startsWith('44586'))
   ) {
     if (solde >= 0) {
       return { destination: 'creancesEtat', valeur: solde }
@@ -873,6 +873,11 @@ function getDestinationEffective(
 
   // IS — créance si acomptes > IS dû (444 débiteur)
   if ((c3 === '444') && destination === 'dettesFiscales' && solde > 0) {
+    return { destination: 'creancesEtat', valeur: solde }
+  }
+
+  // 4421 (PAS) débiteur = trop versé = créance sur l'État
+  if (compteNum.startsWith('4421') && destination === 'dettesFiscales' && solde > 0) {
     return { destination: 'creancesEtat', valeur: solde }
   }
 
