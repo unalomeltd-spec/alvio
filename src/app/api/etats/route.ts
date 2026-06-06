@@ -275,9 +275,9 @@ function classifyCompte(compteNum: string): ClassificationResult | null {
   if (compteNum.startsWith('6016')) return { destination: 'autresAchats', sens: 1 } // DOUTE
   if (compteNum.startsWith('6017')) return { destination: 'autresAchats', sens: 1 }
   if (compteNum.startsWith('6019')) return { destination: 'achatsMatieres', sens: -1 }
-  if (compteNum.startsWith('6031')) return { destination: 'variationStocksMat', sens: -1 }
-  if (compteNum.startsWith('6032')) return { destination: 'variationStocksMat', sens: -1 } // DOUTE
-  if (compteNum.startsWith('6037')) return { destination: 'variationStocksMarch', sens: -1 }
+  if (compteNum.startsWith('6031')) return { destination: 'variationStocksMat', sens: 1 } // sens +1 : stock↑ créditeur→réduit coût, stock↓ débiteur→augmente coût
+  if (compteNum.startsWith('6032')) return { destination: 'variationStocksMat', sens: 1 } // sens +1 : stock↑ créditeur→réduit coût, stock↓ débiteur→augmente coût // DOUTE
+  if (compteNum.startsWith('6037')) return { destination: 'variationStocksMarch', sens: 1 } // sens +1 : stock↑ créditeur→réduit coût, stock↓ débiteur→augmente coût
   if (compteNum.startsWith('6061')) return { destination: 'autresAchats', sens: 1 }
   if (compteNum.startsWith('6063')) return { destination: 'autresAchats', sens: 1 }
   if (compteNum.startsWith('6064')) return { destination: 'autresAchats', sens: 1 }
@@ -438,12 +438,12 @@ function classifyCompte(compteNum: string): ClassificationResult | null {
   if (compteNum.startsWith('108')) return { destination: 'capital', sens: -1 }
   if (compteNum.startsWith('109')) return { destination: 'capitalNonAppele', sens: 1 }
   if (compteNum.startsWith('110')) return { destination: 'reportNouveau', sens: -1 }
-  if (compteNum.startsWith('119')) return { destination: 'reportNouveau', sens: 1 }
+  if (compteNum.startsWith('119')) return { destination: 'reportNouveau', sens: -1 } // sens -1 : perte reportée (débiteur) réduit les capitaux propres
   if (compteNum.startsWith('120')) return { destination: 'reportNouveau', sens: -1 } // DOUTE
   if (compteNum.startsWith('129')) return { destination: 'reportNouveau', sens: 1 } // DOUTE
   if (compteNum.startsWith('131')) return { destination: 'subventionsInvest', sens: -1 }
   if (compteNum.startsWith('138')) return { destination: 'subventionsInvest', sens: -1 } // rétrocompat
-  if (compteNum.startsWith('139')) return { destination: 'subventionsInvest', sens: 1 }
+  if (compteNum.startsWith('139')) return { destination: 'subventionsInvest', sens: -1 } // sens -1 : solde débiteur réduit subventionsInvest au passif
   if (compteNum.startsWith('141')) return { destination: 'provisionsReglementees', sens: -1 } // rétrocompat
   if (compteNum.startsWith('142')) return { destination: 'provisionsReglementees', sens: -1 } // rétrocompat
   if (compteNum.startsWith('143')) return { destination: 'provisionsReglementees', sens: -1 }
@@ -677,7 +677,7 @@ function classifyCompte(compteNum: string): ClassificationResult | null {
   if (compteNum.startsWith('691')) return { destination: 'participation', sens: 1 }
   if (compteNum.startsWith('695')) return { destination: 'is', sens: 1 }
   if (compteNum.startsWith('697')) return { destination: 'is', sens: 1 }
-  if (compteNum.startsWith('699')) return { destination: 'is', sens: -1 }
+  if (compteNum.startsWith('699')) return { destination: 'is', sens: 1 } // sens +1 : dégrèvement IS créditeur → produit → augmente résultat
   if (compteNum.startsWith('701')) return { destination: 'productionVendue', sens: -1 }
   if (compteNum.startsWith('702')) return { destination: 'productionVendue', sens: -1 }
   if (compteNum.startsWith('703')) return { destination: 'productionVendue', sens: -1 }
@@ -774,6 +774,7 @@ function classifyCompte(compteNum: string): ClassificationResult | null {
   if (compteNum.startsWith('50')) return { destination: 'tresorerieActif', sens: 1 } // fallback 2 chiffres
   if (compteNum.startsWith('51')) return { destination: 'tresorerieActif', sens: 1 } // fallback 2 chiffres
   if (compteNum.startsWith('53')) return { destination: 'tresorerieActif', sens: 1 } // fallback 2 chiffres
+  if (compteNum.startsWith('603')) return { destination: 'variationStocksMarch', sens: 1 } // variation stocks marc. — sens +1 corrigé
   if (compteNum.startsWith('60')) return { destination: 'autresAchats', sens: 1 } // fallback 2 chiffres
   if (compteNum.startsWith('61')) return { destination: 'servicesExt', sens: 1 } // fallback 2 chiffres
   if (compteNum.startsWith('62')) return { destination: 'servicesExt', sens: 1 } // fallback 2 chiffres
@@ -839,6 +840,20 @@ function getDestinationEffective(
   const c2 = compteNum.slice(0, 2)
   const c3 = compteNum.slice(0, 3)
   const c4 = compteNum.slice(0, 4)
+
+  // Comptes 445x à sens variable selon solde
+  // Créditeur = taxe due (dette) / Débiteur = crédit de taxe (créance)
+  if (
+    destination === 'creancesEtat' &&
+    (compteNum.startsWith('44566') || compteNum.startsWith('44587') || compteNum.startsWith('44584'))
+  ) {
+    if (solde >= 0) {
+      agg['creancesEtat'] += solde
+    } else {
+      agg['dettesFiscales'] += -solde
+    }
+    continue
+  }
 
   // Trésorerie actif créditrice → découvert → passif
   if (destination === 'tresorerieActif' && solde < 0) {
