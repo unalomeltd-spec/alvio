@@ -72,7 +72,7 @@ function SidePanel({ panel, onClose, onSelectCompte }: {
       {/* Overlay pour fermer en cliquant à côté */}
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 8, background: 'transparent' }} />
       <div style={{
-        position: 'fixed', top: 52, right: 12, bottom: 12, width: 380, zIndex: 9,
+        position: 'fixed', top: 12, right: 12, bottom: 12, width: 380, zIndex: 200,
         background: '#fff',
         borderRadius: 16,
         border: '1px solid rgba(0,0,0,0.08)',
@@ -286,7 +286,7 @@ export default function IncomeStatementPage() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#F2F3F5', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
       <Sidebar activePage="income-statement" />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginRight: panel ? 360 : 0, transition: 'margin-right 0.3s' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{ background: '#fff', borderBottom: '0.5px solid rgba(0,0,0,0.07)', padding: '0 24px', height: 52, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, position: 'sticky' as const, top: 0, zIndex: 10 }}>
           <span style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A' }}>Compte de résultat</span>
           {annees.length > 1 && annees.map(a => (
