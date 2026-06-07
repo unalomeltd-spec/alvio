@@ -68,17 +68,29 @@ export default function EntreprisePage() {
           if (fecData.length > 0 && fecData[0].type_pcg) {
             setTypePcg(fecData[0].type_pcg as 'classique' | 'asso')
           }
+          // Appel moteur v4 pour chaque exercice
           const kpisMap: Record<number,any> = {}
-          for (const r of fecData) {
-            const l = r.ecritures as Array<{CompteNum:string;Debit:number;Credit:number}>
-            const s = (ps:string[]) => { let t=0; for(const x of l) for(const p of ps) if(x.CompteNum.startsWith(p)){t+=x.Debit-x.Credit;break}; return t }
-            const ca = -s(['701','702','703','704','705','706','707','708'])
-            const mb = ca - s(['601','602','603','604','605','606','607','608','609','61','62'])
-            const ebe = mb - s(['63']) - s(['64'])
-            const rnet = ebe - s(['681','686','687']) + (-s(['76']))-s(['66']) + (-s(['77']))-s(['67']) - s(['695','696','697','698','699'])
-            const treso = s(['512','530'])
-            kpisMap[r.annee] = { ca, mb, tauxMb:ca>0?mb/ca*100:0, ebe, tauxEbe:ca>0?ebe/ca*100:0, rnet, treso }
-          }
+          await Promise.all(fecData.map(async (r) => {
+            try {
+              const res = await fetch(`/api/etats?annee=${r.annee}&user_id=${user.id}`)
+              if (res.ok) {
+                const etats = await res.json()
+                const sig = etats?.sig
+                const bilan = etats?.bilan
+                if (sig) {
+                  kpisMap[r.annee] = {
+                    ca: sig.ca,
+                    mb: sig.margeCommerciale,
+                    tauxMb: sig.tauxMb,
+                    ebe: sig.ebe,
+                    tauxEbe: sig.tauxEbe,
+                    rnet: sig.resultatNet,
+                    treso: bilan?.actif?.tresorerie ?? 0,
+                  }
+                }
+              }
+            } catch (e) { console.error(e) }
+          }))
           setExKpis(kpisMap)
           setFecExercices(fecData.map(r => ({
             annee: r.annee,
