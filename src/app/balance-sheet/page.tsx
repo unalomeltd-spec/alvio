@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import Sidebar from '@/components/Sidebar'
+import TopBar from '@/components/TopBar'
 import AlvioInsight from '@/components/AlvioInsight'
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -270,13 +271,7 @@ export default function BalanceSheetPage() {
     <div style={{ display: 'flex', minHeight: '100vh', background: '#F2F3F5', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
       <Sidebar activePage="balance-sheet" />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ background: '#fff', borderBottom: '0.5px solid rgba(0,0,0,0.07)', padding: '0 24px', height: 52, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, position: 'sticky' as const, top: 0, zIndex: 10 }}>
-          <span style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A' }}>Bilan</span>
-          {annees.length > 1 && annees.map(a => (
-            <button key={a} onClick={() => changerAnnee(a)} style={{ fontSize: 12, fontWeight: 500, padding: '4px 10px', borderRadius: 6, border: '0.5px solid rgba(0,0,0,0.12)', background: a === anneeActive ? '#1A1A1A' : '#fff', color: a === anneeActive ? '#fff' : '#1A1A1A', cursor: 'pointer' }}>{a}</button>
-          ))}
-          {drillLoading && <span style={{ fontSize: 11, color: '#8C9BAB' }}>Chargement...</span>}
-        </div>
+        <TopBar title="Bilan" annees={annees} anneeActive={anneeActive} onChangerAnnee={changerAnnee} loading={drillLoading} />
         <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
           {!bilan ? (
             <div style={{ maxWidth: 480, margin: '60px auto', textAlign: 'center', background: '#fff', borderRadius: 10, border: '0.5px solid rgba(0,0,0,0.06)', padding: 24 }}>
