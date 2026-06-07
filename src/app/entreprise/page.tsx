@@ -47,21 +47,30 @@ export default function EntreprisePage() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { window.location.href = '/'; return }
         setUserId(user.id)
-        // Lecture depuis user_profiles
+        // Lecture depuis user_profiles, fallback user_metadata
         const { data: profile } = await supabase
           .from('user_profiles')
           .select('siren, entreprise')
           .eq('user_id', user.id)
           .single()
-        if (profile?.siren) {
-          const sirenVal = profile.siren as string
+        const meta = user.user_metadata ?? {}
+        const sirenVal = (profile?.siren || meta.siren || '') as string
+        const entrepriseFallback = profile?.entreprise || meta.entreprise || null
+        if (sirenVal) {
           setSirenInput(sirenVal)
+          // Si vient de user_metadata, migrer vers user_profiles
+          if (!profile?.siren && meta.siren) {
+            await supabase.from('user_profiles').upsert(
+              { user_id: user.id, siren: sirenVal, entreprise: entrepriseFallback, updated_at: new Date().toISOString() },
+              { onConflict: 'user_id' }
+            )
+          }
           try {
             const res = await fetch('/api/siren?siren=' + sirenVal)
             if (res.ok) { setEntreprise(await res.json()); setSiren(sirenVal) }
-            else if (profile.entreprise) { setEntreprise(profile.entreprise as EntrepriseInfo); setSiren(sirenVal) }
+            else if (entrepriseFallback) { setEntreprise(entrepriseFallback as EntrepriseInfo); setSiren(sirenVal) }
           } catch {
-            if (profile.entreprise) { setEntreprise(profile.entreprise as EntrepriseInfo); setSiren(sirenVal) }
+            if (entrepriseFallback) { setEntreprise(entrepriseFallback as EntrepriseInfo); setSiren(sirenVal) }
           }
         }
         const { data: fecData } = await supabase
