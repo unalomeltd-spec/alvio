@@ -153,35 +153,32 @@ export default function DashboardPage() {
                 }}
               />
 
-              {/* KPIs */}
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:16 }}>
-                {[
-                  { label:'Chiffre d\'affaires', value: fmt(sig.ca), sub: `${fmtP(100)} du CA`, color:'#B8A98A' },
-                  { label:'Marge brute', value: fmt(sig.margeCommerciale), sub: fmtP(sig.tauxMb) + ' du CA', color:'#B8A98A' },
-                  { label:'EBE', value: fmt(sig.ebe), sub: fmtP(sig.tauxEbe) + ' du CA', color: sig.ebe >= 0 ? '#1D9E75' : '#D85A30' },
-                  { label:'Résultat net', value: fmt(sig.resultatNet), sub: fmtP(sig.tauxRnet) + ' du CA', color: sig.resultatNet >= 0 ? '#1D9E75' : '#D85A30' },
-                  { label:'Trésorerie', value: fmt(bilan?.actif?.tresorerie ?? 0), sub: 'Disponibilités', color: (bilan?.actif?.tresorerie ?? 0) >= 0 ? '#1D9E75' : '#D85A30' },
-                  { label:'Créances clients', value: fmt(bilan?.actif?.creancesClients ?? 0), sub: 'Comptes 41x', color:'#8C9BAB' },
-                  { label:'Dettes fournisseurs', value: fmt(bilan?.passif?.dettesFournisseurs ?? 0), sub: 'Comptes 40x', color:'#8C9BAB' },
-                ].map((k, i) => (
-                  <div key={i} style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'16px 20px', borderTop:`3px solid ${k.color}` }}>
-                    <div style={{ fontSize:10, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>{k.label}</div>
-                    <div style={{ fontSize:22, fontWeight:600, color:'#1A1A1A' }}>{k.value}</div>
-                    <div style={{ fontSize:11, color: k.color, marginTop:4, fontWeight:500 }}>{k.sub}</div>
-                  </div>
-                ))}
-              </div>
-
               {/* Navigation */}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
                 {[
-                  { href:'/profitability', label:'Rentabilité', icon:'📈', desc:`MB ${fmtP(sig.tauxMb)} · EBITDA ${fmtP(sig.tauxEbe)}`, color:'#B8A98A' },
-                  { href:'/income-statement', label:'Compte de résultat', icon:'📄', desc:`Résultat net ${fmt(sig.resultatNet)}`, color: sig.resultatNet >= 0 ? '#1D9E75' : '#D85A30' },
-                  { href:'/balance-sheet', label:'Bilan', icon:'⚖️', desc:`Tréso ${fmt(bilan?.actif?.tresorerie ?? 0)}`, color: (bilan?.actif?.tresorerie ?? 0) >= 0 ? '#1D9E75' : '#D85A30' },
-                  { href:'/cash-flow', label:'Trésorerie', icon:'💳', desc:`Actif ${fmt(bilan?.actif?.totalActif ?? 0)}`, color:'#8C9BAB' },
+                  {
+                    href:'/profitability', label:'Rentabilité',
+                    icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="2,14 7,8 11,11 18,4" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><polyline points="14,4 18,4 18,8" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+                    desc:`MB ${fmtP(sig.tauxMb)} · EBITDA ${fmtP(sig.tauxEbe)}`, color:'#B8A98A'
+                  },
+                  {
+                    href:'/income-statement', label:'Compte de résultat',
+                    icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="2" width="14" height="16" rx="2" stroke="#1A1A1A" strokeWidth="1.5"/><line x1="6" y1="7" x2="14" y2="7" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round"/><line x1="6" y1="10.5" x2="14" y2="10.5" stroke="#8C9BAB" strokeWidth="1.2" strokeLinecap="round"/><line x1="6" y1="14" x2="10" y2="14" stroke="#8C9BAB" strokeWidth="1.2" strokeLinecap="round"/></svg>,
+                    desc:`Résultat net ${fmt(sig.resultatNet)}`, color: sig.resultatNet >= 0 ? '#1D9E75' : '#D85A30'
+                  },
+                  {
+                    href:'/balance-sheet', label:'Bilan',
+                    icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="10" y1="2" x2="10" y2="18" stroke="#1A1A1A" strokeWidth="1.5" strokeLinecap="round"/><line x1="3" y1="5" x2="17" y2="5" stroke="#1A1A1A" strokeWidth="1.5" strokeLinecap="round"/><path d="M3 5 Q3 11 6.5 13" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round" fill="none"/><path d="M17 5 Q17 11 13.5 13" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round" fill="none"/><line x1="4.5" y1="13" x2="8.5" y2="13" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round"/><line x1="11.5" y1="13" x2="15.5" y2="13" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+                    desc:`Tréso ${fmt(bilan?.actif?.tresorerie ?? 0)}`, color: (bilan?.actif?.tresorerie ?? 0) >= 0 ? '#1D9E75' : '#D85A30'
+                  },
+                  {
+                    href:'/cash-flow', label:'Trésorerie',
+                    icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="5" width="16" height="11" rx="2" stroke="#1A1A1A" strokeWidth="1.5"/><line x1="2" y1="9" x2="18" y2="9" stroke="#1A1A1A" strokeWidth="1.5"/><circle cx="6" cy="13" r="1.2" fill="#B8A98A"/><rect x="9" y="12" width="5" height="2" rx="1" fill="#8C9BAB"/></svg>,
+                    desc:`Actif ${fmt(bilan?.actif?.totalActif ?? 0)}`, color:'#8C9BAB'
+                  },
                 ].map(n => (
                   <a key={n.href} href={n.href} style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'16px 18px', textDecoration:'none', display:'block' }}>
-                    <div style={{ fontSize:24, marginBottom:10 }}>{n.icon}</div>
+                    <div style={{ width:36, height:36, borderRadius:8, background:'#F2F3F5', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:12 }}>{n.icon}</div>
                     <div style={{ fontSize:12, fontWeight:500, color:'#1A1A1A', marginBottom:4 }}>{n.label}</div>
                     <div style={{ fontSize:11, color: n.color, fontWeight:500 }}>{n.desc}</div>
                   </a>
