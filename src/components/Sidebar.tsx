@@ -14,7 +14,10 @@ export default function Sidebar({ activePage }: { activePage: PageId }) {
   const router = useRouter()
   const [userEmail, setUserEmail] = useState('')
   const [companyName, setCompanyName] = useState('')
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('alvio-sidebar-collapsed') === 'true'
+  })
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -23,8 +26,6 @@ export default function Sidebar({ activePage }: { activePage: PageId }) {
         setCompanyName(user.user_metadata?.entreprise?.nom ?? '')
       }
     })
-    const stored = localStorage.getItem('alvio-sidebar-collapsed')
-    if (stored === 'true') setCollapsed(true)
   }, [])
 
   const toggle = () => {

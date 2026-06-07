@@ -43,7 +43,6 @@ export default function DashboardPage() {
 
   const changerAnnee = async (annee: number) => {
     setAnneeActive(annee)
-    setEtats(null)
     const res = await fetch(`/api/etats?annee=${annee}&user_id=${userId}`)
     if (res.ok) setEtats(await res.json())
   }

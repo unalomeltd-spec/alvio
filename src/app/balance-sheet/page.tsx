@@ -225,7 +225,6 @@ export default function BalanceSheetPage() {
 
   const changerAnnee = async (annee: number) => {
     setAnneeActive(annee)
-    setEtats(null)
     setPanel(null)
     const res = await fetch(`/api/etats?annee=${annee}&user_id=${userId}`)
     if (res.ok) setEtats(await res.json())

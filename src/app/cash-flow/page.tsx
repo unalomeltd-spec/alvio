@@ -88,7 +88,6 @@ export default function CashFlowPage() {
 
   const changerAnnee = async (annee: number) => {
     setAnneeActive(annee)
-    setEtats(null)
     setMonthly([])
     await chargerDonnees(userId, annee)
   }

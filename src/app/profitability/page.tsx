@@ -91,13 +91,13 @@ export default function ProfitabilityPage() {
         setAnnees(anneesDispos)
         const annee = anneesDispos.includes(anneeActive) ? anneeActive : anneesDispos[0]
         if (annee !== anneeActive) setAnneeActive(annee)
-        const res = await fetch(`/api/etats?annee=${annee}&user_id=${user.id}`)
-        if (res.ok) setEtats(await res.json())
-        // Charger N-1 si disponible
+        const fetches: Promise<void>[] = [
+          fetch(`/api/etats?annee=${annee}&user_id=${user.id}`).then(r => r.ok ? r.json() : null).then(d => d && setEtats(d)),
+        ]
         if (anneesDispos.includes(annee - 1)) {
-          const resN1 = await fetch(`/api/etats?annee=${annee - 1}&user_id=${user.id}`)
-          if (resN1.ok) setEtatsN1(await resN1.json())
+          fetches.push(fetch(`/api/etats?annee=${annee - 1}&user_id=${user.id}`).then(r => r.ok ? r.json() : null).then(d => d && setEtatsN1(d)))
         }
+        await Promise.all(fetches)
       }
       setLoading(false)
     }
@@ -106,8 +106,6 @@ export default function ProfitabilityPage() {
 
   const changerAnnee = async (annee: number) => {
     setAnneeActive(annee)
-    setEtats(null)
-    setEtatsN1(null)
     const res = await fetch(`/api/etats?annee=${annee}&user_id=${userId}`)
     if (res.ok) setEtats(await res.json())
     // Chercher l'année précédente dans la liste
@@ -115,8 +113,7 @@ export default function ProfitabilityPage() {
       const resN1 = await fetch(`/api/etats?annee=${annee - 1}&user_id=${userId}`)
       if (resN1.ok) setEtatsN1(await resN1.json())
     } else {
-      setEtatsN1(null)
-    }
+      }
   }
 
   const sig = etats?.sig
