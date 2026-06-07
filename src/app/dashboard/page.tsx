@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import AppSidebar from '@/components/Sidebar'
+import TopBar from '@/components/TopBar'
 import DashboardBriefing from '@/components/DashboardBriefing'
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -108,21 +109,7 @@ export default function DashboardPage() {
     <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans', sans-serif" }}>
       <AppSidebar activePage="dashboard"/>
       <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
-        <div style={{ background:'#fff', borderBottom:'0.5px solid rgba(0,0,0,0.07)', padding:'0 24px', height:52, display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-            <span style={{ fontSize:14, fontWeight:500, color:'#1A1A1A' }}>Synthèse</span>
-            {annees.length > 1 && (
-              <div style={{ display:'flex', gap:6 }}>
-                {annees.map(a => (
-                  <button key={a} onClick={() => changerAnnee(a)}
-                    style={{ fontSize:12, fontWeight:500, padding:'4px 10px', borderRadius:6, border:'0.5px solid rgba(0,0,0,0.12)', background: a === anneeActive ? '#1A1A1A' : '#fff', color: a === anneeActive ? '#fff' : '#1A1A1A', cursor:'pointer' }}>
-                    {a}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <TopBar title="Synthèse" annees={annees} anneeActive={anneeActive} onChangerAnnee={changerAnnee} />
         <div style={{ flex:1, padding:24, overflowY:'auto' }}>
           {erreur && <div style={{ background:'rgba(216,90,48,0.08)', border:'0.5px solid rgba(216,90,48,0.3)', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#D85A30' }}>{erreur}</div>}
           {!sig ? (
