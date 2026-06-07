@@ -274,8 +274,8 @@ export default function IncomeStatementPage() {
         if (annee !== anneeActive) setAnneeActive(annee)
         const res = await fetch(`/api/etats?annee=${annee}&user_id=${user.id}`)
         if (res.ok) setEtats(await res.json())
-        if (anneesDispos.length > 1) {
-          const resN1 = await fetch(`/api/etats?annee=${anneesDispos[1]}&user_id=${user.id}`)
+        if (anneesDispos.includes(annee - 1)) {
+          const resN1 = await fetch(`/api/etats?annee=${annee - 1}&user_id=${user.id}`)
           if (resN1.ok) setEtatsN1(await resN1.json())
         }
       }
@@ -291,10 +291,11 @@ export default function IncomeStatementPage() {
     setPanel(null)
     const res = await fetch(`/api/etats?annee=${annee}&user_id=${userId}`)
     if (res.ok) setEtats(await res.json())
-    const idx = annees.indexOf(annee)
-    if (idx >= 0 && idx < annees.length - 1) {
-      const resN1 = await fetch(`/api/etats?annee=${annees[idx + 1]}&user_id=${userId}`)
+    if (annees.includes(annee - 1)) {
+      const resN1 = await fetch(`/api/etats?annee=${annee - 1}&user_id=${userId}`)
       if (resN1.ok) setEtatsN1(await resN1.json())
+    } else {
+      setEtatsN1(null)
     }
   }
 
