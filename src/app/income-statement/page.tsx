@@ -69,13 +69,16 @@ function SidePanel({ panel, onClose, onSelectCompte }: {
 
   return (
     <>
-      {/* Overlay semi-transparent pour fermer en cliquant à côté */}
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 99, background: 'transparent' }} />
+      {/* Overlay pour fermer en cliquant à côté */}
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 8, background: 'transparent' }} />
       <div style={{
-        position: 'fixed', top: 52, right: 0, bottom: 0, width: 380, zIndex: 100,
-        background: '#fff', borderLeft: '1px solid rgba(0,0,0,0.08)',
+        position: 'fixed', top: 64, right: 12, bottom: 12, width: 380, zIndex: 9,
+        background: '#fff',
+        borderRadius: 16,
+        border: '1px solid rgba(0,0,0,0.08)',
         display: 'flex', flexDirection: 'column',
-        boxShadow: '-8px 0 32px rgba(0,0,0,0.08)',
+        boxShadow: '-4px 8px 40px rgba(0,0,0,0.12)',
+        overflow: 'hidden',
         animation: 'slideIn 0.22s cubic-bezier(0.22,1,0.36,1)'
       }}>
         <style>{`@keyframes slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
