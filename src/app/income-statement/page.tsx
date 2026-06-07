@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import Sidebar from '@/components/Sidebar'
 import TopBar from '@/components/TopBar'
+import { usePeriod } from '@/hooks/usePeriod'
 import AlvioInsight from '@/components/AlvioInsight'
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -254,9 +255,9 @@ export default function IncomeStatementPage() {
   const [etats, setEtats] = useState<any>(null)
   const [etatsN1, setEtatsN1] = useState<any>(null)
   const [annees, setAnnees] = useState<number[]>([])
-  const [anneeActive, setAnneeActive] = useState<number>(new Date().getFullYear())
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string>('')
+  const { anneeActive, setAnneeActive } = usePeriod(new Date().getFullYear())
   const [panel, setPanel] = useState<PanelData | null>(null)
   const [drillLoading, setDrillLoading] = useState(false)
 
@@ -269,8 +270,8 @@ export default function IncomeStatementPage() {
       if (data && data.length > 0) {
         const anneesDispos = data.map((r: any) => r.annee as number)
         setAnnees(anneesDispos)
-        const annee = anneesDispos[0]
-        setAnneeActive(annee)
+        const annee = anneesDispos.includes(anneeActive) ? anneeActive : anneesDispos[0]
+        if (annee !== anneeActive) setAnneeActive(annee)
         const res = await fetch(`/api/etats?annee=${annee}&user_id=${user.id}`)
         if (res.ok) setEtats(await res.json())
         if (anneesDispos.length > 1) {

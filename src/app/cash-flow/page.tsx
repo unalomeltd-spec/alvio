@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import Sidebar from '@/components/Sidebar'
 import TopBar from '@/components/TopBar'
+import { usePeriod } from '@/hooks/usePeriod'
 import AlvioInsight from '@/components/AlvioInsight'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
@@ -47,9 +48,9 @@ export default function CashFlowPage() {
   const [etats, setEtats]             = useState<any>(null)
   const [monthly, setMonthly]         = useState<{ m: string; val: number }[]>([])
   const [annees, setAnnees]           = useState<number[]>([])
-  const [anneeActive, setAnneeActive] = useState<number>(new Date().getFullYear())
   const [loading, setLoading]         = useState(true)
   const [userId, setUserId]           = useState<string>('')
+  const { anneeActive, setAnneeActive } = usePeriod(new Date().getFullYear())
 
   useEffect(() => {
     const load = async () => {
@@ -64,8 +65,8 @@ export default function CashFlowPage() {
       if (data && data.length > 0) {
         const anneesDispos = data.map((r: any) => r.annee as number)
         setAnnees(anneesDispos)
-        const annee = anneesDispos[0]
-        setAnneeActive(annee)
+        const annee = anneesDispos.includes(anneeActive) ? anneeActive : anneesDispos[0]
+        if (annee !== anneeActive) setAnneeActive(annee)
         await chargerDonnees(user.id, annee)
       }
       setLoading(false)

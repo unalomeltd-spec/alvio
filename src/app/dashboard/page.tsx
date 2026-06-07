@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import AppSidebar from '@/components/Sidebar'
 import TopBar from '@/components/TopBar'
+import { usePeriod } from '@/hooks/usePeriod'
 import DashboardBriefing from '@/components/DashboardBriefing'
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -12,11 +13,11 @@ const fmtP = (n: number) => (Math.round(n * 10) / 10).toFixed(1) + ' %'
 export default function DashboardPage() {
   const [etats, setEtats] = useState<any>(null)
   const [annees, setAnnees] = useState<number[]>([])
-  const [anneeActive, setAnneeActive] = useState<number>(new Date().getFullYear())
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [erreur, setErreur] = useState('')
   const [userId, setUserId] = useState<string>('')
+  const { anneeActive, setAnneeActive } = usePeriod(new Date().getFullYear())
 
   useEffect(() => {
     const load = async () => {
@@ -29,8 +30,8 @@ export default function DashboardPage() {
       if (data && data.length > 0) {
         const anneesDispos = data.map((r: any) => r.annee as number)
         setAnnees(anneesDispos)
-        const annee = anneesDispos[0]
-        setAnneeActive(annee)
+        const annee = anneesDispos.includes(anneeActive) ? anneeActive : anneesDispos[0]
+        if (annee !== anneeActive) setAnneeActive(annee)
         // Appel moteur comptable
         const res = await fetch(`/api/etats?annee=${annee}&user_id=${user.id}`)
         if (res.ok) setEtats(await res.json())
