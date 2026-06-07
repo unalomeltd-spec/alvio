@@ -133,12 +133,10 @@ export default function CashFlowPage() {
 
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:24 }}>
                 {[
-                  { label:'Trésorerie nette',   value: tresorerie,               sub: `${jTreso} jours de CA`,    color: tresorerie >= 0 ? '#1D9E75' : '#D85A30' },
-                  { label:'Créances clients',    value: creances,                 sub: `${jCreances} jours de CA`, color:'#8C9BAB' },
-                  { label:'Dettes fournisseurs', value: dettes,                   sub: `${jDettes} jours de CA`,   color:'#8C9BAB' },
-                  { label:'BFR',                 value: bfr,                      sub: bfr > 0 ? 'À financer' : 'Ressource nette', color: bfr <= 0 ? '#1D9E75' : '#D85A30' },
-                  { label:'Actif total',         value: bilan.actif.totalActif,   sub: 'Total bilan',              color:'#B8A98A' },
-                  { label:'Capitaux propres',    value: bilan.passif.capitauxPropres, sub: 'Fonds propres',        color: bilan.passif.capitauxPropres >= 0 ? '#1D9E75' : '#D85A30' },
+                  { label:'Trésorerie nette',   value: tresorerie, sub: `${jTreso} jours de CA`,    color: tresorerie >= 0 ? '#1D9E75' : '#D85A30' },
+                  { label:'Créances clients',    value: creances,   sub: `${jCreances} jours de CA`, color:'#8C9BAB' },
+                  { label:'Dettes fournisseurs', value: dettes,     sub: `${jDettes} jours de CA`,   color:'#8C9BAB' },
+                  { label:'BFR',                 value: bfr,        sub: bfr > 0 ? 'À financer' : 'Ressource nette', color: bfr <= 0 ? '#1D9E75' : '#D85A30' },
                 ].map((k, i) => (
                   <div key={i} style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'16px 20px', borderTop:`3px solid ${k.color}` }}>
                     <div style={{ fontSize:10, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>{k.label}</div>
