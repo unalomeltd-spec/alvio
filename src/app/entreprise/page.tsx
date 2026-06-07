@@ -44,19 +44,25 @@ export default function EntreprisePage() {
     const charger = async () => {
       setChargement(true)
       try {
-        await supabase.auth.refreshSession()
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { window.location.href = '/'; return }
         setUserId(user.id)
-        const meta = user.user_metadata ?? {}
-        if (meta.entreprise && meta.siren) {
-          const sirenVal = meta.siren as string
+        // Lecture depuis user_profiles
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('siren, entreprise')
+          .eq('user_id', user.id)
+          .single()
+        if (profile?.siren) {
+          const sirenVal = profile.siren as string
           setSirenInput(sirenVal)
           try {
             const res = await fetch('/api/siren?siren=' + sirenVal)
             if (res.ok) { setEntreprise(await res.json()); setSiren(sirenVal) }
-            else { setEntreprise(meta.entreprise as EntrepriseInfo); setSiren(sirenVal) }
-          } catch { setEntreprise(meta.entreprise as EntrepriseInfo); setSiren(sirenVal) }
+            else if (profile.entreprise) { setEntreprise(profile.entreprise as EntrepriseInfo); setSiren(sirenVal) }
+          } catch {
+            if (profile.entreprise) { setEntreprise(profile.entreprise as EntrepriseInfo); setSiren(sirenVal) }
+          }
         }
         const { data: fecData } = await supabase
           .from('fec_exercices').select('annee, nom_fichier, ecritures')
@@ -116,8 +122,10 @@ export default function EntreprisePage() {
     if (!entreprise) return
     setSaving(true)
     try {
-      await supabase.auth.updateUser({ data: { siren: sirenInput, entreprise } })
-      await supabase.auth.refreshSession()
+      await supabase.from('user_profiles').upsert(
+        { user_id: userId, siren: sirenInput, entreprise, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      )
       setSiren(sirenInput); setSaved(true); setTimeout(() => setSaved(false), 3000)
     } catch (e) { console.error(e) }
     finally { setSaving(false) }
