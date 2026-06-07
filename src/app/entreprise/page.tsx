@@ -116,6 +116,7 @@ export default function EntreprisePage() {
     setSaving(true)
     try {
       await supabase.auth.updateUser({ data: { siren: sirenInput, entreprise } })
+      await supabase.auth.refreshSession()
       setSiren(sirenInput); setSaved(true); setTimeout(() => setSaved(false), 3000)
     } catch (e) { console.error(e) }
     finally { setSaving(false) }
