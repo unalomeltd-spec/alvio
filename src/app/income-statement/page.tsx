@@ -65,82 +65,109 @@ function SidePanel({ panel, onClose, onSelectCompte }: {
   onSelectCompte: (c: Compte | null) => void
 }) {
   const totalSolde = panel.comptes.reduce((s, c) => s + c.solde, 0)
+  const nbEcritures = panel.selectedCompte?.ecritures.length ?? panel.comptes.reduce((s, c) => s + c.ecritures.length, 0)
 
   return (
-    <div style={{ width: 360, flexShrink: 0, position: 'fixed' as const, top: 52, right: 0, bottom: 0, zIndex: 100, background: '#fff', borderLeft: '0.5px solid rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-      {/* Header */}
-      <div style={{ background: '#1A1A1A', padding: '14px 16px', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>
-              {panel.selectedCompte ? (
-                <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => onSelectCompte(null)}>
-                  ← {panel.label}
-                </span>
-              ) : panel.label}
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 600, color: '#fff' }}>
-              {panel.selectedCompte ? panel.selectedCompte.num : fmt(Math.abs(totalSolde))}
-            </div>
-            {panel.selectedCompte && (
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
-                {panel.selectedCompte.lib} — {fmt(Math.abs(panel.selectedCompte.solde))}
-              </div>
+    <>
+      {/* Overlay semi-transparent pour fermer en cliquant à côté */}
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 99, background: 'transparent' }} />
+      <div style={{
+        position: 'fixed', top: 52, right: 0, bottom: 0, width: 380, zIndex: 100,
+        background: '#fff', borderLeft: '1px solid rgba(0,0,0,0.08)',
+        display: 'flex', flexDirection: 'column',
+        boxShadow: '-8px 0 32px rgba(0,0,0,0.08)',
+        animation: 'slideIn 0.22s cubic-bezier(0.22,1,0.36,1)'
+      }}>
+        <style>{`@keyframes slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
+
+        {/* Header */}
+        <div style={{ background: '#1A1A1A', padding: '16px 18px 14px', flexShrink: 0 }}>
+          {/* Breadcrumb */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+            {panel.selectedCompte ? (
+              <button onClick={() => onSelectCompte(null)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ fontSize: 10, color: '#B8A98A' }}>←</span>
+                <span style={{ fontSize: 10, color: '#B8A98A', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>{panel.label}</span>
+              </button>
+            ) : (
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>Détail</span>
             )}
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', marginLeft: 'auto' }}>
+              {nbEcritures} écriture{nbEcritures > 1 ? 's' : ''}
+            </span>
+            <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 6, color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 16, width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 20, padding: 0 }}>×</button>
-        </div>
-      </div>
 
-      {/* Liste des comptes */}
-      {!panel.selectedCompte && (
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          {panel.comptes.map((c, i) => (
-            <div key={i} onClick={() => onSelectCompte(c)}
-              style={{ display: 'flex', alignItems: 'center', padding: '10px 16px', borderBottom: '0.5px solid rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'background 0.1s' }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F7F8FA'}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#B8A98A', fontFamily: 'monospace', marginBottom: 2 }}>{c.num}</div>
-                <div style={{ fontSize: 11, color: '#8C9BAB', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200 }}>{c.lib}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: c.solde >= 0 ? '#D85A30' : '#1D9E75' }}>{fmt(Math.abs(c.solde))}</div>
-                <div style={{ fontSize: 10, color: '#8C9BAB', marginTop: 2 }}>{c.ecritures.length} écriture{c.ecritures.length > 1 ? 's' : ''}</div>
-              </div>
-              <span style={{ fontSize: 10, color: '#8C9BAB', marginLeft: 8 }}>▶</span>
+          {/* Titre principal */}
+          {panel.selectedCompte ? (
+            <div>
+              <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#B8A98A', marginBottom: 3, letterSpacing: '0.05em' }}>{panel.selectedCompte.num}</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#fff', lineHeight: 1.3, marginBottom: 4 }}>{panel.selectedCompte.lib}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: '#B8A98A' }}>{fmt(Math.abs(panel.selectedCompte.solde))}</div>
             </div>
-          ))}
+          ) : (
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#fff', lineHeight: 1.3, marginBottom: 4 }}>{panel.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: '#B8A98A' }}>{fmt(Math.abs(totalSolde))}</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 3 }}>{panel.comptes.length} compte{panel.comptes.length > 1 ? 's' : ''}</div>
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Détail des écritures */}
-      {panel.selectedCompte && (
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          {panel.selectedCompte.ecritures.map((e, i) => {
-            const montant = e.debit - e.credit
-            return (
-              <div key={i} style={{ padding: '9px 14px', borderBottom: '0.5px solid rgba(0,0,0,0.05)' }}>
-                <div style={{ fontSize: 10, color: '#8C9BAB', marginBottom: 2 }}>{fmtDate(e.date)}</div>
-                <div style={{ fontSize: 12, color: '#1A1A1A', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.lib || '—'}</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 10, color: '#8C9BAB' }}>{e.piece || '—'}</span>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: montant > 0 ? '#D85A30' : '#1D9E75' }}>
-                    {montant > 0 ? '+' : ''}{fmt(montant)}
-                  </span>
+        {/* Séparateur champagne */}
+        <div style={{ height: 2, background: 'linear-gradient(90deg, #B8A98A, rgba(184,169,138,0.2))', flexShrink: 0 }} />
+
+        {/* Liste des comptes */}
+        {!panel.selectedCompte && (
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {panel.comptes.map((c, i) => (
+              <div key={i} onClick={() => onSelectCompte(c)}
+                style={{ display: 'flex', alignItems: 'center', padding: '11px 18px', borderBottom: '0.5px solid rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'background 0.12s', gap: 12 }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F7F8FA'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(184,169,138,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#B8A98A', fontFamily: 'monospace' }}>{c.num.slice(0, 3)}</span>
                 </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#1A1A1A', marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.lib}</div>
+                  <div style={{ fontSize: 10, color: '#8C9BAB' }}>{c.num} · {c.ecritures.length} écriture{c.ecritures.length > 1 ? 's' : ''}</div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A' }}>{fmt(Math.abs(c.solde))}</div>
+                </div>
+                <span style={{ fontSize: 9, color: '#B8A98A' }}>▶</span>
               </div>
-            )
-          })}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
 
-      {panel.selectedCompte && (
-        <div style={{ padding: '9px 14px', borderTop: '0.5px solid rgba(0,0,0,0.06)', background: 'rgba(0,0,0,0.02)', flexShrink: 0 }}>
-          <span style={{ fontSize: 11, color: '#8C9BAB' }}>{panel.selectedCompte.ecritures.length} écriture{panel.selectedCompte.ecritures.length > 1 ? 's' : ''}</span>
-        </div>
-      )}
-    </div>
+        {/* Détail des écritures */}
+        {panel.selectedCompte && (
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {/* En-tête colonnes */}
+            <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 80px', gap: 8, padding: '8px 18px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', background: '#F7F8FA' }}>
+              <span style={{ fontSize: 9, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Date</span>
+              <span style={{ fontSize: 9, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Libellé</span>
+              <span style={{ fontSize: 9, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.07em', textAlign: 'right' }}>Montant</span>
+            </div>
+            {panel.selectedCompte.ecritures.map((e, i) => {
+              const montant = e.debit - e.credit
+              return (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 80px', gap: 8, padding: '9px 18px', borderBottom: '0.5px solid rgba(0,0,0,0.04)', alignItems: 'center', transition: 'background 0.1s' }}
+                  onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = '#F7F8FA'}
+                  onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = 'transparent'}>
+                  <div style={{ fontSize: 10, color: '#8C9BAB', fontVariantNumeric: 'tabular-nums' }}>{fmtDate(e.date)}</div>
+                  <div style={{ fontSize: 11, color: '#1A1A1A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={e.lib || '—'}>{e.lib || '—'}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: montant > 0 ? '#D85A30' : '#1D9E75', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    {montant > 0 ? '+' : ''}{fmt(montant)}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </>
   )
 }
 
@@ -281,7 +308,7 @@ export default function IncomeStatementPage() {
               <div style={{ background: '#fff', borderRadius: 10, border: '0.5px solid rgba(0,0,0,0.06)', overflow: 'hidden' }}>
                 <div style={{ display: 'flex', background: '#1A1A1A', padding: '10px 16px' }}>
                   <div style={{ flex: 1, fontSize: 11, fontWeight: 500, color: '#F2F3F5', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Libellé</div>
-                  <div style={{ fontSize: 11, fontWeight: 500, color: '#F2F3F5', minWidth: 110, textAlign: 'right' }}>N — {anneeActive}</div>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: '#F2F3F5', minWidth: 110, textAlign: 'right' }}>Exercice {anneeActive}</div>
                 </div>
 
                 <Section title="Produits d'exploitation">
