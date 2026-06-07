@@ -44,6 +44,7 @@ export default function EntreprisePage() {
     const charger = async () => {
       setChargement(true)
       try {
+        await supabase.auth.refreshSession()
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { window.location.href = '/'; return }
         setUserId(user.id)
