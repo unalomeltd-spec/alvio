@@ -72,7 +72,7 @@ function SidePanel({ panel, onClose, onSelectCompte }: {
       {/* Overlay pour fermer en cliquant à côté */}
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 8, background: 'transparent' }} />
       <div style={{
-        position: 'fixed', top: 64, right: 12, bottom: 12, width: 380, zIndex: 9,
+        position: 'fixed', top: 52, right: 12, bottom: 12, width: 380, zIndex: 9,
         background: '#fff',
         borderRadius: 16,
         border: '1px solid rgba(0,0,0,0.08)',
