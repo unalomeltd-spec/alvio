@@ -17,16 +17,10 @@ function SigRow({ label, value, ca, color, highlight, deductions }: {
   const textColor = highlight ? '#fff' : '#1A1A1A'
   const mutedColor = highlight ? 'rgba(255,255,255,0.45)' : '#8C9BAB'
   const c = color || (highlight ? '#B8A98A' : '#8C9BAB')
+  const hasDeductions = deductions && deductions.length > 0
   return (
     <>
-      {deductions?.map((d, i) => (
-        <div key={i} style={{ display:'flex', alignItems:'center', padding:'5px 14px 5px 28px', borderTop:'0.5px solid rgba(0,0,0,0.04)', background:'rgba(0,0,0,0.015)', gap:6 }}>
-          <span style={{ fontSize:11, color:'#B8A98A' }}>↳</span>
-          <span style={{ fontSize:11, color:'#8C9BAB', flex:1 }}>{d.value < 0 ? '+' : '−'} {d.label}</span>
-          <span style={{ fontSize:11, fontWeight:500, color:'#8C9BAB' }}>{fmt(Math.abs(d.value))}</span>
-        </div>
-      ))}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 120px 80px', alignItems:'center', background:bg, border:`0.5px solid ${highlight ? '#1A1A1A' : 'rgba(0,0,0,0.06)'}`, borderLeft:`3px solid ${c}`, borderRadius:'0 10px 10px 0', padding:'10px 14px 10px 14px', marginBottom:2 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 120px 80px', alignItems:'center', background:bg, border:`0.5px solid ${highlight ? '#1A1A1A' : 'rgba(0,0,0,0.06)'}`, borderLeft:`3px solid ${c}`, borderRadius:'0 10px 10px 0', padding:'10px 14px', marginBottom: hasDeductions ? 0 : 2 }}>
         <div>
           <div style={{ fontSize:10, fontWeight:600, color:mutedColor, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:2 }}>{label}</div>
           <div style={{ fontSize:20, fontWeight:600, color: highlight ? '#fff' : (color || textColor), lineHeight:1 }}>{fmt(value)}</div>
@@ -37,9 +31,23 @@ function SigRow({ label, value, ca, color, highlight, deductions }: {
           <div style={{ fontSize:10, color:mutedColor, marginTop:1 }}>{fmtP(pct)}</div>
         </div>
         <div style={{ textAlign:'right' }}>
-          <span style={{ fontSize:10, color:'#8C9BAB' }}>—</span>
+          <span style={{ fontSize:10, color: highlight ? 'rgba(255,255,255,0.3)' : '#8C9BAB' }}>—</span>
         </div>
       </div>
+      {deductions?.map((d, i) => (
+        <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 120px 80px', alignItems:'center', padding:'5px 14px 5px 28px', borderTop:'0.5px solid rgba(0,0,0,0.04)', background:'rgba(0,0,0,0.015)', marginBottom: i === (deductions.length - 1) ? 2 : 0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <span style={{ fontSize:11, color:'#B8A98A' }}>↳</span>
+            <span style={{ fontSize:11, color:'#8C9BAB' }}>{d.value < 0 ? '+' : '−'} {d.label}</span>
+          </div>
+          <div style={{ textAlign:'right' }}>
+            <span style={{ fontSize:11, fontWeight:500, color:'#8C9BAB' }}>{fmt(Math.abs(d.value))}</span>
+          </div>
+          <div style={{ textAlign:'right' }}>
+            <span style={{ fontSize:10, color:'#8C9BAB' }}>—</span>
+          </div>
+        </div>
+      ))}
     </>
   )
 }
@@ -112,7 +120,7 @@ export default function ProfitabilityPage() {
 
               <div style={{ display:'grid', gridTemplateColumns:'1fr 120px 80px', padding:'0 14px 8px 14px', marginBottom:4 }}>
                 <div style={{ fontSize:9, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.09em' }}>Indicateur</div>
-                <div style={{ fontSize:9, fontWeight:600, color:'#1A1A1A', textTransform:'uppercase', letterSpacing:'0.09em', textAlign:'right' }}>N — {anneeActive}</div>
+                <div style={{ fontSize:9, fontWeight:600, color:'#1A1A1A', textTransform:'uppercase', letterSpacing:'0.09em', textAlign:'right' }}>Exercice {anneeActive}</div>
                 <div style={{ fontSize:9, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.09em', textAlign:'right' }}>N-1</div>
               </div>
 
