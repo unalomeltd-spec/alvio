@@ -1,55 +1,207 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import Sidebar from '@/components/Sidebar'
 import TopBar from '@/components/TopBar'
 import { usePeriod } from '@/hooks/usePeriod'
 import AlvioInsight from '@/components/AlvioInsight'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 const fmt = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' €'
 
-// Calcule la trésorerie mensuelle depuis les écritures de la classe 5
-// Retourne le solde cumulé mois par mois (débit - crédit sur comptes 50→58)
-// Même règles d'exclusion que le moteur v3
-function getMonthlyCash(ecritures: any[]): { m: string; val: number }[] {
-  const byMonth: Record<string, number> = {}
-
-  for (const l of ecritures) {
-    const compte  = (l.CompteNum || '').trim()
-    const journal = (l.JournalCode || '').trim().toUpperCase()
-    const c2      = compte.slice(0, 2)
-
-    if (journal === 'AN') continue
-    if (c2 < '50' || c2 > '58') continue
-
-    const d = typeof l.EcritureDate === 'string' ? l.EcritureDate : ''
-    let m = ''
-    if (d.length === 8) m = d.slice(0, 4) + '-' + d.slice(4, 6)
-    else if (d.length >= 7) m = d.slice(0, 7)
-    else continue
-
-    const debit  = typeof l.Debit  === 'string' ? parseFloat(l.Debit.replace(',',  '.')) || 0 : (l.Debit  || 0)
-    const credit = typeof l.Credit === 'string' ? parseFloat(l.Credit.replace(',', '.')) || 0 : (l.Credit || 0)
-
-    byMonth[m] = (byMonth[m] || 0) + (debit - credit)
-  }
-
-  const sorted = Object.entries(byMonth).sort(([a], [b]) => a.localeCompare(b)).slice(-12)
-  let cumul = 0
-  return sorted.map(([m, v]) => {
-    cumul += v
-    return { m: m.slice(5) || m, val: Math.round(cumul * 100) / 100 }
-  })
+function toIso(d: string): string {
+  if (!d) return ''
+  if (d.includes('-')) return d.slice(0, 10)
+  if (d.length === 8) return d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8)
+  return d
 }
 
-export default function CashFlowPage() {
-  const [etats, setEtats]             = useState<any>(null)
-  const [monthly, setMonthly]         = useState<{ m: string; val: number }[]>([])
-  const [annees, setAnnees]           = useState<number[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [userId, setUserId]           = useState<string>('')
+function fmtDate(d: string): string {
+  const iso = toIso(d)
+  if (!iso) return d
+  return iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4)
+}
+
+const PREFIXES_BILAN: Record<string, string[]> = {
+  'immoIncorp':         ['20'],
+  'immoCorpBrut':       ['21','22','23','24','25'],
+  'immoFin':            ['26','27'],
+  'amortIncorp':        ['280'],
+  'amortCorp':          ['281','282','283','284','285','286','287','288','29'],
+  'stocksMarchandises': ['30','36','37'],
+  'stocksMatieres':     ['31','32'],
+  'creancesClients':    ['41'],
+  'creancesEtat':       ['44'],
+  'autresCreances':     ['45','46','47','48'],
+  'tresorerie':         ['50','51','52','53','54','58'],
+  'capital':            ['10','11','12'],
+  'subventionsInvest':  ['13'],
+  'provisions':         ['14','15'],
+  'emprunts':           ['16','17'],
+  'dettesFournisseurs': ['40'],
+  'dettesSociales':     ['42','43'],
+  'dettesFiscales':     ['44'],
+  'autresDettes':       ['45','46','47','48'],
+}
+
+interface Compte {
+  num: string
+  lib: string
+  solde: number
+  ecritures: { date: string; lib: string; piece: string; debit: number; credit: number }[]
+}
+
+interface PanelData {
+  label: string
+  comptes: Compte[]
+  selectedCompte: Compte | null
+}
+
+function SidePanel({ panel, onClose, onSelectCompte }: {
+  panel: PanelData
+  onClose: () => void
+  onSelectCompte: (c: Compte | null) => void
+}) {
+  const totalSolde = panel.comptes.reduce((s, c) => s + Math.abs(c.solde), 0)
+  const nbEcritures = panel.selectedCompte?.ecritures.length ?? panel.comptes.reduce((s, c) => s + c.ecritures.length, 0)
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 8, background: 'transparent' }} />
+      <div style={{
+        position: 'fixed', top: 12, right: 12, bottom: 12, width: 380, zIndex: 200,
+        background: '#fff', borderRadius: 16, border: '1px solid rgba(0,0,0,0.08)',
+        display: 'flex', flexDirection: 'column',
+        boxShadow: '-4px 8px 40px rgba(0,0,0,0.12)', overflow: 'hidden',
+        animation: 'slideIn 0.22s cubic-bezier(0.22,1,0.36,1)'
+      }}>
+        <style>{`@keyframes slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
+        <div style={{ background: '#1A1A1A', padding: '16px 18px 14px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+            {panel.selectedCompte ? (
+              <button onClick={() => onSelectCompte(null)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ fontSize: 10, color: '#B8A98A' }}>←</span>
+                <span style={{ fontSize: 10, color: '#B8A98A', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>{panel.label}</span>
+              </button>
+            ) : (
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>Détail</span>
+            )}
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', marginLeft: 'auto' }}>
+              {nbEcritures} écriture{nbEcritures > 1 ? 's' : ''}
+            </span>
+            <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 6, color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 16, width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
+          </div>
+          {panel.selectedCompte ? (
+            <div>
+              <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#B8A98A', marginBottom: 3 }}>{panel.selectedCompte.num}</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#fff', marginBottom: 4 }}>{panel.selectedCompte.lib}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: '#B8A98A' }}>{fmt(Math.abs(panel.selectedCompte.solde))}</div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#fff', marginBottom: 4 }}>{panel.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: '#B8A98A' }}>{fmt(totalSolde)}</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 3 }}>{panel.comptes.length} compte{panel.comptes.length > 1 ? 's' : ''}</div>
+            </div>
+          )}
+        </div>
+        <div style={{ height: 2, background: 'linear-gradient(90deg, #B8A98A, rgba(184,169,138,0.2))', flexShrink: 0 }} />
+
+        {!panel.selectedCompte && (
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {panel.comptes.map((c, i) => (
+              <div key={i} onClick={() => onSelectCompte(c)}
+                style={{ display: 'flex', alignItems: 'center', padding: '11px 18px', borderBottom: '0.5px solid rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'background 0.12s', gap: 12 }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F7F8FA'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(184,169,138,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#B8A98A', fontFamily: 'monospace' }}>{c.num.slice(0, 3)}</span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#1A1A1A', marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.lib}</div>
+                  <div style={{ fontSize: 10, color: '#8C9BAB' }}>{c.num} · {c.ecritures.length} écriture{c.ecritures.length > 1 ? 's' : ''}</div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A' }}>{fmt(Math.abs(c.solde))}</div>
+                </div>
+                <span style={{ fontSize: 9, color: '#B8A98A' }}>▶</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {panel.selectedCompte && (
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 80px', gap: 8, padding: '8px 18px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', background: '#F7F8FA' }}>
+              <span style={{ fontSize: 9, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Date</span>
+              <span style={{ fontSize: 9, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Libellé</span>
+              <span style={{ fontSize: 9, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.07em', textAlign: 'right' }}>Montant</span>
+            </div>
+            {panel.selectedCompte.ecritures.map((e, i) => {
+              const montant = e.debit - e.credit
+              return (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 80px', gap: 8, padding: '9px 18px', borderBottom: '0.5px solid rgba(0,0,0,0.04)', alignItems: 'center' }}
+                  onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = '#F7F8FA'}
+                  onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = 'transparent'}>
+                  <div style={{ fontSize: 10, color: '#8C9BAB' }}>{fmtDate(e.date)}</div>
+                  <div style={{ fontSize: 11, color: '#1A1A1A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={e.lib || '—'}>{e.lib || '—'}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: montant > 0 ? '#D85A30' : '#1D9E75', textAlign: 'right' }}>
+                    {montant > 0 ? '+' : ''}{fmt(montant)}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
+function BilanRow({ label, value, indent, bold, color, prefixKey, annee, userId, onDrill }: {
+  label: string; value: number; indent?: boolean; bold?: boolean; color?: string
+  prefixKey?: string; annee: number; userId: string
+  onDrill: (label: string, prefixes: string[]) => void
+}) {
+  if (Math.abs(value) < 0.5) return null
+  const drillable = !!prefixKey && !!PREFIXES_BILAN[prefixKey]
+  return (
+    <div onClick={() => drillable && onDrill(label, PREFIXES_BILAN[prefixKey!])}
+      style={{ display: 'flex', alignItems: 'center', padding: '7px 16px', borderTop: '0.5px solid rgba(0,0,0,0.04)', cursor: drillable ? 'pointer' : 'default' }}
+      onMouseEnter={e => { if (drillable) (e.currentTarget as HTMLElement).style.background = '#F7F8FA' }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+      <div style={{ flex: 1, fontSize: 12, fontWeight: bold ? 500 : 400, color: '#1A1A1A', paddingLeft: indent ? 20 : 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+        {drillable && <span style={{ fontSize: 9, color: '#B8A98A' }}>▶</span>}
+        {label}
+      </div>
+      <div style={{ fontSize: 12, fontWeight: bold ? 500 : 400, color: color || '#1A1A1A', minWidth: 110, textAlign: 'right' }}>{fmt(Math.abs(value))}</div>
+    </div>
+  )
+}
+
+function BilanSection({ title, total, children, color }: { title: string; total: number; children: React.ReactNode; color?: string }) {
+  const [open, setOpen] = useState(true)
+  return (
+    <div>
+      <div onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', padding: '9px 16px', background: 'rgba(184,169,138,0.06)', cursor: 'pointer', borderTop: '0.5px solid rgba(0,0,0,0.06)' }}>
+        <div style={{ flex: 1, fontSize: 12, fontWeight: 500, color: '#1A1A1A', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 9, color: '#B8A98A', display: 'inline-block', transition: 'transform 0.2s', transform: open ? 'rotate(90deg)' : 'none' }}>▶</span>
+          {title}
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: color || '#B8A98A', minWidth: 110, textAlign: 'right' }}>{fmt(Math.abs(total))}</div>
+      </div>
+      {open && children}
+    </div>
+  )
+}
+
+export default function BalanceSheetPage() {
+  const [etats, setEtats] = useState<any>(null)
+  const [annees, setAnnees] = useState<number[]>([])
+  const [loading, setLoading] = useState(true)
+  const [userId, setUserId] = useState<string>('')
+  const [panel, setPanel] = useState<PanelData | null>(null)
+  const [drillLoading, setDrillLoading] = useState(false)
   const { anneeActive, setAnneeActive } = usePeriod(new Date().getFullYear())
 
   useEffect(() => {
@@ -57,127 +209,156 @@ export default function CashFlowPage() {
       const { data: { user } } = await sb.auth.getUser()
       if (!user) { window.location.href = '/'; return }
       setUserId(user.id)
-      const { data } = await sb
-        .from('fec_exercices')
-        .select('annee')
-        .eq('user_id', user.id)
-        .order('annee', { ascending: false })
+      const { data } = await sb.from('fec_exercices').select('annee').eq('user_id', user.id).order('annee', { ascending: false })
       if (data && data.length > 0) {
         const anneesDispos = data.map((r: any) => r.annee as number)
         setAnnees(anneesDispos)
         const annee = anneesDispos.includes(anneeActive) ? anneeActive : anneesDispos[0]
         if (annee !== anneeActive) setAnneeActive(annee)
-        await chargerDonnees(user.id, annee)
+        const res = await fetch(`/api/etats?annee=${annee}&user_id=${user.id}`)
+        if (res.ok) setEtats(await res.json())
       }
       setLoading(false)
     }
     load()
   }, [])
 
-  const chargerDonnees = async (uid: string, annee: number) => {
-    const res = await fetch(`/api/etats?annee=${annee}&user_id=${uid}`)
-    if (res.ok) setEtats(await res.json())
-    const { data: fecData } = await sb
-      .from('fec_exercices')
-      .select('ecritures')
-      .eq('user_id', uid)
-      .eq('annee', annee)
-      .single()
-    if (fecData?.ecritures) setMonthly(getMonthlyCash(fecData.ecritures))
-  }
-
   const changerAnnee = async (annee: number) => {
     setAnneeActive(annee)
     setEtats(null)
-    setMonthly([])
-    await chargerDonnees(userId, annee)
+    setPanel(null)
+    const res = await fetch(`/api/etats?annee=${annee}&user_id=${userId}`)
+    if (res.ok) setEtats(await res.json())
   }
 
-  const bilan      = etats?.bilan
-  const sig        = etats?.sig
-  const tresorerie = bilan?.actif?.tresorerie          ?? 0
-  const creances   = bilan?.actif?.creancesClients     ?? 0
-  const dettes     = bilan?.passif?.dettesFournisseurs ?? 0
-  const bfr        = creances - dettes
-  const jTreso     = sig?.ca > 0 ? Math.round(tresorerie / sig.ca * 365) : 0
-  const jCreances  = sig?.ca > 0 ? Math.round(creances   / sig.ca * 365) : 0
-  const jDettes    = sig?.ca > 0 ? Math.round(dettes     / sig.ca * 365) : 0
+  const handleDrill = useCallback(async (label: string, prefixes: string[]) => {
+    setDrillLoading(true)
+    const res = await fetch(`/api/etats/detail?annee=${anneeActive}&user_id=${userId}&prefixes=${prefixes.join(',')}`)
+    if (res.ok) {
+      const data = await res.json()
+      setPanel({ label, comptes: data.comptes, selectedCompte: null })
+    }
+    setDrillLoading(false)
+  }, [anneeActive, userId])
+
+  const bilan = etats?.bilan
+  const sig = etats?.sig
+  const actif = bilan?.actif
+  const passif = bilan?.passif
+
+  const rowProps = { annee: anneeActive, userId, onDrill: handleDrill }
 
   if (loading) return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
-      <Sidebar activePage="cash-flow"/>
-      <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
-        <div style={{ width:36, height:36, border:'2px solid #F2F3F5', borderTop:'2px solid #B8A98A', borderRadius:'50%', animation:'spin .8s linear infinite' }}/>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#F2F3F5', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+      <Sidebar activePage="balance-sheet" />
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 36, height: 36, border: '2px solid #F2F3F5', borderTop: '2px solid #B8A98A', borderRadius: '50%', animation: 'spin .8s linear infinite' }} />
         <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
       </div>
     </div>
   )
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
-      <Sidebar activePage="cash-flow"/>
-      <div style={{ flex:1, display:'flex', flexDirection:'column' }}>
-        <TopBar title="Trésorerie" annees={annees} anneeActive={anneeActive} onChangerAnnee={changerAnnee} />
-        <div style={{ flex:1, padding:24, overflowY:'auto' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#F2F3F5', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+      <Sidebar activePage="balance-sheet" />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <TopBar title="Bilan" annees={annees} anneeActive={anneeActive} onChangerAnnee={changerAnnee} loading={drillLoading} />
+        <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
           {!bilan ? (
-            <div style={{ maxWidth:480, margin:'60px auto', textAlign:'center', background:'#fff', borderRadius:10, border:'0.5px solid rgba(0,0,0,0.06)', padding:24 }}>
-              <div style={{ fontSize:14, fontWeight:500, color:'#1A1A1A', marginBottom:8 }}>Aucune donnée disponible</div>
-              <a href="/dashboard" style={{ background:'#1A1A1A', color:'#fff', borderRadius:8, padding:'10px 20px', fontSize:13, textDecoration:'none' }}>Aller à la Synthèse</a>
+            <div style={{ maxWidth: 480, margin: '60px auto', textAlign: 'center', background: '#fff', borderRadius: 10, border: '0.5px solid rgba(0,0,0,0.06)', padding: 24 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A', marginBottom: 8 }}>Aucune donnée disponible</div>
+              <a href="/dashboard" style={{ background: '#1A1A1A', color: '#fff', borderRadius: 8, padding: '10px 20px', fontSize: 13, textDecoration: 'none' }}>Aller à la Synthèse</a>
             </div>
           ) : (
-            <div style={{ maxWidth:1000 }}>
-              {sig && <AlvioInsight payload={{ page:'cash-flow', annee:anneeActive, indicateurs:{ tresorerie, bfr, creancesClients: creances, dettesFournisseurs: dettes, jTreso, jCreances, jDettes } }} />}
+            <div style={{ maxWidth: 1200 }}>
+              {sig && <AlvioInsight payload={{ page: 'balance-sheet', annee: anneeActive, indicateurs: { tresorerie: actif?.tresorerie ?? 0, bfr: (actif?.creancesClients ?? 0) - (passif?.dettesFournisseurs ?? 0), totalActif: actif?.totalActif ?? 0, capitauxPropres: passif?.capitauxPropres ?? 0 } }} />}
 
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:24 }}>
-                {[
-                  { label:'Trésorerie nette',   value: tresorerie, sub: `${jTreso} jours de CA`,    color: tresorerie >= 0 ? '#1D9E75' : '#D85A30' },
-                  { label:'Créances clients',    value: creances,   sub: `${jCreances} jours de CA`, color:'#8C9BAB' },
-                  { label:'Dettes fournisseurs', value: dettes,     sub: `${jDettes} jours de CA`,   color:'#8C9BAB' },
-                  { label:'BFR',                 value: bfr,        sub: bfr > 0 ? 'À financer' : 'Ressource nette', color: bfr <= 0 ? '#1D9E75' : '#D85A30' },
-                ].map((k, i) => (
-                  <div key={i} style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'16px 20px', borderTop:`3px solid ${k.color}` }}>
-                    <div style={{ fontSize:10, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>{k.label}</div>
-                    <div style={{ fontSize:22, fontWeight:600, color:'#1A1A1A' }}>{fmt(k.value)}</div>
-                    <div style={{ fontSize:11, color: k.color, marginTop:4, fontWeight:500 }}>{k.sub}</div>
-                  </div>
-                ))}
-              </div>
-
-              {monthly.length > 0 && (
-                <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:24, marginBottom:24 }}>
-                  <div style={{ fontSize:12, fontWeight:600, color:'#1A1A1A', marginBottom:16 }}>Évolution de la trésorerie — {anneeActive}</div>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <LineChart data={monthly} margin={{ top:5, right:20, left:10, bottom:5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
-                      <XAxis dataKey="m" tick={{ fontSize:10, fill:'#8C9BAB' }} />
-                      <YAxis tick={{ fontSize:10, fill:'#8C9BAB' }} tickFormatter={v => new Intl.NumberFormat('fr-FR', { notation:'compact' }).format(v)} />
-                      <Tooltip formatter={(v: any) => fmt(v)} labelStyle={{ color:'#1A1A1A', fontWeight:500 }} contentStyle={{ border:'0.5px solid rgba(0,0,0,0.08)', borderRadius:8, fontSize:12 }} />
-                      <Line type="monotone" dataKey="val" stroke="#1A1A1A" strokeWidth={2} dot={{ fill:'#B8A98A', r:3 }} activeDot={{ r:5, fill:'#1A1A1A' }} />
-                    </LineChart>
-                  </ResponsiveContainer>
+              {etats?.controles && (
+                <div style={{ background: etats.controles.equilibreBilan ? 'rgba(29,158,117,0.08)' : 'rgba(216,90,48,0.08)', border: `0.5px solid ${etats.controles.equilibreBilan ? 'rgba(29,158,117,0.3)' : 'rgba(216,90,48,0.3)'}`, borderRadius: 8, padding: '8px 14px', marginBottom: 16, fontSize: 12, color: etats.controles.equilibreBilan ? '#1D9E75' : '#D85A30', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>{etats.controles.equilibreBilan ? '✓ Bilan équilibré' : '⚠ Bilan déséquilibré'}</span>
+                  <span>Actif {fmt(actif?.totalActif ?? 0)} · Passif {fmt(passif?.totalPassif ?? 0)}</span>
                 </div>
               )}
 
-              <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:24 }}>
-                <div style={{ fontSize:12, fontWeight:600, color:'#1A1A1A', marginBottom:16 }}>Analyse du Besoin en Fonds de Roulement</div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:16 }}>
-                  {[
-                    { label:'Créances clients (41x)',    value: creances, note: `Délai moyen : ${jCreances}j`, color:'#D85A30' },
-                    { label:'Dettes fournisseurs (40x)', value: dettes,   note: `Délai moyen : ${jDettes}j`,  color:'#1D9E75' },
-                    { label:'BFR net',                   value: bfr,      note: bfr > 0 ? 'Besoin à financer' : 'Ressource de financement', color: bfr <= 0 ? '#1D9E75' : '#D85A30' },
-                  ].map((item, i) => (
-                    <div key={i} style={{ padding:16, background:'#F2F3F5', borderRadius:8, borderLeft:`3px solid ${item.color}` }}>
-                      <div style={{ fontSize:11, color:'#8C9BAB', marginBottom:6 }}>{item.label}</div>
-                      <div style={{ fontSize:18, fontWeight:600, color:'#1A1A1A', marginBottom:4 }}>{fmt(item.value)}</div>
-                      <div style={{ fontSize:11, color: item.color, fontWeight:500 }}>{item.note}</div>
-                    </div>
-                  ))}
+              <div style={{ fontSize: 11, color: '#8C9BAB', marginBottom: 12, fontStyle: 'italic' }}>
+                Cliquez sur une ligne ▶ pour voir le détail des comptes et écritures
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
+                {/* ACTIF */}
+                <div style={{ background: '#fff', borderRadius: 10, border: '0.5px solid rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                  <div style={{ background: '#1A1A1A', padding: '10px 16px', display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 11, fontWeight: 500, color: '#F2F3F5', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Actif</span>
+                    <span style={{ fontSize: 11, fontWeight: 500, color: '#B8A98A' }}>{fmt(actif?.totalActif ?? 0)}</span>
+                  </div>
+                  <BilanSection title="Actif immobilisé" total={actif?.actifImmoNet ?? 0}>
+                    <BilanRow label="Immobilisations incorporelles brutes" value={actif?.immoIncorpBrut ?? 0} prefixKey="immoIncorp" indent {...rowProps} />
+                    <BilanRow label="Amortissements incorporels" value={actif?.amortIncorp ?? 0} prefixKey="amortIncorp" indent color="#D85A30" {...rowProps} />
+                    <BilanRow label="Immobilisations corporelles brutes" value={actif?.immoCorpBrut ?? 0} prefixKey="immoCorpBrut" indent {...rowProps} />
+                    <BilanRow label="Amortissements corporels" value={actif?.amortCorp ?? 0} prefixKey="amortCorp" indent color="#D85A30" {...rowProps} />
+                    <BilanRow label="Immobilisations financières" value={actif?.immoFinBrut ?? 0} prefixKey="immoFin" indent {...rowProps} />
+                    <BilanRow label="Immobilisations nettes" value={actif?.actifImmoNet ?? 0} bold {...rowProps} />
+                  </BilanSection>
+                  <BilanSection title="Actif circulant" total={(actif?.stocksMarchandises ?? 0) + (actif?.creancesClients ?? 0) + (actif?.creancesEtat ?? 0) + (actif?.autresCreances ?? 0) + (actif?.tresorerie ?? 0)}>
+                    <BilanRow label="Stocks marchandises" value={actif?.stocksMarchandises ?? 0} prefixKey="stocksMarchandises" indent {...rowProps} />
+                    <BilanRow label="Stocks matières" value={actif?.stocksMatieres ?? 0} prefixKey="stocksMatieres" indent {...rowProps} />
+                    <BilanRow label="Clients et comptes rattachés" value={actif?.creancesClients ?? 0} prefixKey="creancesClients" indent {...rowProps} />
+                    <BilanRow label="Créances fiscales (État)" value={actif?.creancesEtat ?? 0} prefixKey="creancesEtat" indent {...rowProps} />
+                    <BilanRow label="Autres créances" value={actif?.autresCreances ?? 0} prefixKey="autresCreances" indent {...rowProps} />
+                    <BilanRow label="Charges constatées d'avance" value={actif?.chargesConstatees ?? 0} indent {...rowProps} />
+                    <BilanRow label="Disponibilités" value={actif?.tresorerie ?? 0} prefixKey="tresorerie" indent color="#1D9E75" {...rowProps} />
+                  </BilanSection>
+                </div>
+
+                {/* PASSIF */}
+                <div style={{ background: '#fff', borderRadius: 10, border: '0.5px solid rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                  <div style={{ background: '#1A1A1A', padding: '10px 16px', display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 11, fontWeight: 500, color: '#F2F3F5', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Passif</span>
+                    <span style={{ fontSize: 11, fontWeight: 500, color: '#B8A98A' }}>{fmt(passif?.totalPassif ?? 0)}</span>
+                  </div>
+                  <BilanSection title="Capitaux propres" total={passif?.capitauxPropres ?? 0} color={(passif?.capitauxPropres ?? 0) >= 0 ? '#1D9E75' : '#D85A30'}>
+                    <BilanRow label="Capital et primes d'émission" value={(passif?.capital ?? 0) + (passif?.primes ?? 0)} prefixKey="capital" indent {...rowProps} />
+                    <BilanRow label="Réserves" value={passif?.reserves ?? 0} prefixKey="capital" indent {...rowProps} />
+                    <BilanRow label="Report à nouveau" value={passif?.reportNouveau ?? 0} prefixKey="capital" indent {...rowProps} />
+                    <BilanRow label="Subventions d'investissement" value={passif?.subventionsInvest ?? 0} prefixKey="subventionsInvest" indent {...rowProps} />
+                    <BilanRow label="Résultat de l'exercice" value={passif?.resultatNet ?? 0} indent color={(passif?.resultatNet ?? 0) >= 0 ? '#1D9E75' : '#D85A30'} {...rowProps} />
+                    <BilanRow label="Capitaux propres" value={passif?.capitauxPropres ?? 0} bold color={(passif?.capitauxPropres ?? 0) >= 0 ? '#1D9E75' : '#D85A30'} {...rowProps} />
+                  </BilanSection>
+                  <BilanSection title="Dettes" total={(passif?.empruntsEtablissement ?? 0) + (passif?.autresEmpruntsLT ?? 0) + (passif?.dettesFournisseurs ?? 0) + (passif?.dettesSociales ?? 0) + (passif?.dettesFiscales ?? 0) + (passif?.autresDettes ?? 0)}>
+                    <BilanRow label="Emprunts établissements de crédit" value={passif?.empruntsEtablissement ?? 0} prefixKey="emprunts" indent {...rowProps} />
+                    <BilanRow label="Autres emprunts et dettes" value={passif?.autresEmpruntsLT ?? 0} prefixKey="emprunts" indent {...rowProps} />
+                    <BilanRow label="Fournisseurs et comptes rattachés" value={passif?.dettesFournisseurs ?? 0} prefixKey="dettesFournisseurs" indent {...rowProps} />
+                    <BilanRow label="Dettes sociales (personnel, URSSAF)" value={passif?.dettesSociales ?? 0} prefixKey="dettesSociales" indent {...rowProps} />
+                    <BilanRow label="Dettes fiscales (IS, TVA)" value={passif?.dettesFiscales ?? 0} prefixKey="dettesFiscales" indent {...rowProps} />
+                    <BilanRow label="Autres dettes" value={passif?.autresDettes ?? 0} prefixKey="autresDettes" indent {...rowProps} />
+                    <BilanRow label="Produits constatés d'avance" value={passif?.produitsConstates ?? 0} indent {...rowProps} />
+                  </BilanSection>
+                </div>
+              </div>
+
+              {/* Totaux alignés */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', background: '#1A1A1A', borderRadius: '0 0 10px 10px' }}>
+                  <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#F2F3F5' }}>Total actif</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: '#B8A98A' }}>{fmt(actif?.totalActif ?? 0)}</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', background: '#1A1A1A', borderRadius: '0 0 10px 10px' }}>
+                  <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#F2F3F5' }}>Total passif</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: '#B8A98A' }}>{fmt(passif?.totalPassif ?? 0)}</div>
                 </div>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {panel && (
+        <SidePanel
+          panel={panel}
+          onClose={() => setPanel(null)}
+          onSelectCompte={c => setPanel(prev => prev ? { ...prev, selectedCompte: c } : null)}
+        />
+      )}
       <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
     </div>
   )
