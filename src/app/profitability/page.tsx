@@ -9,19 +9,22 @@ const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_
 const fmt = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' €'
 const fmtP = (n: number) => (Math.round(n * 10) / 10).toFixed(1) + ' %'
 
-function SigRow({ label, value, ca, color, highlight, deductions }: {
+function SigRow({ label, value, ca, color, highlight, deductions, valueN1, caN1, hasN1 }: {
   label: string; value: number; ca: number; color?: string; highlight?: boolean
-  deductions?: { label: string; value: number }[]
+  deductions?: { label: string; value: number; valueN1?: number }[]
+  valueN1?: number; caN1?: number; hasN1?: boolean
 }) {
   const pct = ca > 0 ? value / ca * 100 : 0
+  const pctN1 = (caN1 ?? 0) > 0 && valueN1 != null ? valueN1 / caN1! * 100 : 0
   const bg = highlight ? '#1A1A1A' : '#fff'
   const textColor = highlight ? '#fff' : '#1A1A1A'
   const mutedColor = highlight ? 'rgba(255,255,255,0.45)' : '#8C9BAB'
   const c = color || (highlight ? '#B8A98A' : '#8C9BAB')
   const hasDeductions = deductions && deductions.length > 0
+  const cols = hasN1 ? '1fr 120px 120px' : '1fr 120px 80px'
   return (
     <>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 120px 80px', alignItems:'center', background:bg, border:`0.5px solid ${highlight ? '#1A1A1A' : 'rgba(0,0,0,0.06)'}`, borderLeft:`3px solid ${c}`, borderRadius:'0 10px 10px 0', padding:'10px 14px', marginBottom: hasDeductions ? 0 : 2 }}>
+      <div style={{ display:'grid', gridTemplateColumns:cols, alignItems:'center', background:bg, border:`0.5px solid ${highlight ? '#1A1A1A' : 'rgba(0,0,0,0.06)'}`, borderLeft:`3px solid ${c}`, borderRadius:'0 10px 10px 0', padding:'10px 14px', marginBottom: hasDeductions ? 0 : 2 }}>
         <div>
           <div style={{ fontSize:10, fontWeight:600, color:mutedColor, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:2 }}>{label}</div>
           <div style={{ fontSize:20, fontWeight:600, color: highlight ? '#fff' : (color || textColor), lineHeight:1 }}>{fmt(value)}</div>
@@ -31,12 +34,21 @@ function SigRow({ label, value, ca, color, highlight, deductions }: {
           <div style={{ fontSize:13, fontWeight:600, color: highlight ? (color || '#B8A98A') : (color || '#1A1A1A') }}>{fmt(value)}</div>
           <div style={{ fontSize:10, color:mutedColor, marginTop:1 }}>{fmtP(pct)}</div>
         </div>
-        <div style={{ textAlign:'right' }}>
-          <span style={{ fontSize:10, color: highlight ? 'rgba(255,255,255,0.3)' : '#8C9BAB' }}>—</span>
-        </div>
+        {hasN1 && (
+          <div style={{ textAlign:'right' }}>
+            {valueN1 != null ? (
+              <>
+                <div style={{ fontSize:13, fontWeight:500, color:'#8C9BAB' }}>{fmt(valueN1)}</div>
+                <div style={{ fontSize:10, color:'#8C9BAB', marginTop:1 }}>{fmtP(pctN1)}</div>
+              </>
+            ) : (
+              <span style={{ fontSize:10, color: highlight ? 'rgba(255,255,255,0.3)' : '#8C9BAB' }}>—</span>
+            )}
+          </div>
+        )}
       </div>
       {deductions?.map((d, i) => (
-        <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 120px 80px', alignItems:'center', padding:'5px 14px 5px 28px', borderTop:'0.5px solid rgba(0,0,0,0.04)', background:'rgba(0,0,0,0.015)', marginBottom: i === (deductions.length - 1) ? 2 : 0 }}>
+        <div key={i} style={{ display:'grid', gridTemplateColumns:cols, alignItems:'center', padding:'5px 14px 5px 28px', borderTop:'0.5px solid rgba(0,0,0,0.04)', background:'rgba(0,0,0,0.015)', marginBottom: i === (deductions.length - 1) ? 2 : 0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
             <span style={{ fontSize:11, color:'#B8A98A' }}>↳</span>
             <span style={{ fontSize:11, color:'#8C9BAB' }}>{d.value < 0 ? '+' : '−'} {d.label}</span>
@@ -44,9 +56,15 @@ function SigRow({ label, value, ca, color, highlight, deductions }: {
           <div style={{ textAlign:'right' }}>
             <span style={{ fontSize:11, fontWeight:500, color:'#8C9BAB' }}>{fmt(Math.abs(d.value))}</span>
           </div>
-          <div style={{ textAlign:'right' }}>
-            <span style={{ fontSize:10, color:'#8C9BAB' }}>—</span>
-          </div>
+          {hasN1 && (
+            <div style={{ textAlign:'right' }}>
+              {d.valueN1 != null ? (
+                <span style={{ fontSize:11, color:'#8C9BAB' }}>{fmt(Math.abs(d.valueN1))}</span>
+              ) : (
+                <span style={{ fontSize:10, color:'#8C9BAB' }}>—</span>
+              )}
+            </div>
+          )}
         </div>
       ))}
     </>
@@ -55,6 +73,7 @@ function SigRow({ label, value, ca, color, highlight, deductions }: {
 
 export default function ProfitabilityPage() {
   const [etats, setEtats] = useState<any>(null)
+  const [etatsN1, setEtatsN1] = useState<any>(null)
   const [annees, setAnnees] = useState<number[]>([])
   const [anneeActive, setAnneeActive] = useState<number>(new Date().getFullYear())
   const [loading, setLoading] = useState(true)
@@ -73,6 +92,11 @@ export default function ProfitabilityPage() {
         setAnneeActive(annee)
         const res = await fetch(`/api/etats?annee=${annee}&user_id=${user.id}`)
         if (res.ok) setEtats(await res.json())
+        // Charger N-1 si disponible
+        if (anneesDispos.length > 1) {
+          const resN1 = await fetch(`/api/etats?annee=${anneesDispos[1]}&user_id=${user.id}`)
+          if (resN1.ok) setEtatsN1(await resN1.json())
+        }
       }
       setLoading(false)
     }
@@ -82,11 +106,20 @@ export default function ProfitabilityPage() {
   const changerAnnee = async (annee: number) => {
     setAnneeActive(annee)
     setEtats(null)
+    setEtatsN1(null)
     const res = await fetch(`/api/etats?annee=${annee}&user_id=${userId}`)
     if (res.ok) setEtats(await res.json())
+    // Chercher l'année précédente dans la liste
+    const idx = annees.indexOf(annee)
+    if (idx >= 0 && idx < annees.length - 1) {
+      const resN1 = await fetch(`/api/etats?annee=${annees[idx + 1]}&user_id=${userId}`)
+      if (resN1.ok) setEtatsN1(await resN1.json())
+    }
   }
 
   const sig = etats?.sig
+  const sigN1 = etatsN1?.sig
+  const hasN1 = !!sigN1
 
   if (loading) return (
     <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
@@ -114,61 +147,63 @@ export default function ProfitabilityPage() {
               <AlvioInsight payload={{ page:'profitability', annee:anneeActive, indicateurs:{ ca:sig.ca, mb:sig.margeCommerciale, ebe:sig.ebe, rex:sig.rex, rnet:sig.resultatNet, tauxMb:sig.tauxMb, tauxEbe:sig.tauxEbe, tauxRex:sig.tauxRex, tauxRnet:sig.tauxRnet, tauxPers:sig.tauxPers, pers64:sig.chargesPersonnel } }} />
               <div style={{ fontSize:11, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>Soldes intermédiaires de gestion</div>
 
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 120px 80px', padding:'0 14px 8px 14px', marginBottom:4 }}>
+              <div style={{ display:'grid', gridTemplateColumns: hasN1 ? '1fr 120px 120px' : '1fr 120px 80px', padding:'0 14px 8px 14px', marginBottom:4 }}>
                 <div style={{ fontSize:9, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.09em' }}>Indicateur</div>
                 <div style={{ fontSize:9, fontWeight:600, color:'#1A1A1A', textTransform:'uppercase', letterSpacing:'0.09em', textAlign:'right' }}>Exercice {anneeActive}</div>
-                <div style={{ fontSize:9, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.09em', textAlign:'right' }}>N-1</div>
+                {hasN1 && <div style={{ fontSize:9, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.09em', textAlign:'right' }}>{anneeActive - 1}</div>}
               </div>
 
-              <SigRow label="Chiffre d'affaires" value={sig.ca} ca={sig.ca} color="#B8A98A" />
-              {Math.abs(sig.ventesMarchandises) > 0.5 && <SigRow label="Ventes de marchandises" value={sig.ventesMarchandises} ca={sig.ca} color="#B8A98A" />}
+              <SigRow label="Chiffre d'affaires" value={sig.ca} ca={sig.ca} color="#B8A98A" hasN1={hasN1} valueN1={sigN1?.ca} caN1={sigN1?.ca} />
+              {Math.abs(sig.ventesMarchandises) > 0.5 && <SigRow label="Ventes de marchandises" value={sig.ventesMarchandises} ca={sig.ca} color="#B8A98A" hasN1={hasN1} valueN1={sigN1?.ventesMarchandises} caN1={sigN1?.ca} />}
               {Math.abs(sig.margeCommerciale) > 0.5 && (
-                <SigRow label="Marge commerciale" value={sig.margeCommerciale} ca={sig.ca} color="#B8A98A"
-                  deductions={Math.abs(sig.coutMarchandises) > 0.5 ? [{ label:"Coût d'achat des marchandises", value: sig.coutMarchandises }] : []} />
+                <SigRow label="Marge commerciale" value={sig.margeCommerciale} ca={sig.ca} color="#B8A98A" hasN1={hasN1} valueN1={sigN1?.margeCommerciale} caN1={sigN1?.ca}
+                  deductions={Math.abs(sig.coutMarchandises) > 0.5 ? [{ label:"Coût d'achat des marchandises", value: sig.coutMarchandises, valueN1: sigN1?.coutMarchandises }] : []} />
               )}
               {Math.abs(sig.productionExercice) > 0.5 && (
-                <SigRow label="Production de l'exercice" value={sig.productionExercice} ca={sig.ca}
+                <SigRow label="Production de l'exercice" value={sig.productionExercice} ca={sig.ca} hasN1={hasN1} valueN1={sigN1?.productionExercice} caN1={sigN1?.ca}
                   deductions={[
-                    ...(Math.abs(sig.productionStockee) > 0.5 ? [{ label:'Production stockée', value: -sig.productionStockee }] : []),
-                    ...(Math.abs(sig.productionImmobilisee) > 0.5 ? [{ label:'Production immobilisée', value: -sig.productionImmobilisee }] : []),
+                    ...(Math.abs(sig.productionStockee) > 0.5 ? [{ label:'Production stockée', value: -sig.productionStockee, valueN1: sigN1 ? -sigN1.productionStockee : undefined }] : []),
+                    ...(Math.abs(sig.productionImmobilisee) > 0.5 ? [{ label:'Production immobilisée', value: -sig.productionImmobilisee, valueN1: sigN1 ? -sigN1.productionImmobilisee : undefined }] : []),
                   ]} />
               )}
-              <SigRow label="Valeur ajoutée" value={sig.valeurAjoutee} ca={sig.ca}
+              <SigRow label="Valeur ajoutée" value={sig.valeurAjoutee} ca={sig.ca} hasN1={hasN1} valueN1={sigN1?.valeurAjoutee} caN1={sigN1?.ca}
                 deductions={[
-                  { label:'Consommations externes', value: sig.consommationsInt },
-                  ...(Math.abs(sig.subventions) > 0.5 ? [{ label:"Subventions d'exploitation", value: -sig.subventions }] : []),
+                  { label:'Consommations externes', value: sig.consommationsInt, valueN1: sigN1?.consommationsInt },
+                  ...(Math.abs(sig.subventions) > 0.5 ? [{ label:"Subventions d'exploitation", value: -sig.subventions, valueN1: sigN1 ? -sigN1.subventions : undefined }] : []),
                 ]} />
               <SigRow label="EBE — Excédent Brut d'Exploitation" value={sig.ebe} ca={sig.ca}
                 color={sig.tauxEbe >= 10 ? '#1D9E75' : '#D85A30'} highlight={true}
+                hasN1={hasN1} valueN1={sigN1?.ebe} caN1={sigN1?.ca}
                 deductions={[
-                  ...(Math.abs(sig.impotsTaxes) > 0.5 ? [{ label:'Impôts & taxes', value: sig.impotsTaxes }] : []),
-                  { label:'Charges de personnel', value: sig.chargesPersonnel },
+                  ...(Math.abs(sig.impotsTaxes) > 0.5 ? [{ label:'Impôts & taxes', value: sig.impotsTaxes, valueN1: sigN1?.impotsTaxes }] : []),
+                  { label:'Charges de personnel', value: sig.chargesPersonnel, valueN1: sigN1?.chargesPersonnel },
                 ]} />
               <SigRow label="Résultat d'exploitation" value={sig.rex} ca={sig.ca}
-                color={sig.rex >= 0 ? '#1D9E75' : '#D85A30'}
+                color={sig.rex >= 0 ? '#1D9E75' : '#D85A30'} hasN1={hasN1} valueN1={sigN1?.rex} caN1={sigN1?.ca}
                 deductions={[
-                  ...(Math.abs(sig.dotations) > 0.5 ? [{ label:'Dotations aux amortissements', value: sig.dotations }] : []),
-                  ...(Math.abs(sig.reprises) > 0.5 ? [{ label:'Reprises sur provisions', value: -sig.reprises }] : []),
-                  ...(Math.abs(sig.autresProduits) > 0.5 ? [{ label:'Autres produits (75)', value: -sig.autresProduits }] : []),
-                  ...(Math.abs(sig.autresCharges) > 0.5 ? [{ label:'Autres charges (65)', value: sig.autresCharges }] : []),
+                  ...(Math.abs(sig.dotations) > 0.5 ? [{ label:'Dotations aux amortissements', value: sig.dotations, valueN1: sigN1?.dotations }] : []),
+                  ...(Math.abs(sig.reprises) > 0.5 ? [{ label:'Reprises sur provisions', value: -sig.reprises, valueN1: sigN1 ? -sigN1.reprises : undefined }] : []),
+                  ...(Math.abs(sig.autresProduits) > 0.5 ? [{ label:'Autres produits (75)', value: -sig.autresProduits, valueN1: sigN1 ? -sigN1.autresProduits : undefined }] : []),
+                  ...(Math.abs(sig.autresCharges) > 0.5 ? [{ label:'Autres charges (65)', value: sig.autresCharges, valueN1: sigN1?.autresCharges }] : []),
                 ]} />
               {Math.abs(sig.rfin) > 0.5 && (
                 <SigRow label="Résultat courant avant impôts" value={sig.rex + sig.rfin} ca={sig.ca}
-                  color={(sig.rex + sig.rfin) >= 0 ? '#1D9E75' : '#D85A30'}
+                  color={(sig.rex + sig.rfin) >= 0 ? '#1D9E75' : '#D85A30'} hasN1={hasN1}
+                  valueN1={sigN1 ? sigN1.rex + sigN1.rfin : undefined} caN1={sigN1?.ca}
                   deductions={[
-                    ...(Math.abs(sig.produitsFinanciers) > 0.5 ? [{ label:'Produits financiers', value: -sig.produitsFinanciers }] : []),
-                    ...(Math.abs(sig.chargesFinancieres) > 0.5 ? [{ label:'Charges financières', value: sig.chargesFinancieres }] : []),
+                    ...(Math.abs(sig.produitsFinanciers) > 0.5 ? [{ label:'Produits financiers', value: -sig.produitsFinanciers, valueN1: sigN1 ? -sigN1.produitsFinanciers : undefined }] : []),
+                    ...(Math.abs(sig.chargesFinancieres) > 0.5 ? [{ label:'Charges financières', value: sig.chargesFinancieres, valueN1: sigN1?.chargesFinancieres }] : []),
                   ]} />
               )}
               {Math.abs(sig.rexcep) > 0.5 && (
                 <SigRow label="Résultat exceptionnel" value={sig.rexcep} ca={sig.ca}
-                  color={sig.rexcep >= 0 ? '#1D9E75' : '#D85A30'} />
+                  color={sig.rexcep >= 0 ? '#1D9E75' : '#D85A30'} hasN1={hasN1} valueN1={sigN1?.rexcep} caN1={sigN1?.ca} />
               )}
               <SigRow label="Résultat net" value={sig.resultatNet} ca={sig.ca}
-                color={sig.resultatNet >= 0 ? '#1D9E75' : '#D85A30'}
+                color={sig.resultatNet >= 0 ? '#1D9E75' : '#D85A30'} hasN1={hasN1} valueN1={sigN1?.resultatNet} caN1={sigN1?.ca}
                 deductions={[
-                  ...(Math.abs(sig.participation) > 0.5 ? [{ label:'Participation des salariés', value: sig.participation }] : []),
-                  ...(Math.abs(sig.is) > 0.5 ? [{ label:'Impôt sur les sociétés', value: sig.is }] : []),
+                  ...(Math.abs(sig.participation) > 0.5 ? [{ label:'Participation des salariés', value: sig.participation, valueN1: sigN1?.participation }] : []),
+                  ...(Math.abs(sig.is) > 0.5 ? [{ label:'Impôt sur les sociétés', value: sig.is, valueN1: sigN1?.is }] : []),
                 ]} />
             </div>
           )}

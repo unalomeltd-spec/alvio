@@ -175,25 +175,41 @@ function SidePanel({ panel, onClose, onSelectCompte }: {
   )
 }
 
-function CrRow({ label, value, indent, bold, color, prefixKey, annee, userId, onDrill }: {
+function CrRow({ label, value, indent, bold, color, prefixKey, annee, userId, onDrill, valueN1, hasN1 }: {
   label: string; value: number; indent?: boolean; bold?: boolean; color?: string
   prefixKey?: string; annee: number; userId: string
   onDrill: (label: string, prefixes: string[]) => void
+  valueN1?: number; hasN1?: boolean
 }) {
   if (Math.abs(value) < 0.5) return null
   const c = color || (value >= 0 ? '#1A1A1A' : '#D85A30')
   const drillable = !!prefixKey && !!PREFIXES[prefixKey]
+  const variation = valueN1 != null && Math.abs(valueN1) > 0.5 ? ((value - valueN1) / Math.abs(valueN1)) * 100 : null
 
   return (
     <div onClick={() => drillable && onDrill(label, PREFIXES[prefixKey!])}
-      style={{ display: 'flex', alignItems: 'center', padding: '7px 16px', borderTop: '0.5px solid rgba(0,0,0,0.04)', cursor: drillable ? 'pointer' : 'default', transition: 'background 0.1s' }}
+      style={{ display: 'grid', gridTemplateColumns: hasN1 ? '1fr 110px 110px 80px' : '1fr 110px', alignItems: 'center', padding: '7px 16px', borderTop: '0.5px solid rgba(0,0,0,0.04)', cursor: drillable ? 'pointer' : 'default', transition: 'background 0.1s' }}
       onMouseEnter={e => { if (drillable) (e.currentTarget as HTMLElement).style.background = '#F7F8FA' }}
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
-      <div style={{ flex: 1, fontSize: 12, fontWeight: bold ? 500 : 400, color: '#1A1A1A', paddingLeft: indent ? 20 : 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ fontSize: 12, fontWeight: bold ? 500 : 400, color: '#1A1A1A', paddingLeft: indent ? 20 : 0, display: 'flex', alignItems: 'center', gap: 6 }}>
         {drillable && <span style={{ fontSize: 9, color: '#B8A98A' }}>▶</span>}
         {label}
       </div>
-      <div style={{ fontSize: 12, fontWeight: bold ? 500 : 400, color: c, minWidth: 110, textAlign: 'right' }}>{fmt(value)}</div>
+      <div style={{ fontSize: 12, fontWeight: bold ? 500 : 400, color: c, textAlign: 'right' }}>{fmt(value)}</div>
+      {hasN1 && (
+        <div style={{ fontSize: 12, color: '#8C9BAB', textAlign: 'right' }}>
+          {valueN1 != null && Math.abs(valueN1) > 0.5 ? fmt(valueN1) : '—'}
+        </div>
+      )}
+      {hasN1 && (
+        <div style={{ textAlign: 'right' }}>
+          {variation != null ? (
+            <span style={{ fontSize: 11, fontWeight: 500, color: variation >= 0 ? '#1D9E75' : '#D85A30' }}>
+              {variation >= 0 ? '+' : ''}{Math.round(variation)}%
+            </span>
+          ) : <span style={{ fontSize: 10, color: '#8C9BAB' }}>—</span>}
+        </div>
+      )}
     </div>
   )
 }
@@ -213,18 +229,30 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
   )
 }
 
-function SubTotal({ label, value, color }: { label: string; value: number; color?: string }) {
+function SubTotal({ label, value, color, valueN1, hasN1 }: { label: string; value: number; color?: string; valueN1?: number; hasN1?: boolean }) {
   const c = color || (value >= 0 ? '#1D9E75' : '#D85A30')
+  const variation = valueN1 != null && Math.abs(valueN1) > 0.5 ? ((value - valueN1) / Math.abs(valueN1)) * 100 : null
   return (
-    <div style={{ display: 'flex', alignItems: 'center', padding: '9px 16px', background: 'rgba(0,0,0,0.02)', borderTop: '0.5px solid rgba(0,0,0,0.06)' }}>
-      <div style={{ flex: 1, fontSize: 12, fontWeight: 500, color: c }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 500, color: c, minWidth: 110, textAlign: 'right' }}>{fmt(value)}</div>
+    <div style={{ display: 'grid', gridTemplateColumns: hasN1 ? '1fr 110px 110px 80px' : '1fr 110px', alignItems: 'center', padding: '9px 16px', background: 'rgba(0,0,0,0.02)', borderTop: '0.5px solid rgba(0,0,0,0.06)' }}>
+      <div style={{ fontSize: 12, fontWeight: 500, color: c }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 500, color: c, textAlign: 'right' }}>{fmt(value)}</div>
+      {hasN1 && <div style={{ fontSize: 12, color: '#8C9BAB', textAlign: 'right' }}>{valueN1 != null && Math.abs(valueN1) > 0.5 ? fmt(valueN1) : '—'}</div>}
+      {hasN1 && (
+        <div style={{ textAlign: 'right' }}>
+          {variation != null ? (
+            <span style={{ fontSize: 11, fontWeight: 500, color: variation >= 0 ? '#1D9E75' : '#D85A30' }}>
+              {variation >= 0 ? '+' : ''}{Math.round(variation)}%
+            </span>
+          ) : <span style={{ fontSize: 10, color: '#8C9BAB' }}>—</span>}
+        </div>
+      )}
     </div>
   )
 }
 
 export default function IncomeStatementPage() {
   const [etats, setEtats] = useState<any>(null)
+  const [etatsN1, setEtatsN1] = useState<any>(null)
   const [annees, setAnnees] = useState<number[]>([])
   const [anneeActive, setAnneeActive] = useState<number>(new Date().getFullYear())
   const [loading, setLoading] = useState(true)
@@ -245,6 +273,10 @@ export default function IncomeStatementPage() {
         setAnneeActive(annee)
         const res = await fetch(`/api/etats?annee=${annee}&user_id=${user.id}`)
         if (res.ok) setEtats(await res.json())
+        if (anneesDispos.length > 1) {
+          const resN1 = await fetch(`/api/etats?annee=${anneesDispos[1]}&user_id=${user.id}`)
+          if (resN1.ok) setEtatsN1(await resN1.json())
+        }
       }
       setLoading(false)
     }
@@ -254,9 +286,15 @@ export default function IncomeStatementPage() {
   const changerAnnee = async (annee: number) => {
     setAnneeActive(annee)
     setEtats(null)
+    setEtatsN1(null)
     setPanel(null)
     const res = await fetch(`/api/etats?annee=${annee}&user_id=${userId}`)
     if (res.ok) setEtats(await res.json())
+    const idx = annees.indexOf(annee)
+    if (idx >= 0 && idx < annees.length - 1) {
+      const resN1 = await fetch(`/api/etats?annee=${annees[idx + 1]}&user_id=${userId}`)
+      if (resN1.ok) setEtatsN1(await resN1.json())
+    }
   }
 
   const handleDrill = useCallback(async (label: string, prefixes: string[]) => {
@@ -271,6 +309,9 @@ export default function IncomeStatementPage() {
 
   const cr = etats?.cr
   const sig = etats?.sig
+  const crN1 = etatsN1?.cr
+  const sigN1 = etatsN1?.sig
+  const hasN1 = !!crN1
 
   const rowProps = { annee: anneeActive, userId, onDrill: handleDrill }
 
@@ -304,65 +345,71 @@ export default function IncomeStatementPage() {
               </div>
 
               <div style={{ background: '#fff', borderRadius: 10, border: '0.5px solid rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                <div style={{ display: 'flex', background: '#1A1A1A', padding: '10px 16px' }}>
-                  <div style={{ flex: 1, fontSize: 11, fontWeight: 500, color: '#F2F3F5', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Libellé</div>
-                  <div style={{ fontSize: 11, fontWeight: 500, color: '#F2F3F5', minWidth: 110, textAlign: 'right' }}>Exercice {anneeActive}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: hasN1 ? '1fr 110px 110px 80px' : '1fr 110px', background: '#1A1A1A', padding: '10px 16px', gap: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: '#F2F3F5', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Libellé</div>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: '#F2F3F5', textAlign: 'right' }}>Exercice {anneeActive}</div>
+                  {hasN1 && <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.5)', textAlign: 'right' }}>{anneeActive - 1}</div>}
+                  {hasN1 && <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.5)', textAlign: 'right' }}>Var.</div>}
                 </div>
 
                 <Section title="Produits d'exploitation">
-                  <CrRow label="Ventes de marchandises" value={cr.produitsExploitation.ventesMarchandises} prefixKey="ventesMarchandises" indent {...rowProps} />
-                  <CrRow label="Production vendue (biens et services)" value={cr.produitsExploitation.productionVendue} prefixKey="productionVendue" indent {...rowProps} />
-                  <CrRow label="Production stockée" value={cr.produitsExploitation.productionStockee} prefixKey="productionStockee" indent {...rowProps} />
-                  <CrRow label="Production immobilisée" value={cr.produitsExploitation.productionImmobilisee} prefixKey="productionImmobilisee" indent {...rowProps} />
-                  <CrRow label="Subventions d'exploitation" value={cr.produitsExploitation.subventions} prefixKey="subventions" indent {...rowProps} />
-                  <CrRow label="Autres produits de gestion courante" value={cr.produitsExploitation.autresProduits} prefixKey="autresProduits" indent {...rowProps} />
-                  <CrRow label="Reprises sur provisions" value={cr.produitsExploitation.reprises} prefixKey="reprises" indent {...rowProps} />
-                  <SubTotal label="Total produits d'exploitation" value={cr.produitsExploitation.total} color="#B8A98A" />
+                  <CrRow label="Ventes de marchandises" value={cr.produitsExploitation.ventesMarchandises} prefixKey="ventesMarchandises" indent {...rowProps} hasN1={hasN1} valueN1={crN1?.produitsExploitation.ventesMarchandises} />
+                  <CrRow label="Production vendue (biens et services)" value={cr.produitsExploitation.productionVendue} prefixKey="productionVendue" indent {...rowProps} hasN1={hasN1} valueN1={crN1?.produitsExploitation.productionVendue} />
+                  <CrRow label="Production stockée" value={cr.produitsExploitation.productionStockee} prefixKey="productionStockee" indent {...rowProps} hasN1={hasN1} valueN1={crN1?.produitsExploitation.productionStockee} />
+                  <CrRow label="Production immobilisée" value={cr.produitsExploitation.productionImmobilisee} prefixKey="productionImmobilisee" indent {...rowProps} hasN1={hasN1} valueN1={crN1?.produitsExploitation.productionImmobilisee} />
+                  <CrRow label="Subventions d'exploitation" value={cr.produitsExploitation.subventions} prefixKey="subventions" indent {...rowProps} hasN1={hasN1} valueN1={crN1?.produitsExploitation.subventions} />
+                  <CrRow label="Autres produits de gestion courante" value={cr.produitsExploitation.autresProduits} prefixKey="autresProduits" indent {...rowProps} hasN1={hasN1} valueN1={crN1?.produitsExploitation.autresProduits} />
+                  <CrRow label="Reprises sur provisions" value={cr.produitsExploitation.reprises} prefixKey="reprises" indent {...rowProps} hasN1={hasN1} valueN1={crN1?.produitsExploitation.reprises} />
+                  <SubTotal label="Total produits d'exploitation" value={cr.produitsExploitation.total} color="#B8A98A" hasN1={hasN1} valueN1={crN1?.produitsExploitation.total} />
                 </Section>
 
                 <Section title="Charges d'exploitation">
-                  <CrRow label="Achats de marchandises" value={cr.chargesExploitation.achatsMarchandises} prefixKey="achatsMarchandises" indent {...rowProps} />
-                  <CrRow label="Variation de stocks" value={cr.chargesExploitation.variationStocksMarch} prefixKey="variationStocks" indent {...rowProps} />
-                  <CrRow label="Autres achats" value={cr.chargesExploitation.autresAchats} prefixKey="autresAchats" indent {...rowProps} />
-                  <CrRow label="Services extérieurs (61/62)" value={cr.chargesExploitation.servicesExt} prefixKey="servicesExt" indent {...rowProps} />
-                  <CrRow label="Impôts, taxes et versements assimilés" value={cr.chargesExploitation.impotsTaxes} prefixKey="impotsTaxes" indent {...rowProps} />
-                  <CrRow label="Charges de personnel" value={cr.chargesExploitation.chargesPersonnel} prefixKey="chargesPersonnel" indent {...rowProps} />
-                  <CrRow label="Dotations aux amortissements et provisions" value={cr.chargesExploitation.dotations} prefixKey="dotations" indent {...rowProps} />
-                  <CrRow label="Autres charges de gestion courante" value={cr.chargesExploitation.autresCharges} prefixKey="autresCharges" indent {...rowProps} />
-                  <SubTotal label="Total charges d'exploitation" value={cr.chargesExploitation.total} color="#D85A30" />
+                  <CrRow label="Achats de marchandises" value={cr.chargesExploitation.achatsMarchandises} prefixKey="achatsMarchandises" indent {...rowProps} hasN1={hasN1} valueN1={crN1?.chargesExploitation.achatsMarchandises} />
+                  <CrRow label="Variation de stocks" value={cr.chargesExploitation.variationStocksMarch} prefixKey="variationStocks" indent {...rowProps} hasN1={hasN1} valueN1={crN1?.chargesExploitation.variationStocksMarch} />
+                  <CrRow label="Autres achats" value={cr.chargesExploitation.autresAchats} prefixKey="autresAchats" indent {...rowProps} hasN1={hasN1} valueN1={crN1?.chargesExploitation.autresAchats} />
+                  <CrRow label="Services extérieurs (61/62)" value={cr.chargesExploitation.servicesExt} prefixKey="servicesExt" indent {...rowProps} hasN1={hasN1} valueN1={crN1?.chargesExploitation.servicesExt} />
+                  <CrRow label="Impôts, taxes et versements assimilés" value={cr.chargesExploitation.impotsTaxes} prefixKey="impotsTaxes" indent {...rowProps} hasN1={hasN1} valueN1={crN1?.chargesExploitation.impotsTaxes} />
+                  <CrRow label="Charges de personnel" value={cr.chargesExploitation.chargesPersonnel} prefixKey="chargesPersonnel" indent {...rowProps} hasN1={hasN1} valueN1={crN1?.chargesExploitation.chargesPersonnel} />
+                  <CrRow label="Dotations aux amortissements et provisions" value={cr.chargesExploitation.dotations} prefixKey="dotations" indent {...rowProps} hasN1={hasN1} valueN1={crN1?.chargesExploitation.dotations} />
+                  <CrRow label="Autres charges de gestion courante" value={cr.chargesExploitation.autresCharges} prefixKey="autresCharges" indent {...rowProps} hasN1={hasN1} valueN1={crN1?.chargesExploitation.autresCharges} />
+                  <SubTotal label="Total charges d'exploitation" value={cr.chargesExploitation.total} color="#D85A30" hasN1={hasN1} valueN1={crN1?.chargesExploitation.total} />
                 </Section>
 
-                <div style={{ display: 'flex', alignItems: 'center', padding: '10px 16px', background: 'rgba(184,169,138,0.08)', borderTop: '0.5px solid rgba(184,169,138,0.2)' }}>
-                  <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#1A1A1A' }}>Résultat d'exploitation</div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: cr.resultatExploitation >= 0 ? '#1D9E75' : '#D85A30', minWidth: 110, textAlign: 'right' }}>{fmt(cr.resultatExploitation)}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: hasN1 ? '1fr 110px 110px 80px' : '1fr 110px', alignItems: 'center', padding: '10px 16px', background: 'rgba(184,169,138,0.08)', borderTop: '0.5px solid rgba(184,169,138,0.2)' }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#1A1A1A' }}>Résultat d'exploitation</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: cr.resultatExploitation >= 0 ? '#1D9E75' : '#D85A30', textAlign: 'right' }}>{fmt(cr.resultatExploitation)}</div>
+                  {hasN1 && <div style={{ fontSize: 13, color: '#8C9BAB', textAlign: 'right' }}>{crN1?.resultatExploitation != null ? fmt(crN1.resultatExploitation) : '—'}</div>}
+                  {hasN1 && (() => { const v = crN1?.resultatExploitation; const variation = v != null && Math.abs(v) > 0.5 ? ((cr.resultatExploitation - v) / Math.abs(v)) * 100 : null; return <div style={{ textAlign: 'right' }}>{variation != null ? <span style={{ fontSize:11, fontWeight:500, color: variation >= 0 ? '#1D9E75' : '#D85A30' }}>{variation >= 0 ? '+' : ''}{Math.round(variation)}%</span> : <span style={{ fontSize:10, color:'#8C9BAB' }}>—</span>}</div> })()}
                 </div>
 
                 {Math.abs(cr.resultatFinancier) > 0.5 && (
                   <Section title="Résultat financier" defaultOpen={false}>
-                    {sig && <CrRow label="Produits financiers" value={sig.produitsFinanciers} prefixKey="produitsFinanciers" indent {...rowProps} />}
-                    {sig && <CrRow label="Charges financières" value={sig.chargesFinancieres} prefixKey="chargesFinancieres" indent {...rowProps} />}
-                    <SubTotal label="Résultat financier" value={cr.resultatFinancier} />
+                    {sig && <CrRow label="Produits financiers" value={sig.produitsFinanciers} prefixKey="produitsFinanciers" indent {...rowProps} hasN1={hasN1} valueN1={sigN1?.produitsFinanciers} />}
+                    {sig && <CrRow label="Charges financières" value={sig.chargesFinancieres} prefixKey="chargesFinancieres" indent {...rowProps} hasN1={hasN1} valueN1={sigN1?.chargesFinancieres} />}
+                    <SubTotal label="Résultat financier" value={cr.resultatFinancier} hasN1={hasN1} valueN1={crN1?.resultatFinancier} />
                   </Section>
                 )}
 
                 {Math.abs(cr.resultatExceptionnel) > 0.5 && (
                   <Section title="Résultat exceptionnel" defaultOpen={false}>
-                    {sig && <CrRow label="Produits exceptionnels" value={sig.produitsExcep} prefixKey="produitsExcep" indent {...rowProps} />}
-                    {sig && <CrRow label="Charges exceptionnelles" value={sig.chargesExcep} prefixKey="chargesExcep" indent {...rowProps} />}
-                    <SubTotal label="Résultat exceptionnel" value={cr.resultatExceptionnel} />
+                    {sig && <CrRow label="Produits exceptionnels" value={sig.produitsExcep} prefixKey="produitsExcep" indent {...rowProps} hasN1={hasN1} valueN1={sigN1?.produitsExcep} />}
+                    {sig && <CrRow label="Charges exceptionnelles" value={sig.chargesExcep} prefixKey="chargesExcep" indent {...rowProps} hasN1={hasN1} valueN1={sigN1?.chargesExcep} />}
+                    <SubTotal label="Résultat exceptionnel" value={cr.resultatExceptionnel} hasN1={hasN1} valueN1={crN1?.resultatExceptionnel} />
                   </Section>
                 )}
 
                 {(Math.abs(cr.participation) > 0.5 || Math.abs(cr.is) > 0.5) && (
                   <Section title="Impôt et participation" defaultOpen={false}>
-                    <CrRow label="Participation des salariés" value={cr.participation} prefixKey="participation" indent {...rowProps} />
-                    <CrRow label="Impôts sur les bénéfices" value={cr.is} prefixKey="is" indent {...rowProps} />
+                    <CrRow label="Participation des salariés" value={cr.participation} prefixKey="participation" indent {...rowProps} hasN1={hasN1} valueN1={crN1?.participation} />
+                    <CrRow label="Impôts sur les bénéfices" value={cr.is} prefixKey="is" indent {...rowProps} hasN1={hasN1} valueN1={crN1?.is} />
                   </Section>
                 )}
 
-                <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', background: '#1A1A1A', borderTop: '0.5px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#F2F3F5' }}>Résultat net</div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: cr.resultatNet >= 0 ? '#1D9E75' : '#D85A30', minWidth: 110, textAlign: 'right' }}>{fmt(cr.resultatNet)}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: hasN1 ? '1fr 110px 110px 80px' : '1fr 110px', alignItems: 'center', padding: '12px 16px', background: '#1A1A1A', borderTop: '0.5px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#F2F3F5' }}>Résultat net</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: cr.resultatNet >= 0 ? '#1D9E75' : '#D85A30', textAlign: 'right' }}>{fmt(cr.resultatNet)}</div>
+                  {hasN1 && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', textAlign: 'right' }}>{crN1?.resultatNet != null ? fmt(crN1.resultatNet) : '—'}</div>}
+                  {hasN1 && (() => { const v = crN1?.resultatNet; const variation = v != null && Math.abs(v) > 0.5 ? ((cr.resultatNet - v) / Math.abs(v)) * 100 : null; return <div style={{ textAlign: 'right' }}>{variation != null ? <span style={{ fontSize:11, fontWeight:500, color: variation >= 0 ? '#1D9E75' : '#D85A30' }}>{variation >= 0 ? '+' : ''}{Math.round(variation)}%</span> : <span style={{ fontSize:10, color:'rgba(255,255,255,0.3)' }}>—</span>}</div> })()}
                 </div>
               </div>
             </div>
