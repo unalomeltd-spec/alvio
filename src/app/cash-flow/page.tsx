@@ -76,8 +76,20 @@ export default function CashFlowPage() {
     load()
   }, [])
 
+  // Relance le fetch quand la période change
+  useEffect(() => {
+    if (!userId || !annees.length) return
+    const params = periodeTab === 'perso' && dateDebut && dateFin
+      ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
+    fetch(`/api/etats?annee=${anneeActive}&user_id=${userId}${params}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setEtats(d))
+  }, [periodeTab, dateDebut, dateFin])
+
   const chargerDonnees = async (uid: string, annee: number) => {
-    const res = await fetch(`/api/etats?annee=${annee}&user_id=${uid}${periodeParams}`)
+    const params = periodeTab === 'perso' && dateDebut && dateFin
+      ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
+    const res = await fetch(`/api/etats?annee=${annee}&user_id=${uid}${params}`)
     if (res.ok) setEtats(await res.json())
     const { data: fecData } = await sb
       .from('fec_exercices')
