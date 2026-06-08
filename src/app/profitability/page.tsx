@@ -18,19 +18,14 @@ function SigRow({ label, value, ca, color, highlight, deductions, valueN1, caN1,
   const pct = ca > 0 ? value / ca * 100 : 0
   const pctN1 = (caN1 ?? 0) > 0 && valueN1 != null ? valueN1 / caN1! * 100 : 0
   const bg = highlight ? '#1A1A1A' : '#fff'
-  const textColor = highlight ? '#fff' : '#1A1A1A'
   const mutedColor = highlight ? 'rgba(255,255,255,0.45)' : '#8C9BAB'
   const c = color || (highlight ? '#B8A98A' : '#8C9BAB')
   const hasDeductions = deductions && deductions.length > 0
-  const cols = hasN1 ? '1fr 120px 120px' : '1fr 120px 80px'
+  const cols = hasN1 ? '1fr 120px 120px' : '1fr 120px'
   return (
     <>
-      <div style={{ display:'grid', gridTemplateColumns:cols, alignItems:'center', background:bg, border:`0.5px solid ${highlight ? '#1A1A1A' : 'rgba(0,0,0,0.06)'}`, borderLeft:`3px solid ${c}`, borderRadius:'0 10px 10px 0', padding:'10px 14px', marginBottom: hasDeductions ? 0 : 2 }}>
-        <div>
-          <div style={{ fontSize:10, fontWeight:600, color:mutedColor, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:2 }}>{label}</div>
-          <div style={{ fontSize:20, fontWeight:600, color: highlight ? '#fff' : (color || textColor), lineHeight:1 }}>{fmt(value)}</div>
-          <div style={{ fontSize:11, color:mutedColor, marginTop:2 }}>{fmtP(pct)} du CA</div>
-        </div>
+      <div style={{ display:'grid', gridTemplateColumns:cols, alignItems:'center', background:bg, border:`0.5px solid ${highlight ? '#1A1A1A' : 'rgba(0,0,0,0.06)'}`, borderLeft:`3px solid ${c}`, borderRadius:'0 10px 10px 0', padding:'8px 14px', marginBottom: hasDeductions ? 0 : 2 }}>
+        <div style={{ fontSize:11, fontWeight: highlight ? 600 : 500, color: highlight ? 'rgba(255,255,255,0.85)' : '#1A1A1A', textTransform:'uppercase', letterSpacing:'0.05em' }}>{label}</div>
         <div style={{ textAlign:'right' }}>
           <div style={{ fontSize:13, fontWeight:600, color: highlight ? (color || '#B8A98A') : (color || '#1A1A1A') }}>{fmt(value)}</div>
           <div style={{ fontSize:10, color:mutedColor, marginTop:1 }}>{fmtP(pct)}</div>
@@ -49,7 +44,7 @@ function SigRow({ label, value, ca, color, highlight, deductions, valueN1, caN1,
         )}
       </div>
       {deductions?.map((d, i) => (
-        <div key={i} style={{ display:'grid', gridTemplateColumns:cols, alignItems:'center', padding:'5px 14px 5px 28px', borderTop:'0.5px solid rgba(0,0,0,0.04)', background:'rgba(0,0,0,0.015)', marginBottom: i === (deductions.length - 1) ? 2 : 0 }}>
+        <div key={i} style={{ display:'grid', gridTemplateColumns:cols, alignItems:'center', padding:'4px 14px 4px 28px', borderTop:'0.5px solid rgba(0,0,0,0.04)', background:'rgba(0,0,0,0.015)', marginBottom: i === (deductions.length - 1) ? 2 : 0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
             <span style={{ fontSize:11, color:'#B8A98A' }}>↳</span>
             <span style={{ fontSize:11, color:'#8C9BAB' }}>{d.value < 0 ? '+' : '−'} {d.label}</span>
