@@ -17,7 +17,7 @@ export default function DashboardPage() {
   const [uploading, setUploading] = useState(false)
   const [erreur, setErreur] = useState('')
   const [userId, setUserId] = useState<string>('')
-  const { anneeActive, setAnneeActive, periodeTab, dateDebut, dateFin } = usePeriod(new Date().getFullYear())
+  const { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1 } = usePeriod(new Date().getFullYear())
   const periodeParams = periodeTab === 'perso' && dateDebut && dateFin
     ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
 
@@ -111,7 +111,13 @@ export default function DashboardPage() {
     <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans', sans-serif" }}>
       <AppSidebar activePage="dashboard"/>
       <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
-        <TopBar title="Synthèse" annees={annees} anneeActive={anneeActive} onChangerAnnee={changerAnnee} />
+        <TopBar title="Synthèse" annees={annees} anneeActive={anneeActive} onChangerAnnee={changerAnnee}
+          periodeTab={periodeTab} setPeriodeTab={setPeriodeTab}
+          dateDebut={dateDebut} setDateDebut={setDateDebut}
+          dateFin={dateFin} setDateFin={setDateFin}
+          anneeN1={anneeN1} setAnneeN1={setAnneeN1}
+          dateDebutN1={dateDebutN1} setDateDebutN1={setDateDebutN1}
+          dateFinN1={dateFinN1} setDateFinN1={setDateFinN1} />
         <div style={{ flex:1, padding:24, overflowY:'auto' }}>
           {erreur && <div style={{ background:'rgba(216,90,48,0.08)', border:'0.5px solid rgba(216,90,48,0.3)', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#D85A30' }}>{erreur}</div>}
           {!sig ? (

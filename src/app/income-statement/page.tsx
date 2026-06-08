@@ -257,7 +257,7 @@ export default function IncomeStatementPage() {
   const [annees, setAnnees] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string>('')
-  const { anneeActive, setAnneeActive, periodeTab, dateDebut, dateFin } = usePeriod(new Date().getFullYear())
+  const { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1 } = usePeriod(new Date().getFullYear())
   const periodeParams = periodeTab === 'perso' && dateDebut && dateFin
     ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
   const [panel, setPanel] = useState<PanelData | null>(null)
@@ -331,7 +331,13 @@ export default function IncomeStatementPage() {
     <div style={{ display: 'flex', minHeight: '100vh', background: '#F2F3F5', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
       <Sidebar activePage="income-statement" />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <TopBar title="Compte de résultat" annees={annees} anneeActive={anneeActive} onChangerAnnee={changerAnnee} loading={drillLoading} />
+        <TopBar title="Compte de résultat" annees={annees} anneeActive={anneeActive} onChangerAnnee={changerAnnee} loading={drillLoading}
+          periodeTab={periodeTab} setPeriodeTab={setPeriodeTab}
+          dateDebut={dateDebut} setDateDebut={setDateDebut}
+          dateFin={dateFin} setDateFin={setDateFin}
+          anneeN1={anneeN1} setAnneeN1={setAnneeN1}
+          dateDebutN1={dateDebutN1} setDateDebutN1={setDateDebutN1}
+          dateFinN1={dateFinN1} setDateFinN1={setDateFinN1} />
         <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
           {!cr ? (
             <div style={{ maxWidth: 480, margin: '60px auto', textAlign: 'center', background: '#fff', borderRadius: 10, border: '0.5px solid rgba(0,0,0,0.06)', padding: 24 }}>
