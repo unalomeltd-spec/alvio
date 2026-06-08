@@ -25,6 +25,7 @@ interface TopBarProps {
   setDateDebutN1?: (v: string) => void
   dateFinN1?: string
   setDateFinN1?: (v: string) => void
+  showN1?: boolean
 }
 
 export default function TopBar({
@@ -33,6 +34,7 @@ export default function TopBar({
   dateDebut, setDateDebut, dateFin, setDateFin,
   anneeN1, setAnneeN1,
   dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1,
+  showN1 = true,
 }: TopBarProps) {
   const [nomEntite, setNomEntite] = useState('')
   const [siren, setSiren] = useState('')
@@ -94,6 +96,7 @@ export default function TopBar({
           setDateDebutN1={setDateDebutN1!}
           dateFinN1={dateFinN1!}
           setDateFinN1={setDateFinN1!}
+          showN1={showN1}
         />
       ) : (
         annees.length > 1 && annees.map(a => (

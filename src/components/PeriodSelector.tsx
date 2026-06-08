@@ -18,6 +18,7 @@ interface PeriodSelectorProps {
   setDateFinN1: (v: string) => void
   anneeN1: number
   setAnneeN1: (a: number) => void
+  showN1?: boolean
 }
 
 function shiftYearMinus1(d: string): string {
@@ -32,6 +33,7 @@ export default function PeriodSelector({
   dateDebut, setDateDebut, dateFin, setDateFin,
   dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1,
   anneeN1, setAnneeN1,
+  showN1 = true,
 }: PeriodSelectorProps) {
   const [open, setOpen] = useState(false)
   const [n1Open, setN1Open] = useState(false)
@@ -163,10 +165,10 @@ export default function PeriodSelector({
       </div>
 
       {/* Séparateur */}
-      <span style={{ fontSize: 11, color: '#8C9BAB' }}>·</span>
+      {showN1 && <span style={{ fontSize: 11, color: '#8C9BAB' }}>·</span>}
 
       {/* Sélecteur N-1 */}
-      <div style={{ position: 'relative' }}>
+      {showN1 && <div style={{ position: 'relative' }}>
         <button onClick={() => { setN1Open(o => !o); setOpen(false) }}
           style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'transparent', border: 'none', borderRadius: 7, padding: '5px 8px', fontSize: 11, fontWeight: 400, color: '#8C9BAB', cursor: 'pointer', whiteSpace: 'nowrap' }}>
           {labelN1}
@@ -228,7 +230,7 @@ export default function PeriodSelector({
             </div>
           </>
         )}
-      </div>
+      </div>}
 
     </div>
   )

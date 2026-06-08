@@ -129,7 +129,7 @@ export default function DashboardPage() {
           dateFin={dateFin} setDateFin={setDateFin}
           anneeN1={anneeN1} setAnneeN1={setAnneeN1}
           dateDebutN1={dateDebutN1} setDateDebutN1={setDateDebutN1}
-          dateFinN1={dateFinN1} setDateFinN1={setDateFinN1} />
+          dateFinN1={dateFinN1} setDateFinN1={setDateFinN1} showN1={false} />
         <div style={{ flex:1, padding:24, overflowY:'auto' }}>
           {erreur && <div style={{ background:'rgba(216,90,48,0.08)', border:'0.5px solid rgba(216,90,48,0.3)', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#D85A30' }}>{erreur}</div>}
           {!sig ? (

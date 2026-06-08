@@ -281,7 +281,7 @@ export default function BalanceSheetPage() {
           dateFin={dateFin} setDateFin={setDateFin}
           anneeN1={anneeN1} setAnneeN1={setAnneeN1}
           dateDebutN1={dateDebutN1} setDateDebutN1={setDateDebutN1}
-          dateFinN1={dateFinN1} setDateFinN1={setDateFinN1} />
+          dateFinN1={dateFinN1} setDateFinN1={setDateFinN1} showN1={false} />
         <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
           {!bilan ? (
             <div style={{ maxWidth: 480, margin: '60px auto', textAlign: 'center', background: '#fff', borderRadius: 10, border: '0.5px solid rgba(0,0,0,0.06)', padding: 24 }}>
