@@ -81,6 +81,8 @@ export default function ProfitabilityPage() {
   const { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1 } = usePeriod(new Date().getFullYear())
   const periodeParams = periodeTab === 'perso' && dateDebut && dateFin
     ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
+  const periodeParamsN1 = periodeTab === 'perso' && dateDebutN1 && dateFinN1
+    ? `&dateDebut=${dateDebutN1}&dateFin=${dateFinN1}` : ''
 
   useEffect(() => {
     const load = async () => {
@@ -97,7 +99,7 @@ export default function ProfitabilityPage() {
           fetch(`/api/etats?annee=${annee}&user_id=${user.id}${periodeParams}`).then(r => r.ok ? r.json() : null).then(d => d && setEtats(d)),
         ]
         if (anneesDispos.includes(annee - 1)) {
-          fetches.push(fetch(`/api/etats?annee=${annee - 1}&user_id=${user.id}`).then(r => r.ok ? r.json() : null).then(d => d && setEtatsN1(d)))
+          fetches.push(fetch(`/api/etats?annee=${annee - 1}&user_id=${user.id}${periodeParamsN1}`).then(r => r.ok ? r.json() : null).then(d => d && setEtatsN1(d)))
         }
         await Promise.all(fetches)
       }
@@ -111,19 +113,28 @@ export default function ProfitabilityPage() {
     if (!userId || !annees.length) return
     const params = periodeTab === 'perso' && dateDebut && dateFin
       ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
+    const paramsN1 = periodeTab === 'perso' && dateDebutN1 && dateFinN1
+      ? `&dateDebut=${dateDebutN1}&dateFin=${dateFinN1}` : ''
     fetch(`/api/etats?annee=${anneeActive}&user_id=${userId}${params}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => d && setEtats(d))
-  }, [periodeTab, dateDebut, dateFin])
+    if (annees.includes(anneeActive - 1)) {
+      fetch(`/api/etats?annee=${anneeActive - 1}&user_id=${userId}${paramsN1}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => d && setEtatsN1(d))
+    }
+  }, [periodeTab, dateDebut, dateFin, dateDebutN1, dateFinN1])
 
   const changerAnnee = async (annee: number) => {
     setAnneeActive(annee)
     const params = periodeTab === 'perso' && dateDebut && dateFin
       ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
+    const paramsN1 = periodeTab === 'perso' && dateDebutN1 && dateFinN1
+      ? `&dateDebut=${dateDebutN1}&dateFin=${dateFinN1}` : ''
     const res = await fetch(`/api/etats?annee=${annee}&user_id=${userId}${params}`)
     if (res.ok) setEtats(await res.json())
     if (annees.includes(annee - 1)) {
-      const resN1 = await fetch(`/api/etats?annee=${annee - 1}&user_id=${userId}`)
+      const resN1 = await fetch(`/api/etats?annee=${annee - 1}&user_id=${userId}${paramsN1}`)
       if (resN1.ok) setEtatsN1(await resN1.json())
     } else {
       }
