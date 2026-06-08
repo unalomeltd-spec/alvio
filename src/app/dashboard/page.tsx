@@ -24,7 +24,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const load = async () => {
       const { data: { user } } = await sb.auth.getUser()
-      if (!user) { window.location.href = '/'; return }
+      if (!user) { window.location.href = '/login'; return }
       setUserId(user.id)
 
       // Récupérer les années disponibles

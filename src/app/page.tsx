@@ -240,8 +240,11 @@ export default function LandingPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
           <a href="#features" className="nav-link">Fonctionnalités</a>
           <a href="#apercu" className="nav-link">Aperçu</a>
-          <Link href="/dashboard" className="btn-primary" style={{ padding: '8px 18px', fontSize: 12 }}>
-            Accéder →
+          <Link href="/login" style={{ fontSize: 13, color: '#1A1A1A', textDecoration: 'none', fontWeight: 500, opacity: 0.7 }}>
+            Se connecter
+          </Link>
+          <Link href="/login" className="btn-primary" style={{ padding: '8px 18px', fontSize: 12 }}>
+            Créer un compte →
           </Link>
         </div>
       </nav>
@@ -281,7 +284,7 @@ export default function LandingPage() {
             display: 'flex', gap: 12,
             animation: visible ? 'fadeUp 0.6s ease 0.3s forwards' : 'none', opacity: 0,
           }}>
-            <Link href="/dashboard" className="btn-primary">
+            <Link href="/login" className="btn-primary">
               Démarrer maintenant →
             </Link>
             <a href="#apercu" className="btn-secondary">Voir l'aperçu</a>
@@ -312,14 +315,8 @@ export default function LandingPage() {
           animation: visible ? 'fadeUp 0.7s ease 0.2s forwards' : 'none', opacity: 0,
         }}>
           {/* Fausse topbar */}
-          <div style={{ background: '#1A1A1A', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {['#FF5F57','#FFBD2E','#28CA41'].map(c => (
-                <div key={c} style={{ width: 8, height: 8, borderRadius: '50%', background: c }} />
-              ))}
-            </div>
+          <div style={{ background: '#1A1A1A', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)' }}>beta.alvio.finance</span>
-            <div style={{ width: 50 }} />
           </div>
 
           {/* Topbar simulée */}
@@ -411,7 +408,7 @@ export default function LandingPage() {
           Prêt à voir vos vrais chiffres ?
         </h2>
         <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 32 }}>Importez votre FEC et obtenez votre analyse en 30 secondes.</p>
-        <Link href="/dashboard" className="btn-primary" style={{ background: '#B8A98A', color: '#1A1A1A' }}>
+        <Link href="/login" className="btn-primary" style={{ background: '#B8A98A', color: '#1A1A1A' }}>
           Démarrer maintenant →
         </Link>
       </section>

@@ -268,7 +268,7 @@ export default function IncomeStatementPage() {
   useEffect(() => {
     const load = async () => {
       const { data: { user } } = await sb.auth.getUser()
-      if (!user) { window.location.href = '/'; return }
+      if (!user) { window.location.href = '/login'; return }
       setUserId(user.id)
       const { data } = await sb.from('fec_exercices').select('annee').eq('user_id', user.id).order('annee', { ascending: false })
       if (data && data.length > 0) {
