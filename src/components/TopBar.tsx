@@ -13,7 +13,6 @@ interface TopBarProps {
   anneeActive?: number
   onChangerAnnee?: (annee: number) => void
   loading?: boolean
-  // Props période — optionnelles pour rétrocompat
   periodeTab?: 'exercice' | 'perso'
   setPeriodeTab?: (v: 'exercice' | 'perso') => void
   dateDebut?: string
@@ -53,7 +52,6 @@ export default function TopBar({
     load()
   }, [])
 
-  // PeriodSelector est affiché si tous les props période sont fournis
   const hasPeriodSelector = !!(
     periodeTab && setPeriodeTab &&
     dateDebut !== undefined && setDateDebut &&
@@ -62,11 +60,6 @@ export default function TopBar({
     dateDebutN1 !== undefined && setDateDebutN1 &&
     dateFinN1 !== undefined && setDateFinN1
   )
-
-  // Quand l'année change via PeriodSelector, on propage vers onChangerAnnee
-  const handleSetAnneeActive = (a: number) => {
-    onChangerAnnee?.(a)
-  }
 
   return (
     <div style={{
@@ -88,7 +81,7 @@ export default function TopBar({
         <PeriodSelector
           annees={annees}
           anneeActive={anneeActive!}
-          setAnneeActive={handleSetAnneeActive}
+          setAnneeActive={(a) => onChangerAnnee?.(a)}
           periodeTab={periodeTab!}
           setPeriodeTab={setPeriodeTab!}
           dateDebut={dateDebut!}
@@ -103,7 +96,6 @@ export default function TopBar({
           setDateFinN1={setDateFinN1!}
         />
       ) : (
-        // Fallback : boutons année simples (rétrocompat)
         annees.length > 1 && annees.map(a => (
           <button key={a} onClick={() => onChangerAnnee?.(a)}
             style={{
@@ -118,71 +110,6 @@ export default function TopBar({
         ))
       )}
 
-      {loading && <span style={{ fontSize: 11, color: '#8C9BAB' }}>Chargement...</span>}
-
-      {(nomEntite || siren) && (
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          {nomEntite && (
-            <span style={{ fontSize: 12, fontWeight: 500, color: '#1A1A1A', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {nomEntite}
-            </span>
-          )}
-          {siren && (
-            <span style={{ fontSize: 11, color: '#8C9BAB', background: 'rgba(0,0,0,0.04)', borderRadius: 5, padding: '2px 8px', fontVariantNumeric: 'tabular-nums' }}>
-              {fmtSiren(siren)}
-            </span>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-  const [nomEntite, setNomEntite] = useState('')
-  const [siren, setSiren] = useState('')
-
-  useEffect(() => {
-    const load = async () => {
-      const { data: { user } } = await sb.auth.getUser()
-      if (!user) return
-      const { data: profile } = await sb
-        .from('user_profiles')
-        .select('siren, entreprise')
-        .eq('user_id', user.id)
-        .single()
-      if (profile?.siren) setSiren(profile.siren)
-      if (profile?.entreprise?.nom) setNomEntite(profile.entreprise.nom)
-    }
-    load()
-  }, [])
-
-  return (
-    <div style={{
-      background: '#fff',
-      borderBottom: '0.5px solid rgba(0,0,0,0.07)',
-      padding: '0 24px',
-      height: 52,
-      display: 'flex',
-      alignItems: 'center',
-      gap: 12,
-      flexShrink: 0,
-      position: 'sticky' as const,
-      top: 0,
-      zIndex: 10,
-    }}>
-      <span style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A' }}>{title}</span>
-      {annees.length > 1 && annees.map(a => (
-        <button key={a} onClick={() => onChangerAnnee?.(a)}
-          style={{
-            fontSize: 12, fontWeight: 500, padding: '4px 10px', borderRadius: 6,
-            border: '0.5px solid rgba(0,0,0,0.12)',
-            background: a === anneeActive ? '#1A1A1A' : '#fff',
-            color: a === anneeActive ? '#fff' : '#1A1A1A',
-            cursor: 'pointer',
-          }}>
-          {a}
-        </button>
-      ))}
       {loading && <span style={{ fontSize: 11, color: '#8C9BAB' }}>Chargement...</span>}
 
       {(nomEntite || siren) && (
