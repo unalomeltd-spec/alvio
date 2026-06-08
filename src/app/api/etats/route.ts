@@ -1084,26 +1084,68 @@ function buildControles(
   }
 }
 
+// ─── Filtre de période ───────────────────────────────────────
+// Si dateDebut et dateFin sont fournis, ne conserve que les écritures
+// dont EcritureDate est dans l'intervalle [dateDebut, dateFin].
+// Format attendu : YYYYMMDD (format FEC standard) ou YYYY-MM-DD.
+// Les écritures sans date ou avec date invalide sont toujours incluses
+// (comportement conservateur — ne pas perdre de données silencieusement).
+
+function normaliserDate(d: string): string {
+  // Accepte YYYYMMDD ou YYYY-MM-DD → retourne YYYYMMDD
+  return d.replace(/-/g, '')
+}
+
+function filtrerParPeriode(lignes: LigneFEC[], dateDebut: string, dateFin: string): LigneFEC[] {
+  const debut = normaliserDate(dateDebut)
+  const fin   = normaliserDate(dateFin)
+  return lignes.filter(l => {
+    if (!l.EcritureDate) return true // pas de date → inclus
+    const d = normaliserDate(String(l.EcritureDate))
+    if (d.length !== 8) return true  // date illisible → inclus
+    return d >= debut && d <= fin
+  })
+}
+
 // ─── Pipeline ────────────────────────────────────────────────
 
-function calculer(lignes: LigneFEC[], annee: number) {
-  const { balance, totalDebit, totalCredit, nbLignes, nbLignesAN67, nbLignes89 } = buildBalance(lignes)
+function calculer(lignes: LigneFEC[], annee: number, dateDebut?: string, dateFin?: string) {
+  // Filtrage de période si les deux bornes sont présentes
+  const lignesFiltrees = (dateDebut && dateFin)
+    ? filtrerParPeriode(lignes, dateDebut, dateFin)
+    : lignes
+
+  const { balance, totalDebit, totalCredit, nbLignes, nbLignesAN67, nbLignes89 } = buildBalance(lignesFiltrees)
   const { aggregats, comptesNonReconnus } = buildStatements(balance)
   const sig   = buildSIG(aggregats)
   const cr    = buildCR(aggregats, sig)
   const bilan = buildBilan(aggregats, sig.resultatNet)
   const controles = buildControles(totalDebit, totalCredit, bilan, sig, nbLignes, nbLignesAN67, nbLignes89, comptesNonReconnus)
-  return { annee, controles, sig, cr, bilan }
+
+  // On expose la période effective dans la réponse
+  const periode = (dateDebut && dateFin)
+    ? { type: 'perso' as const, dateDebut, dateFin }
+    : { type: 'exercice' as const, dateDebut: `${annee}-01-01`, dateFin: `${annee}-12-31` }
+
+  return { annee, periode, controles, sig, cr, bilan }
 }
 
 // ─── Route Next.js ───────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const annee  = parseInt(searchParams.get('annee')   || '0')
-  const userId = searchParams.get('user_id') || ''
+  const annee      = parseInt(searchParams.get('annee')      || '0')
+  const userId     = searchParams.get('user_id')             || ''
+  const dateDebut  = searchParams.get('dateDebut')           || ''
+  const dateFin    = searchParams.get('dateFin')             || ''
+
   if (!annee || !userId) return NextResponse.json({ erreur: 'annee et user_id requis' }, { status: 400 })
   if (annee < 2000 || annee > 2030) return NextResponse.json({ erreur: 'annee invalide (2000–2030)' }, { status: 400 })
+
+  // Validation des dates si fournies (format YYYY-MM-DD ou YYYYMMDD)
+  if ((dateDebut && !dateFin) || (!dateDebut && dateFin)) {
+    return NextResponse.json({ erreur: 'dateDebut et dateFin doivent être fournis ensemble' }, { status: 400 })
+  }
 
   const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
   const { data, error } = await admin.from('fec_exercices').select('ecritures').eq('user_id', userId).eq('annee', annee).single()
@@ -1114,7 +1156,7 @@ export async function GET(request: NextRequest) {
     if (!Array.isArray(ecritures) || ecritures.length === 0) {
       return NextResponse.json({ erreur: 'FEC vide ou invalide' }, { status: 422 })
     }
-    return NextResponse.json(calculer(ecritures as LigneFEC[], annee))
+    return NextResponse.json(calculer(ecritures as LigneFEC[], annee, dateDebut || undefined, dateFin || undefined))
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur interne du moteur comptable'
     return NextResponse.json({ erreur: message }, { status: 500 })
