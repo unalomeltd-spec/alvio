@@ -17,7 +17,9 @@ export default function DashboardPage() {
   const [uploading, setUploading] = useState(false)
   const [erreur, setErreur] = useState('')
   const [userId, setUserId] = useState<string>('')
-  const { anneeActive, setAnneeActive } = usePeriod(new Date().getFullYear())
+  const { anneeActive, setAnneeActive, periodeTab, dateDebut, dateFin } = usePeriod(new Date().getFullYear())
+  const periodeParams = periodeTab === 'perso' && dateDebut && dateFin
+    ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
 
   useEffect(() => {
     const load = async () => {
@@ -33,7 +35,7 @@ export default function DashboardPage() {
         const annee = anneesDispos.includes(anneeActive) ? anneeActive : anneesDispos[0]
         if (annee !== anneeActive) setAnneeActive(annee)
         // Appel moteur comptable
-        const res = await fetch(`/api/etats?annee=${annee}&user_id=${user.id}`)
+        const res = await fetch(`/api/etats?annee=${annee}&user_id=${user.id}${periodeParams}`)
         if (res.ok) setEtats(await res.json())
       }
       setLoading(false)
@@ -43,7 +45,7 @@ export default function DashboardPage() {
 
   const changerAnnee = async (annee: number) => {
     setAnneeActive(annee)
-    const res = await fetch(`/api/etats?annee=${annee}&user_id=${userId}`)
+    const res = await fetch(`/api/etats?annee=${annee}&user_id=${userId}${periodeParams}`)
     if (res.ok) setEtats(await res.json())
   }
 
@@ -86,7 +88,7 @@ export default function DashboardPage() {
       setAnnees(prev => [...new Set([annee, ...prev])].sort((a,b) => b-a))
       setAnneeActive(annee)
       setUserId(user.id)
-      const res = await fetch(`/api/etats?annee=${annee}&user_id=${user.id}`)
+      const res = await fetch(`/api/etats?annee=${annee}&user_id=${user.id}${periodeParams}`)
       if (res.ok) setEtats(await res.json())
     } catch(e) { setErreur('Erreur lors du traitement du FEC') }
     finally { setUploading(false) }

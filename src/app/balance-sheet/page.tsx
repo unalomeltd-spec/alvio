@@ -202,7 +202,9 @@ export default function BalanceSheetPage() {
   const [userId, setUserId] = useState<string>('')
   const [panel, setPanel] = useState<PanelData | null>(null)
   const [drillLoading, setDrillLoading] = useState(false)
-  const { anneeActive, setAnneeActive } = usePeriod(new Date().getFullYear())
+  const { anneeActive, setAnneeActive, periodeTab, dateDebut, dateFin } = usePeriod(new Date().getFullYear())
+  const periodeParams = periodeTab === 'perso' && dateDebut && dateFin
+    ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
 
   useEffect(() => {
     const load = async () => {
@@ -215,7 +217,7 @@ export default function BalanceSheetPage() {
         setAnnees(anneesDispos)
         const annee = anneesDispos.includes(anneeActive) ? anneeActive : anneesDispos[0]
         if (annee !== anneeActive) setAnneeActive(annee)
-        const res = await fetch(`/api/etats?annee=${annee}&user_id=${user.id}`)
+        const res = await fetch(`/api/etats?annee=${annee}&user_id=${user.id}${periodeParams}`)
         if (res.ok) setEtats(await res.json())
       }
       setLoading(false)
@@ -226,7 +228,7 @@ export default function BalanceSheetPage() {
   const changerAnnee = async (annee: number) => {
     setAnneeActive(annee)
     setPanel(null)
-    const res = await fetch(`/api/etats?annee=${annee}&user_id=${userId}`)
+    const res = await fetch(`/api/etats?annee=${annee}&user_id=${userId}${periodeParams}`)
     if (res.ok) setEtats(await res.json())
   }
 

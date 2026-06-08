@@ -50,7 +50,9 @@ export default function CashFlowPage() {
   const [annees, setAnnees]           = useState<number[]>([])
   const [loading, setLoading]         = useState(true)
   const [userId, setUserId]           = useState<string>('')
-  const { anneeActive, setAnneeActive } = usePeriod(new Date().getFullYear())
+  const { anneeActive, setAnneeActive, periodeTab, dateDebut, dateFin } = usePeriod(new Date().getFullYear())
+  const periodeParams = periodeTab === 'perso' && dateDebut && dateFin
+    ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
 
   useEffect(() => {
     const load = async () => {
@@ -75,7 +77,7 @@ export default function CashFlowPage() {
   }, [])
 
   const chargerDonnees = async (uid: string, annee: number) => {
-    const res = await fetch(`/api/etats?annee=${annee}&user_id=${uid}`)
+    const res = await fetch(`/api/etats?annee=${annee}&user_id=${uid}${periodeParams}`)
     if (res.ok) setEtats(await res.json())
     const { data: fecData } = await sb
       .from('fec_exercices')

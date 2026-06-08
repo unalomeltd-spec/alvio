@@ -257,7 +257,9 @@ export default function IncomeStatementPage() {
   const [annees, setAnnees] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string>('')
-  const { anneeActive, setAnneeActive } = usePeriod(new Date().getFullYear())
+  const { anneeActive, setAnneeActive, periodeTab, dateDebut, dateFin } = usePeriod(new Date().getFullYear())
+  const periodeParams = periodeTab === 'perso' && dateDebut && dateFin
+    ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
   const [panel, setPanel] = useState<PanelData | null>(null)
   const [drillLoading, setDrillLoading] = useState(false)
 
@@ -273,7 +275,7 @@ export default function IncomeStatementPage() {
         const annee = anneesDispos.includes(anneeActive) ? anneeActive : anneesDispos[0]
         if (annee !== anneeActive) setAnneeActive(annee)
         const fetches: Promise<void>[] = [
-          fetch(`/api/etats?annee=${annee}&user_id=${user.id}`).then(r => r.ok ? r.json() : null).then(d => d && setEtats(d)),
+          fetch(`/api/etats?annee=${annee}&user_id=${user.id}${periodeParams}`).then(r => r.ok ? r.json() : null).then(d => d && setEtats(d)),
         ]
         if (anneesDispos.includes(annee - 1)) {
           fetches.push(fetch(`/api/etats?annee=${annee - 1}&user_id=${user.id}`).then(r => r.ok ? r.json() : null).then(d => d && setEtatsN1(d)))
@@ -288,7 +290,7 @@ export default function IncomeStatementPage() {
   const changerAnnee = async (annee: number) => {
     setAnneeActive(annee)
     setPanel(null)
-    const res = await fetch(`/api/etats?annee=${annee}&user_id=${userId}`)
+    const res = await fetch(`/api/etats?annee=${annee}&user_id=${userId}${periodeParams}`)
     if (res.ok) setEtats(await res.json())
     if (annees.includes(annee - 1)) {
       const resN1 = await fetch(`/api/etats?annee=${annee - 1}&user_id=${userId}`)
