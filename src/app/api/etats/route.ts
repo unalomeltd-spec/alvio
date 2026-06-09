@@ -5,7 +5,6 @@ import { createClient } from '@supabase/supabase-js'
 import { classifyCompte, getDestinationEffective, type Destination } from '@/lib/pcg-reference'
 
 // ─── Types FEC ───────────────────────────────────────────────
-}
 
 // ─── Normalisation ───────────────────────────────────────────
 
