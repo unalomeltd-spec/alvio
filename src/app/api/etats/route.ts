@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js'
 // ALVIO — Moteur comptable v5
 // Classification PCG 2025 (ANC 2022-06) + rétrocompatibilité
 // Source : Valentin Dutote, expert-comptable — juin 2026
-// 615 règles PCG 2025 — importées depuis @/lib/pcg-reference
+// 615+ règles PCG 2025 — importées depuis @/lib/pcg-reference
 //
 // Architecture : FEC → Balance → Classification → États → SIG
 // ============================================================
@@ -33,6 +33,8 @@ interface SoldeCompte {
 }
 
 type Balance = Map<string, SoldeCompte>
+
+
 
 // ─── Normalisation ───────────────────────────────────────────
 
@@ -115,7 +117,6 @@ function buildBalance(lignes: LigneFEC[]): {
 
 // ─── Agrégation depuis la balance ────────────────────────────
 // classifyCompte() et getDestinationEffective() importées depuis @/lib/pcg-reference
-// Source de vérité : PCG2025_Classification_Alvio.xlsx — Valentin Dutote
 
 type Aggregats = Record<Destination, number>
 
@@ -153,31 +154,17 @@ function buildStatements(balance: Balance): { aggregats: Aggregats; comptesNonRe
       continue
     }
 
-    // sens : crediteur → -1 (passif/produit, solde créditeur contribue positivement)
-    //        debiteur  → +1 (actif/charge, solde débiteur contribue positivement)
-    const sens: 1 | -1 = rule.sens_normal === 'crediteur' ? -1 : 1
-
-    const destEffective = getDestinationEffective(compte.compteNum, compte.solde, rule)
-
-    // Calcul de la valeur : identique au moteur v4
-    // Si sens anormal (basculement L2) : la valeur contribue positivement à la dest cible → abs(solde)
-    // Si sens normal : solde × sens
-    const sensAnormal =
-      (rule.sens_normal === 'crediteur' && compte.solde > 0) ||
-      (rule.sens_normal === 'debiteur'  && compte.solde < 0)
-
-    const valeur = sensAnormal ? Math.abs(compte.solde) : compte.solde * sens
+    // getDestinationEffective retourne { destination, valeur } — valeur toujours positive
+    // Sens et basculements L2 entièrement gérés dans pcg-reference, identique au moteur v4
+    const { destination: destEffective, valeur } = getDestinationEffective(compte.compteNum, compte.solde, rule)
 
     agg[destEffective] += valeur
   }
 
   for (const d of DESTINATIONS) agg[d] = Math.round(agg[d] * 100) / 100
 
-  // Remboursements de charges personnel (649 — rétrocompat 791) déduits des charges personnel
+  // Remboursements de charges personnel (649) déduits des charges personnel
   agg['chargesPersonnel'] = Math.round((agg['chargesPersonnel'] - agg['remboursementsPers']) * 100) / 100
-
-  // resultatExercice : agrégat d'isolation pour 120/129 — utilisé uniquement pour ecartResultatFEC
-  // buildBilan et buildSIG utilisent sig.resultatNet (cascade CR), pas cet agrégat
 
   return { aggregats: agg, comptesNonReconnus }
 }
@@ -287,8 +274,7 @@ function buildControles(
   bilan: ReturnType<typeof buildBilan>,
   sig: ReturnType<typeof buildSIG>,
   nbLignes: number, nbLignesAN67: number, nbLignes89: number,
-  comptesNonReconnus: string[],
-  resultatExerciceFEC: number
+  comptesNonReconnus: string[]
 ) {
   const ecartFEC   = Math.abs(totalDebit - totalCredit)
   const ecartBilan = Math.abs(bilan.actif.totalActif - bilan.passif.totalPassif)
@@ -300,7 +286,7 @@ function buildControles(
     equilibreBilan: ecartBilan < 1, ecartBilan: r(ecartBilan),
     resultatCR: sig.resultatNet, resultatBilan: bilan.passif.resultatNet,
     coherenceResultat: Math.abs(sig.resultatNet - bilan.passif.resultatNet) < 1,
-    ecartResultatFEC: r(Math.abs(sig.resultatNet - resultatExerciceFEC)),
+    ecartResultatFEC: r(Math.abs(sig.resultatNet - (aggregats.resultatExercice ?? 0))),
     comptesNonReconnus: comptesNonReconnus.slice(0, 30),
     comptesNonReconnusTotal: comptesNonReconnus.length,
   }
@@ -342,7 +328,7 @@ function calculer(lignes: LigneFEC[], annee: number, dateDebut?: string, dateFin
   const sig   = buildSIG(aggregats)
   const cr    = buildCR(aggregats, sig)
   const bilan = buildBilan(aggregats, sig.resultatNet)
-  const controles = buildControles(totalDebit, totalCredit, bilan, sig, nbLignes, nbLignesAN67, nbLignes89, comptesNonReconnus, aggregats.resultatExercice ?? 0)
+  const controles = buildControles(totalDebit, totalCredit, bilan, sig, nbLignes, nbLignesAN67, nbLignes89, comptesNonReconnus)
 
   // On expose la période effective dans la réponse
   const periode = (dateDebut && dateFin)
