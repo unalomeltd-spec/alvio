@@ -1,40 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { classifyCompte, getDestinationEffective, type Destination } from '@/lib/pcg-reference'
-import { createClient } from '@supabase/supabase-js'
-
-// ============================================================
 // ALVIO — Moteur comptable v5
-// Classification PCG 2025 (ANC 2022-06) + rétrocompatibilité
-// Source : Valentin Dutote, expert-comptable — juin 2026
 // 615+ règles PCG 2025 — importées depuis @/lib/pcg-reference
-//
-// Architecture : FEC → Balance → Classification → États → SIG
-// ============================================================
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+import { classifyCompte, getDestinationEffective, type Destination } from '@/lib/pcg-reference'
 
-// ─── Types ───────────────────────────────────────────────────
-
-interface LigneFEC {
-  CompteNum: string
-  CompteLib?: string
-  Debit: number | string
-  Credit: number | string
-  JournalCode?: string
-  EcritureDate?: string
-  EcritureLib?: string
-  PieceRef?: string
+// ─── Types FEC ───────────────────────────────────────────────
 }
-
-interface SoldeCompte {
-  compteNum: string
-  compteLib: string
-  debit: number
-  credit: number
-  solde: number
-}
-
-type Balance = Map<string, SoldeCompte>
-
-
 
 // ─── Normalisation ───────────────────────────────────────────
 
@@ -114,6 +85,160 @@ function buildBalance(lignes: LigneFEC[]): {
 // ─── Classification PCG 2025 ────────────────────────────────
 // 598 comptes — préfixe le plus long en premier (priorité maximale)
 
+// ─── Agrégation depuis la balance ────────────────────────────
+// Applique les règles de sens anormal (L2 — Valentin Dutote)
+
+type Aggregats = Record<Destination, number>
+
+const DESTINATIONS: Destination[] = [
+  'ventesMarchandises','productionVendue','productionStockee','productionImmobilisee',
+  'subventionsExploit','autresProduits','reprises',
+  'achatsMarchandises','variationStocksMarch','achatsMatieres','variationStocksMat',
+  'autresAchats','servicesExt','impotsTaxes','chargesPersonnel','remboursementsPers',
+  'dotationsExploit','autresChargesExploit',
+  'produitsFinanciers','reprisesFin','chargesFinancieres','dotationsFin',
+  'produitsExcep','reprisesExcep','prixCession','chargesExcep','dotationsExcep','vncActifsCedes',
+  'participation','is',
+  'immoIncorpBrut','immoCorpBrut','immoFinBrut','amortIncorp','amortCorp','deprecImmoFin',
+  'stocksMarchandises','stocksMatieres','stocksEncours','stocksProduits','deprecStocks',
+  'creancesClients','deprecCreances','creancesEtat','autresCreances','chargesConstatees',
+  'tresorerieActif','deprecTreso','capitalNonAppele',
+  'capital','primes','ecarts','reserves','reportNouveau','subventionsInvest',
+  'provisionsReglementees','provisionsRisques',
+  'empruntsOblig','empruntsEtablissement','autresEmpruntsLT',
+  'dettesFournisseurs','dettesSociales','dettesFiscales','autresDettes','produitsConstates','tresoreriePassif',
+]
+
+// Règles de basculement selon solde réel (L2 — Valentin Dutote)
+// Quand un compte a un solde inverse à son sens normal, il change de destination
+function getDestinationEffective(
+  compteNum: string,
+  solde: number,
+): { destination: Destination; valeur: number } {
+  const c2 = compteNum.slice(0, 2)
+  const c3 = compteNum.slice(0, 3)
+  const c4 = compteNum.slice(0, 4)
+
+  // Comptes 445x à sens variable selon solde
+  // Créditeur = taxe due (dette) / Débiteur = crédit de taxe (créance)
+  if (
+    destination === 'creancesEtat' &&
+    (compteNum.startsWith('44566') || compteNum.startsWith('44587') || compteNum.startsWith('44584') || compteNum.startsWith('44586'))
+  ) {
+    if (solde >= 0) {
+      return { destination: 'creancesEtat', valeur: solde }
+    } else {
+      return { destination: 'dettesFiscales', valeur: -solde }
+    }
+  }
+
+  // Trésorerie actif créditrice → découvert → passif
+  if (destination === 'tresorerieActif' && solde < 0) {
+    return { destination: 'tresoreriePassif', valeur: -solde }
+  }
+
+  // Clients créditeurs → avances reçues → dettes
+  // (411, 413, 418 — hors 419 déjà destination autresDettes)
+  if (destination === 'creancesClients' && solde < 0) {
+    return { destination: 'autresDettes', valeur: -solde }
+  }
+
+  // Fournisseurs débiteurs → trop-payés → créances
+  // (401, 403, 404, 408 — hors 409 déjà destination autresCreances)
+  if (destination === 'dettesFournisseurs' && solde > 0) {
+    return { destination: 'autresCreances', valeur: solde }
+  }
+
+  // IS — créance si acomptes > IS dû (444 débiteur)
+  if ((c3 === '444') && destination === 'dettesFiscales' && solde > 0) {
+    return { destination: 'creancesEtat', valeur: solde }
+  }
+
+  // 4421 (PAS) débiteur = trop versé = créance sur l'État
+  if (compteNum.startsWith('4421') && destination === 'dettesFiscales' && solde > 0) {
+    return { destination: 'creancesEtat', valeur: solde }
+  }
+
+  // TVA à décaisser (4451) débiteur → crédit de TVA → créance
+  if (c4 === '4451' && destination === 'dettesFiscales' && solde > 0) {
+    return { destination: 'creancesEtat', valeur: solde }
+  }
+
+  // Dettes sociales débitrices (421 — avance nette > salaire)
+  if (c3 === '421' && destination === 'dettesSociales' && solde > 0) {
+    return { destination: 'autresCreances', valeur: solde }
+  }
+
+  // Cotisations trop payées (431 débiteur)
+  if (c2 === '43' && destination === 'dettesSociales' && solde > 0) {
+    return { destination: 'creancesEtat', valeur: solde }
+  }
+
+  // Associés compte courant débiteur (455)
+  if (c3 === '455' && destination === 'autresDettes' && solde > 0) {
+    return { destination: 'autresCreances', valeur: solde }
+  }
+
+  // Comptes 45/46/47/48 (hors 486/487) — sens par solde réel
+  if (
+    destination === 'autresCreances' &&
+    (c2 === '45' || c2 === '46' || c2 === '47' || (c2 === '48' && c3 !== '486' && c3 !== '487'))
+  ) {
+    if (solde >= 0) return { destination: 'autresCreances', valeur: solde }
+    else return { destination: 'autresDettes', valeur: -solde }
+  }
+
+  // Comptes de liaison 18x — sens par solde réel
+  if (c2 === '18' && (destination === 'autresDettes' || destination === 'autresCreances')) {
+    if (solde >= 0) return { destination: 'autresCreances', valeur: solde }
+    else return { destination: 'autresDettes', valeur: -solde }
+  }
+
+  // Virements internes 58 et 515 — sens par solde réel
+  if ((c2 === '58' || c3 === '515') && destination === 'tresorerieActif') {
+    if (solde >= 0) return { destination: 'autresCreances', valeur: solde }
+    else return { destination: 'autresDettes', valeur: -solde }
+  }
+
+  // Calcul standard : contribution = solde × sens
+  // sens  1 : compte débiteur contribue positivement (actif, charges)
+  // sens -1 : compte créditeur contribue positivement (passif, produits)
+  return { destination, valeur: solde * sens }
+}
+
+function buildStatements(balance: Balance): { aggregats: Aggregats; comptesNonReconnus: string[] } {
+  const agg = {} as Aggregats
+  for (const d of DESTINATIONS) agg[d] = 0
+
+  const comptesNonReconnus: string[] = []
+
+  for (const compte of balance.values()) {
+    // Ignorer les comptes à solde nul
+    if (Math.abs(compte.solde) < 0.01) continue
+
+    const classification = classifyCompte(compte.compteNum)
+    if (!classification) {
+      comptesNonReconnus.push(`${compte.compteNum} (${compte.compteLib || '?'}) solde=${compte.solde}`)
+      continue
+    }
+
+    const { destination: destEffective, valeur } = getDestinationEffective(
+      compte.compteNum,
+      classification.destination,
+      compte.solde,
+      classification.sens
+    )
+
+    agg[destEffective] += valeur
+  }
+
+  for (const d of DESTINATIONS) agg[d] = Math.round(agg[d] * 100) / 100
+
+  // Remboursements de charges personnel (649 — rétrocompat 791) déduits des charges personnel
+  agg['chargesPersonnel'] = Math.round((agg['chargesPersonnel'] - agg['remboursementsPers']) * 100) / 100
+
+  return { aggregats: agg, comptesNonReconnus }
+}
 
 // ─── Agrégation depuis la balance ────────────────────────────
 type Aggregats = Record<Destination, number>
@@ -159,24 +284,19 @@ function buildStatements(balance: Balance): { aggregats: Aggregats; comptesNonRe
 function r(n: number): number { return Math.round(n * 100) / 100 }
 
 // ─── SIG PCG 2025 ────────────────────────────────────────────
-// Formules selon préconisations CNOEC (L4 — Valentin Dutote)
-// Note : article 842-1 SIG supprimé du PCG 2025 — cascade maintenue à titre d'usage
 
 function buildSIG(a: Aggregats) {
   const coutMarchandises   = r(a.achatsMarchandises - a.variationStocksMarch)
   const margeCommerciale   = r(a.ventesMarchandises - coutMarchandises)
   const prodExercice       = r(a.productionVendue + a.productionStockee + a.productionImmobilisee)
-  // VA : subventions exploitation incluses (74x + 747 PCG 2025)
   const cosoIntermediaires = r(a.achatsMatieres - a.variationStocksMat + a.autresAchats + a.servicesExt)
   const valeurAjoutee      = r(margeCommerciale + prodExercice + a.subventionsExploit - cosoIntermediaires)
   const ebe                = r(valeurAjoutee - a.impotsTaxes - a.chargesPersonnel)
-  // RE : 657 (cessions immos PCG 2025) inclus dans autresChargesExploit, 757 dans autresProduits
   const rex                = r(ebe - a.dotationsExploit + a.reprises + a.autresProduits - a.autresChargesExploit)
   const rfin               = r(a.produitsFinanciers + a.reprisesFin - a.chargesFinancieres - a.dotationsFin)
   const rexcep             = r(a.produitsExcep + a.reprisesExcep + a.prixCession - a.chargesExcep - a.dotationsExcep - a.vncActifsCedes)
   const rnetCR             = r(rex + rfin + rexcep - a.participation - a.is)
   const ca                 = r(a.ventesMarchandises + a.productionVendue)
-
   return {
     ca, ventesMarchandises: r(a.ventesMarchandises), coutMarchandises, margeCommerciale,
     productionVendue: r(a.productionVendue), productionStockee: r(a.productionStockee),
@@ -211,7 +331,7 @@ function buildCR(a: Aggregats, sig: ReturnType<typeof buildSIG>) {
       autresAchats: r(a.autresAchats), servicesExt: r(a.servicesExt),
       impotsTaxes: r(a.impotsTaxes), chargesPersonnel: r(a.chargesPersonnel),
       dotations: r(a.dotationsExploit), autresCharges: r(a.autresChargesExploit),
-  const cosoIntermediaires = r(a.achatsMatieres - a.variationStocksMat + a.autresAchats + a.servicesExt)
+      total: r(sig.coutMarchandises + a.achatsMatieres - a.variationStocksMat + a.autresAchats + a.servicesExt + a.impotsTaxes + a.chargesPersonnel + a.dotationsExploit + a.autresChargesExploit),
     },
     resultatExploitation: sig.rex,
     produitsFinanciers: r(a.produitsFinanciers), chargesFinancieres: r(a.chargesFinancieres),
@@ -254,8 +374,6 @@ function buildBilan(a: Aggregats, resultatNet: number) {
   }
 }
 
-// ─── Contrôles ───────────────────────────────────────────────
-
 function buildControles(
   totalDebit: number, totalCredit: number,
   bilan: ReturnType<typeof buildBilan>,
@@ -263,12 +381,6 @@ function buildControles(
   nbLignes: number, nbLignesAN67: number, nbLignes89: number,
   comptesNonReconnus: string[],
   resultatExerciceFEC: number
-) {
-  totalDebit: number, totalCredit: number,
-  bilan: ReturnType<typeof buildBilan>,
-  sig: ReturnType<typeof buildSIG>,
-  nbLignes: number, nbLignesAN67: number, nbLignes89: number,
-  comptesNonReconnus: string[]
 ) {
   const ecartFEC   = Math.abs(totalDebit - totalCredit)
   const ecartBilan = Math.abs(bilan.actif.totalActif - bilan.passif.totalPassif)
@@ -285,13 +397,6 @@ function buildControles(
     comptesNonReconnusTotal: comptesNonReconnus.length,
   }
 }
-
-// ─── Filtre de période ───────────────────────────────────────
-// Si dateDebut et dateFin sont fournis, ne conserve que les écritures
-// dont EcritureDate est dans l'intervalle [dateDebut, dateFin].
-// Format attendu : YYYYMMDD (format FEC standard) ou YYYY-MM-DD.
-// Les écritures sans date ou avec date invalide sont toujours incluses
-// (comportement conservateur — ne pas perdre de données silencieusement).
 
 function normaliserDate(d: string): string {
   // Accepte YYYYMMDD ou YYYY-MM-DD → retourne YYYYMMDD
