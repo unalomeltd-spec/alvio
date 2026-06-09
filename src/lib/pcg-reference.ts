@@ -2881,6 +2881,13 @@ export const PCG_RULES: PcgRule[] = [
     sens_normal: "crediteur",
   },
   {
+  {
+    prefixe: "4515",
+    libelle: `Intégration fiscale — IS à payer au groupe`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+    remarque: `IS dû à la société intégrante. Contrepartie du compte 6981/698100.`,
+  },
     prefixe: "451",
     libelle: `Groupe — comptes courants`,
     destination: "autresCreances",
@@ -3561,9 +3568,9 @@ export const PCG_RULES: PcgRule[] = [
   {
     prefixe: "6981",
     libelle: `Intégration fiscale — charges`,
-    destination: "autresChargesExploit",
+    destination: "is",
     sens_normal: "debiteur",
-    remarque: `Charge IS dans un groupe d'intégration fiscale. Classé en autresChargesExploit — déjà inclus dans le résultat net via les flux 6x. Ne pas classer en 'is' (évite double déduction dans buildSIG).`,
+    remarque: `Charge IS dans le cadre d\'une intégration fiscale. Classé en \'is\' — présenté SOUS LA LIGNE dans la cascade SIG comme 695x. La contrepartie est 4515 (dette envers la société mère intégrante).`,
   },
   {
     prefixe: "6982",
