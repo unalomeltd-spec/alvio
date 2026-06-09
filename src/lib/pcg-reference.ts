@@ -2881,7 +2881,6 @@ export const PCG_RULES: PcgRule[] = [
     sens_normal: "crediteur",
   },
   {
-  {
     prefixe: "4515",
     libelle: `Intégration fiscale — IS à payer au groupe`,
     destination: "autresDettes",
