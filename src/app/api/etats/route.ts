@@ -180,7 +180,7 @@ function buildSIG(a: Aggregats) {
   const margeCommerciale   = r(a.ventesMarchandises - coutMarchandises)
   const prodExercice       = r(a.productionVendue + a.productionStockee + a.productionImmobilisee)
   // VA : subventions exploitation incluses (74x + 747 PCG 2025)
-  const cosoIntermediaires = r(a.achatsMatieres - a.variationStocksMat + a.autresAchats // variationStocksMat toujours positif (abs) + a.servicesExt)
+  const cosoIntermediaires = r(a.achatsMatieres - a.variationStocksMat + a.autresAchats + a.servicesExt) // variationStocksMat toujours positif (abs) ; déstockage réduit le coût
   const valeurAjoutee      = r(margeCommerciale + prodExercice + a.subventionsExploit - cosoIntermediaires)
   const ebe                = r(valeurAjoutee - a.impotsTaxes - a.chargesPersonnel)
   // RE : 657 (cessions immos PCG 2025) inclus dans autresChargesExploit, 757 dans autresProduits
