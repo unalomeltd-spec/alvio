@@ -274,7 +274,8 @@ function buildControles(
   bilan: ReturnType<typeof buildBilan>,
   sig: ReturnType<typeof buildSIG>,
   nbLignes: number, nbLignesAN67: number, nbLignes89: number,
-  comptesNonReconnus: string[]
+  comptesNonReconnus: string[],
+  resultatExerciceFEC: number
 ) {
   const ecartFEC   = Math.abs(totalDebit - totalCredit)
   const ecartBilan = Math.abs(bilan.actif.totalActif - bilan.passif.totalPassif)
@@ -286,7 +287,7 @@ function buildControles(
     equilibreBilan: ecartBilan < 1, ecartBilan: r(ecartBilan),
     resultatCR: sig.resultatNet, resultatBilan: bilan.passif.resultatNet,
     coherenceResultat: Math.abs(sig.resultatNet - bilan.passif.resultatNet) < 1,
-    ecartResultatFEC: r(Math.abs(sig.resultatNet - (aggregats.resultatExercice ?? 0))),
+    ecartResultatFEC: r(Math.abs(sig.resultatNet - resultatExerciceFEC)),
     comptesNonReconnus: comptesNonReconnus.slice(0, 30),
     comptesNonReconnusTotal: comptesNonReconnus.length,
   }
@@ -328,7 +329,7 @@ function calculer(lignes: LigneFEC[], annee: number, dateDebut?: string, dateFin
   const sig   = buildSIG(aggregats)
   const cr    = buildCR(aggregats, sig)
   const bilan = buildBilan(aggregats, sig.resultatNet)
-  const controles = buildControles(totalDebit, totalCredit, bilan, sig, nbLignes, nbLignesAN67, nbLignes89, comptesNonReconnus)
+  const controles = buildControles(totalDebit, totalCredit, bilan, sig, nbLignes, nbLignesAN67, nbLignes89, comptesNonReconnus, aggregats.resultatExercice ?? 0)
 
   // On expose la période effective dans la réponse
   const periode = (dateDebut && dateFin)
