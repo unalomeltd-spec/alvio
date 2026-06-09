@@ -2887,6 +2887,7 @@ export const PCG_RULES: PcgRule[] = [
     sens_normal: "crediteur",
     remarque: `IS dû à la société intégrante. Contrepartie du compte 6981/698100.`,
   },
+  {
     prefixe: "451",
     libelle: `Groupe — comptes courants`,
     destination: "autresCreances",
