@@ -3631,7 +3631,7 @@ export const PCG_RULES: PcgRule[] = [
   {
     prefixe: "708",
     libelle: `Produits des activités annexes`,
-    destination: "autresProduits",
+    destination: "productionVendue",
     sens_normal: "crediteur",
     remarque: `PCG 2025 : rôle élargi — inclut désormais les refacturations de personnel et de services (anciennement 791). Ex : refacturation de personnel mis à disposition, rebilling de frais.`,
   },
@@ -4703,20 +4703,54 @@ export function classifyCompte(compte: string): PcgRule | null {
 }
 
 /**
- * getDestinationEffective — applique les basculements L2 selon le solde réel.
- * solde > 0 = débiteur · solde < 0 = créditeur · |solde| < 0.01 = ignoré.
- * Retourne { destination, valeur } — valeur toujours positive, comme dans buildStatements v4.
- * 37 règles L2 (SENS_ANORMAUX) synchronisées avec cette fonction.
+ * Destinations de RÉSULTAT (classes 6/7) et leur orientation comptable.
+ * - PRODUITS : crédit positif  -> contribution = -solde
+ * - CHARGES  : débit positif   -> contribution = +solde
+ * On lit le SIGNE NATIF du FEC, on ne l'absolutise jamais. Couvre nativement
+ * les comptes à contre-sens (603/713 variations, 709 RRR accordés, 609/619/629
+ * RRR obtenus) et les soldes inversés (produit débiteur, charge créditrice).
+ */
+const DEST_ACTIF_DEBIT: Set<Destination> = new Set<Destination>([
+  "capitalNonAppele","immoIncorpBrut","immoCorpBrut","immoFinBrut",
+  "stocksMarchandises","stocksMatieres","stocksEncours","stocksProduits",
+  "creancesClients","creancesEtat","autresCreances","chargesConstatees","tresorerieActif",
+]);
+const DEST_PRODUITS: Set<Destination> = new Set<Destination>([
+  "ventesMarchandises","productionVendue","productionStockee","productionImmobilisee",
+  "subventionsExploit","autresProduits","reprises",
+  "produitsFinanciers","reprisesFin","produitsExcep","reprisesExcep","prixCession",
+  "remboursementsPers",
+]);
+const DEST_CHARGES: Set<Destination> = new Set<Destination>([
+  "achatsMarchandises","variationStocksMarch","achatsMatieres","variationStocksMat",
+  "autresAchats","servicesExt","impotsTaxes","chargesPersonnel",
+  "dotationsExploit","autresChargesExploit",
+  "chargesFinancieres","dotationsFin","chargesExcep","dotationsExcep","vncActifsCedes",
+  "participation","is",
+]);
+
+/**
+ * getDestinationEffective — contribution signée d'un compte à sa destination.
+ * RÉSULTAT (6/7) : signe natif selon l'orientation (produit/charge), sans abs.
+ * BILAN (1-5)   : sens normal -> destination normale ; sens anormal -> reclassement L2.
  */
 export function getDestinationEffective(
   compte: string,
   solde: number,
   rule: PcgRule
 ): { destination: Destination; valeur: number } {
-  const sens: 1 | -1 = rule.sens_normal === "crediteur" ? -1 : 1;
-
   if (Math.abs(solde) < 0.01) return { destination: rule.destination, valeur: 0 };
+  const dest = rule.destination;
 
+  // ── Comptes de résultat : signe natif, jamais absolutisé ──────
+  if (DEST_PRODUITS.has(dest)) return { destination: dest, valeur: -solde };
+  if (DEST_CHARGES.has(dest))  return { destination: dest, valeur:  solde };
+
+  // ── Comptes de bilan : SIGNE PAR CÔTÉ DU POSTE (et non par sens_normal) ──
+  // Actif (débit) = +solde ; passif / capitaux propres / contra-actif = -solde.
+  // Le reclassement L2 ne fait que choisir le bon poste de présentation pour les
+  // comptes bivalents (client créditeur -> dette, etc.) ; le signe en découle.
+  // Corrige nativement 119 (RAN débiteur = perte) et 139 (contra-subvention).
   const c = compte.trim();
   const estDebiteur = solde > 0;
   const estCrediteur = solde < 0;
@@ -4724,65 +4758,26 @@ export function getDestinationEffective(
     (rule.sens_normal === "crediteur" && estDebiteur) ||
     (rule.sens_normal === "debiteur" && estCrediteur);
 
-  // Cas normal : contribution = solde × sens (toujours positive si sens correct)
-  if (!sensAnormal) return { destination: rule.destination, valeur: solde * sens };
-
-  // ── Basculements L2 — valeur = abs(solde) car sens inversé ────
-
-  // Clients : créditeur → avances reçues (passif)
-  if ((c.startsWith("411") || c.startsWith("413") || c.startsWith("416") || c.startsWith("418")) && estCrediteur)
-    return { destination: "autresDettes", valeur: Math.abs(solde) };
-
-  // Fournisseurs : débiteur → trop-payé / avoir (actif)
-  if ((c.startsWith("401") || c.startsWith("403") || c.startsWith("404") || c.startsWith("408")) && estDebiteur)
-    return { destination: "autresCreances", valeur: Math.abs(solde) };
-
-  // Banque : créditrice → découvert (passif)
-  if ((c.startsWith("512") || c.startsWith("513") || c.startsWith("514")) && estCrediteur)
-    return { destination: "tresoreriePassif", valeur: Math.abs(solde) };
-
-  // IS : 444 débiteur → acomptes > IS dû → créance État
-  if (c.startsWith("444") && estDebiteur) return { destination: "creancesEtat", valeur: Math.abs(solde) };
-
-  // TVA : 4451 débiteur → remboursement attendu
-  if (c.startsWith("4451") && estDebiteur) return { destination: "creancesEtat", valeur: Math.abs(solde) };
-
-  // TVA : comptes à sens variable (44566, 44584, 44586, 44587) → basculement selon solde
-  if (["44566","44584","44586","44587"].some(p => c.startsWith(p)))
-    return { destination: estDebiteur ? "creancesEtat" : "dettesFiscales", valeur: Math.abs(solde) };
-
-  // TVA collectée : 4421 débiteur → créance État
-  if (c.startsWith("4421") && estDebiteur) return { destination: "creancesEtat", valeur: Math.abs(solde) };
-
-  // Personnel : avance nette > salaire → créance
-  if (c.startsWith("421") && estDebiteur) return { destination: "autresCreances", valeur: Math.abs(solde) };
-
-  // Personnel : avance remboursée en trop → dette
-  if (c.startsWith("425") && estCrediteur) return { destination: "dettesSociales", valeur: Math.abs(solde) };
-
-  // Organismes sociaux : cotisations trop payées → créance État
-  if (c.startsWith("431") && estDebiteur) return { destination: "creancesEtat", valeur: Math.abs(solde) };
-
-  // Groupe/interco : 451 créditeur → dette envers entité liée
-  if (c.startsWith("451") && estCrediteur) return { destination: "autresDettes", valeur: Math.abs(solde) };
-
-  // Associés : 455 débiteur → créance sur associé
-  if (c.startsWith("455") && estDebiteur) return { destination: "autresCreances", valeur: Math.abs(solde) };
-
-  // Débiteurs/créditeurs divers : 467 créditeur → dette
-  if (c.startsWith("467") && estCrediteur) return { destination: "autresDettes", valeur: Math.abs(solde) };
-
-  // Emprunts : remboursement excédentaire → créance
-  if (c.startsWith("164") && estDebiteur) return { destination: "autresCreances", valeur: Math.abs(solde) };
-
-  // Intérêts courus tréso : créditeur → passif
-  if (c.startsWith("518") && estCrediteur) return { destination: "tresoreriePassif", valeur: Math.abs(solde) };
-
-  // Virements internes non soldés (58x couvre 580–589, 515, 471)
-  // Sûr dans ce contexte : on est dans le bloc sensAnormal uniquement
-  if (c.startsWith("58") || c.startsWith("515") || c.startsWith("471")) {
-    return { destination: estDebiteur ? "autresCreances" : "autresDettes", valeur: Math.abs(solde) };
+  let dst: Destination = dest;
+  if (sensAnormal) {
+    if ((c.startsWith("411") || c.startsWith("413") || c.startsWith("416") || c.startsWith("418")) && estCrediteur) dst = "autresDettes";
+    else if ((c.startsWith("401") || c.startsWith("403") || c.startsWith("404") || c.startsWith("408")) && estDebiteur) dst = "autresCreances";
+    else if ((c.startsWith("512") || c.startsWith("513") || c.startsWith("514")) && estCrediteur) dst = "tresoreriePassif";
+    else if (c.startsWith("4451") && estDebiteur) dst = "creancesEtat";
+    else if (["44566","44584","44586","44587"].some(p => c.startsWith(p))) dst = estDebiteur ? "creancesEtat" : "dettesFiscales";
+    else if (c.startsWith("4421") && estDebiteur) dst = "creancesEtat";
+    else if (c.startsWith("444") && estDebiteur) dst = "creancesEtat";
+    else if (c.startsWith("421") && estDebiteur) dst = "autresCreances";
+    else if (c.startsWith("425") && estCrediteur) dst = "dettesSociales";
+    else if (c.startsWith("431") && estDebiteur) dst = "creancesEtat";
+    else if (c.startsWith("451") && estCrediteur) dst = "autresDettes";
+    else if (c.startsWith("455") && estDebiteur) dst = "autresCreances";
+    else if (c.startsWith("467") && estCrediteur) dst = "autresDettes";
+    else if (c.startsWith("164") && estDebiteur) dst = "autresCreances";
+    else if (c.startsWith("518") && estCrediteur) dst = "tresoreriePassif";
+    else if (c.startsWith("58") || c.startsWith("515") || c.startsWith("471")) dst = estDebiteur ? "autresCreances" : "autresDettes";
   }
 
-  return { destination: rule.destination, valeur: Math.abs(solde) }; // Sens anormal non critique
+  const valeur = DEST_ACTIF_DEBIT.has(dst) ? solde : -solde;
+  return { destination: dst, valeur };
 }

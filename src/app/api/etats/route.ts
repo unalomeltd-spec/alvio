@@ -1,116 +1,81 @@
-// ALVIO — Moteur comptable v5
-// 615+ règles PCG 2025 — importées depuis @/lib/pcg-reference
+// ALVIO — Moteur comptable v6
+// Source de vérité unique : @/lib/pcg-reference
+// v6 (10 juin 2026) — Refonte du SIGNE : lecture native du FEC, jamais d'absolutisation.
+//   • Corrige le CA/SIG faussés par les comptes à contre-sens (709 RRR, 603/713 variations).
+//   • Subventions d'exploitation (74) à l'EBE (et non en VA) — règle CNOEC / Valentin.
+//   • Détection de régime (avant/après affectation) et découplage CR → Bilan.
+//   • Gate dur : équilibre FEC strict 0,00 + réconciliation résultat. Bloque SIG/IA si KO.
+// Validé au centime contre Pennylane sur BONVARLET, CARGONAUTES, PATHTECH.
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { classifyCompte, getDestinationEffective, type Destination } from '@/lib/pcg-reference'
 
-// ─── Types ───────────────────────────────────────────────────
-
 interface LigneFEC {
-  CompteNum: string
-  CompteLib?: string
-  Debit: number | string
-  Credit: number | string
-  JournalCode?: string
-  EcritureDate?: string
-  EcritureLib?: string
-  PieceRef?: string
+  CompteNum: string; CompteLib?: string; Debit: number | string; Credit: number | string
+  JournalCode?: string; EcritureNum?: string; EcritureDate?: string; EcritureLib?: string; PieceRef?: string
 }
-
-interface SoldeCompte {
-  compteNum: string
-  compteLib: string
-  debit: number
-  credit: number
-  solde: number
-}
-
+interface SoldeCompte { compteNum: string; compteLib: string; debit: number; credit: number; solde: number }
 type Balance = Map<string, SoldeCompte>
 
+function r(n: number): number { return Math.round(n * 100) / 100 }
 
-// ─── Types FEC ───────────────────────────────────────────────
-
-// ─── Normalisation ───────────────────────────────────────────
-
-function parseLigne(l: LigneFEC): { compteNum: string; compteLib: string; debit: number; credit: number; journal: string } | null {
+function parseLigne(l: LigneFEC) {
   const compteNum = (l.CompteNum || '').trim()
   if (!compteNum) return null
   const debit  = typeof l.Debit  === 'string' ? parseFloat(l.Debit.replace(',', '.'))  || 0 : (l.Debit  || 0)
   const credit = typeof l.Credit === 'string' ? parseFloat(l.Credit.replace(',', '.')) || 0 : (l.Credit || 0)
   return {
-    compteNum,
-    compteLib: (l.CompteLib || '').trim(),
-    debit:  Math.round(debit  * 100) / 100,
-    credit: Math.round(credit * 100) / 100,
+    compteNum, compteLib: (l.CompteLib || '').trim(),
+    debit: r(debit), credit: r(credit),
     journal: (l.JournalCode || '').trim().toUpperCase(),
+    ecritureNum: (l.EcritureNum || '').trim(),
   }
 }
 
-// ─── Balance ─────────────────────────────────────────────────
-// Règles d'exclusion (L3 — Valentin Dutote) :
-// - Journal AN exclu des classes 6 et 7 (à-nouveaux charges/produits N-1)
-// - Classes 8 et 9 ignorées totalement
-// - Comptes à zéro ignorés
+// ─── Détection de régime (avant / après affectation) ─────────────
+// Signal : une écriture qui solde les classes 6/7 contre un compte 12x dans
+// le même mouvement (OD de clôture / OD_AFF). On la DÉTECTE, on ne la masque pas.
+function detecterRegime(lignes: LigneFEC[]): { regime: 'avant_affectation' | 'apres_affectation'; ecrituresClotureNum: Set<string> } {
+  const parEcriture = new Map<string, Set<string>>() // ecritureNum -> classes touchées
+  for (const raw of lignes) {
+    const l = parseLigne(raw)
+    if (!l || !l.ecritureNum) continue
+    const classe = l.compteNum[0]
+    const key = `${l.journal}#${l.ecritureNum}`
+    if (!parEcriture.has(key)) parEcriture.set(key, new Set())
+    if (classe === '6' || classe === '7') parEcriture.get(key)!.add('gestion')
+    if (l.compteNum.startsWith('12')) parEcriture.get(key)!.add('resultat12')
+  }
+  const ecrituresClotureNum = new Set<string>()
+  for (const [key, classes] of parEcriture) if (classes.has('gestion') && classes.has('resultat12')) ecrituresClotureNum.add(key)
+  return { regime: ecrituresClotureNum.size > 0 ? 'apres_affectation' : 'avant_affectation', ecrituresClotureNum }
+}
 
-function buildBalance(lignes: LigneFEC[]): {
-  balance: Balance
-  totalDebit: number
-  totalCredit: number
-  nbLignes: number
-  nbLignesAN67: number
-  nbLignes89: number
-} {
+// ─── Balance ─────────────────────────────────────────────────────
+// L3 (Valentin) : AN exclu des classes 6/7 ; classes 8/9 ignorées ;
+// en régime "après affectation", les OD de solde 6/7 sont exclues du calcul de R1.
+function buildBalance(lignes: LigneFEC[], ecrituresCloture: Set<string>) {
   const balance: Balance = new Map()
-  let totalDebit = 0, totalCredit = 0, nbLignesAN67 = 0, nbLignes89 = 0
-
+  let totalDebit = 0, totalCredit = 0, nbLignesAN67 = 0, nbLignes89 = 0, nbLignesCloture67 = 0
   for (const raw of lignes) {
     const l = parseLigne(raw)
     if (!l) continue
-
     const classe = l.compteNum[0]
-
-    // Ignorer classes 8 et 9
     if (classe === '8' || classe === '9') { nbLignes89++; continue }
-
-    // Exclure AN des classes 6 et 7 AVANT d'incrémenter les totaux
-    // Les lignes exclues ne doivent pas polluer le contrôle equilibreFEC
     if (l.journal === 'AN' && (classe === '6' || classe === '7')) { nbLignesAN67++; continue }
-
-    totalDebit  += l.debit
-    totalCredit += l.credit
-
-    const existing = balance.get(l.compteNum)
-    if (existing) {
-      existing.debit  += l.debit
-      existing.credit += l.credit
-      existing.solde   = existing.debit - existing.credit
-      if (!existing.compteLib && l.compteLib) existing.compteLib = l.compteLib
-    } else {
-      balance.set(l.compteNum, {
-        compteNum: l.compteNum,
-        compteLib: l.compteLib,
-        debit:  l.debit,
-        credit: l.credit,
-        solde:  l.debit - l.credit,
-      })
-    }
+    // Régime après affectation : neutraliser les écritures de solde 6/7 pour reconstruire R1
+    if ((classe === '6' || classe === '7') && ecrituresCloture.has(`${l.journal}#${l.ecritureNum}`)) { nbLignesCloture67++; continue }
+    totalDebit += l.debit; totalCredit += l.credit
+    const ex = balance.get(l.compteNum)
+    if (ex) { ex.debit += l.debit; ex.credit += l.credit; ex.solde = ex.debit - ex.credit; if (!ex.compteLib && l.compteLib) ex.compteLib = l.compteLib }
+    else balance.set(l.compteNum, { compteNum: l.compteNum, compteLib: l.compteLib, debit: l.debit, credit: l.credit, solde: l.debit - l.credit })
   }
-
-  for (const s of balance.values()) {
-    s.debit  = Math.round(s.debit  * 100) / 100
-    s.credit = Math.round(s.credit * 100) / 100
-    s.solde  = Math.round(s.solde  * 100) / 100
-  }
-
-  return { balance, totalDebit: Math.round(totalDebit*100)/100, totalCredit: Math.round(totalCredit*100)/100, nbLignes: lignes.length, nbLignesAN67, nbLignes89 }
+  for (const s of balance.values()) { s.debit = r(s.debit); s.credit = r(s.credit); s.solde = r(s.solde) }
+  return { balance, totalDebit: r(totalDebit), totalCredit: r(totalCredit), nbLignesAN67, nbLignes89, nbLignesCloture67 }
 }
 
-// ─── Classification PCG 2025 ────────────────────────────────
-// 598 comptes — préfixe le plus long en premier (priorité maximale)
-
-// ─── Agrégation depuis la balance ────────────────────────────
+// ─── Agrégation ──────────────────────────────────────────────────
 type Aggregats = Record<Destination, number>
-
 const DESTINATIONS: Destination[] = [
   'ventesMarchandises','productionVendue','productionStockee','productionImmobilisee',
   'subventionsExploit','autresProduits','reprises',
@@ -130,40 +95,35 @@ const DESTINATIONS: Destination[] = [
   'dettesFournisseurs','dettesSociales','dettesFiscales','autresDettes','produitsConstates','tresoreriePassif',
 ]
 
-function buildStatements(balance: Balance): { aggregats: Aggregats; comptesNonReconnus: string[] } {
+function buildStatements(balance: Balance) {
   const agg = {} as Aggregats
   for (const d of DESTINATIONS) agg[d] = 0
   const comptesNonReconnus: string[] = []
   for (const compte of balance.values()) {
     if (Math.abs(compte.solde) < 0.01) continue
     const rule = classifyCompte(compte.compteNum)
-    if (!rule) {
-      comptesNonReconnus.push(`${compte.compteNum} (${compte.compteLib || '?'}) solde=${compte.solde}`)
-      continue
-    }
-    const { destination: destEffective, valeur } = getDestinationEffective(compte.compteNum, compte.solde, rule)
-    agg[destEffective] += valeur
+    if (!rule) { comptesNonReconnus.push(`${compte.compteNum} (${compte.compteLib || '?'}) solde=${compte.solde}`); continue }
+    const { destination, valeur } = getDestinationEffective(compte.compteNum, compte.solde, rule)
+    agg[destination] += valeur
   }
-  for (const d of DESTINATIONS) agg[d] = Math.round(agg[d] * 100) / 100
-  agg['chargesPersonnel'] = Math.round((agg['chargesPersonnel'] - agg['remboursementsPers']) * 100) / 100
+  for (const d of DESTINATIONS) agg[d] = r(agg[d])
+  agg['chargesPersonnel'] = r(agg['chargesPersonnel'] - agg['remboursementsPers'])
   return { aggregats: agg, comptesNonReconnus }
 }
 
-function r(n: number): number { return Math.round(n * 100) / 100 }
-
-// ─── SIG PCG 2025 ────────────────────────────────────────────
-
+// ─── SIG (signe natif déjà porté par les agrégats) ───────────────
 function buildSIG(a: Aggregats) {
-  const coutMarchandises   = r(a.achatsMarchandises - a.variationStocksMarch)
+  const coutMarchandises   = r(a.achatsMarchandises + a.variationStocksMarch)
   const margeCommerciale   = r(a.ventesMarchandises - coutMarchandises)
   const prodExercice       = r(a.productionVendue + a.productionStockee + a.productionImmobilisee)
-  const cosoIntermediaires = r(a.achatsMatieres - a.variationStocksMat + a.autresAchats + a.servicesExt)
-  const valeurAjoutee      = r(margeCommerciale + prodExercice + a.subventionsExploit - cosoIntermediaires)
-  const ebe                = r(valeurAjoutee - a.impotsTaxes - a.chargesPersonnel)
+  const cosoIntermediaires = r(a.achatsMatieres + a.variationStocksMat + a.autresAchats + a.servicesExt)
+  const valeurAjoutee      = r(margeCommerciale + prodExercice - cosoIntermediaires)
+  const ebe                = r(valeurAjoutee + a.subventionsExploit - a.impotsTaxes - a.chargesPersonnel)
   const rex                = r(ebe - a.dotationsExploit + a.reprises + a.autresProduits - a.autresChargesExploit)
   const rfin               = r(a.produitsFinanciers + a.reprisesFin - a.chargesFinancieres - a.dotationsFin)
+  const rcai               = r(rex + rfin)
   const rexcep             = r(a.produitsExcep + a.reprisesExcep + a.prixCession - a.chargesExcep - a.dotationsExcep - a.vncActifsCedes)
-  const rnetCR             = r(rex + rfin + rexcep - a.participation - a.is)
+  const rnetCR             = r(rcai + rexcep - a.participation - a.is)
   const ca                 = r(a.ventesMarchandises + a.productionVendue)
   return {
     ca, ventesMarchandises: r(a.ventesMarchandises), coutMarchandises, margeCommerciale,
@@ -174,12 +134,12 @@ function buildSIG(a: Aggregats) {
     ebe, dotations: r(a.dotationsExploit), reprises: r(a.reprises),
     autresProduits: r(a.autresProduits), autresCharges: r(a.autresChargesExploit),
     rex, produitsFinanciers: r(a.produitsFinanciers), chargesFinancieres: r(a.chargesFinancieres),
-    rfin, produitsExcep: r(a.produitsExcep), chargesExcep: r(a.chargesExcep), rexcep,
+    rfin, rcai, produitsExcep: r(a.produitsExcep), chargesExcep: r(a.chargesExcep), rexcep,
     participation: r(a.participation), is: r(a.is), resultatNet: rnetCR,
-    tauxMb:   ca > 0 ? r(margeCommerciale   / ca * 100) : 0,
-    tauxEbe:  ca > 0 ? r(ebe                / ca * 100) : 0,
-    tauxRex:  ca > 0 ? r(rex                / ca * 100) : 0,
-    tauxRnet: ca > 0 ? r(rnetCR             / ca * 100) : 0,
+    tauxMb: ca > 0 ? r(margeCommerciale / ca * 100) : 0,
+    tauxEbe: ca > 0 ? r(ebe / ca * 100) : 0,
+    tauxRex: ca > 0 ? r(rex / ca * 100) : 0,
+    tauxRnet: ca > 0 ? r(rnetCR / ca * 100) : 0,
     tauxPers: ca > 0 ? r(a.chargesPersonnel / ca * 100) : 0,
   }
 }
@@ -189,8 +149,7 @@ function buildCR(a: Aggregats, sig: ReturnType<typeof buildSIG>) {
     produitsExploitation: {
       ventesMarchandises: r(a.ventesMarchandises), productionVendue: r(a.productionVendue),
       productionStockee: r(a.productionStockee), productionImmobilisee: r(a.productionImmobilisee),
-      subventions: r(a.subventionsExploit), autresProduits: r(a.autresProduits),
-      reprises: r(a.reprises),
+      subventions: r(a.subventionsExploit), autresProduits: r(a.autresProduits), reprises: r(a.reprises),
       total: r(a.ventesMarchandises + a.productionVendue + a.productionStockee + a.productionImmobilisee + a.subventionsExploit + a.autresProduits + a.reprises),
     },
     chargesExploitation: {
@@ -199,17 +158,17 @@ function buildCR(a: Aggregats, sig: ReturnType<typeof buildSIG>) {
       autresAchats: r(a.autresAchats), servicesExt: r(a.servicesExt),
       impotsTaxes: r(a.impotsTaxes), chargesPersonnel: r(a.chargesPersonnel),
       dotations: r(a.dotationsExploit), autresCharges: r(a.autresChargesExploit),
-      total: r(sig.coutMarchandises + a.achatsMatieres - a.variationStocksMat + a.autresAchats + a.servicesExt + a.impotsTaxes + a.chargesPersonnel + a.dotationsExploit + a.autresChargesExploit),
+      total: r(a.achatsMarchandises + a.variationStocksMarch + a.achatsMatieres + a.variationStocksMat + a.autresAchats + a.servicesExt + a.impotsTaxes + a.chargesPersonnel + a.dotationsExploit + a.autresChargesExploit),
     },
     resultatExploitation: sig.rex,
-    produitsFinanciers: r(a.produitsFinanciers), chargesFinancieres: r(a.chargesFinancieres),
-    resultatFinancier: sig.rfin,
-    produitsExcep: r(a.produitsExcep), chargesExcep: r(a.chargesExcep),
-    resultatExceptionnel: sig.rexcep,
+    produitsFinanciers: r(a.produitsFinanciers), chargesFinancieres: r(a.chargesFinancieres), resultatFinancier: sig.rfin,
+    resultatCourantAvantImpots: sig.rcai,
+    produitsExcep: r(a.produitsExcep), chargesExcep: r(a.chargesExcep), resultatExceptionnel: sig.rexcep,
     participation: r(a.participation), is: r(a.is), resultatNet: sig.resultatNet,
   }
 }
 
+// ─── Bilan (résultat propre, découplé du CR) ─────────────────────
 function buildBilan(a: Aggregats, resultatNet: number) {
   const actifImmoNet  = r((a.immoIncorpBrut + a.immoCorpBrut + a.immoFinBrut) - (a.amortIncorp + a.amortCorp + a.deprecImmoFin))
   const stocksNets    = r(a.stocksMarchandises + a.stocksMatieres + a.stocksEncours + a.stocksProduits - a.deprecStocks)
@@ -221,116 +180,84 @@ function buildBilan(a: Aggregats, resultatNet: number) {
   const dettesCT      = r(a.dettesFournisseurs + a.dettesSociales + a.dettesFiscales + a.autresDettes + a.produitsConstates + a.tresoreriePassif)
   const totalPassif   = r(capPropres + dettesLT + dettesCT)
   return {
-    actif: {
-      immoIncorpBrut: r(a.immoIncorpBrut), immoCorpBrut: r(a.immoCorpBrut), immoFinBrut: r(a.immoFinBrut),
-      amortIncorp: r(a.amortIncorp), amortCorp: r(a.amortCorp), deprecImmoFin: r(a.deprecImmoFin), actifImmoNet,
-      stocksMarchandises: r(a.stocksMarchandises), stocksMatieres: r(a.stocksMatieres),
-      stocksEncours: r(a.stocksEncours), stocksProduits: r(a.stocksProduits), deprecStocks: r(a.deprecStocks), stocksNets,
-      creancesClients: creancesNettes, creancesEtat: r(a.creancesEtat), autresCreances: r(a.autresCreances),
-      chargesConstatees: r(a.chargesConstatees), tresorerie: tresoActifNet, totalActif,
-    },
-    passif: {
-      capital: r(a.capital), primes: r(a.primes), ecarts: r(a.ecarts), reserves: r(a.reserves),
-      reportNouveau: r(a.reportNouveau), resultatNet, subventionsInvest: r(a.subventionsInvest),
-      provisionsReglementees: r(a.provisionsReglementees), capitauxPropres: capPropres,
-      provisionsRisques: r(a.provisionsRisques), empruntsOblig: r(a.empruntsOblig),
-      empruntsEtablissement: r(a.empruntsEtablissement), autresEmpruntsLT: r(a.autresEmpruntsLT), dettesLT,
-      dettesFournisseurs: r(a.dettesFournisseurs), dettesSociales: r(a.dettesSociales),
-      dettesFiscales: r(a.dettesFiscales), autresDettes: r(a.autresDettes),
-      produitsConstates: r(a.produitsConstates), tresoreriePassif: r(a.tresoreriePassif), dettesCT, totalPassif,
-    }
+    actif: { actifImmoNet, stocksNets, creancesClients: creancesNettes, creancesEtat: r(a.creancesEtat), autresCreances: r(a.autresCreances), chargesConstatees: r(a.chargesConstatees), tresorerie: tresoActifNet, totalActif },
+    passif: { capital: r(a.capital), reserves: r(a.reserves), reportNouveau: r(a.reportNouveau), resultatNet, capitauxPropres: capPropres, dettesLT, dettesCT, totalPassif },
   }
 }
 
-function buildControles(
-  totalDebit: number, totalCredit: number,
-  bilan: ReturnType<typeof buildBilan>,
-  sig: ReturnType<typeof buildSIG>,
-  nbLignes: number, nbLignesAN67: number, nbLignes89: number,
-  comptesNonReconnus: string[],
-  resultatExerciceFEC: number
-) {
-  const ecartFEC   = Math.abs(totalDebit - totalCredit)
-  const ecartBilan = Math.abs(bilan.actif.totalActif - bilan.passif.totalPassif)
-  return {
-    nbLignes, nbLignesAN67, nbLignes89,
-    debitTotal: totalDebit, creditTotal: totalCredit,
-    equilibreFEC: ecartFEC < 1, ecartFEC: r(ecartFEC),
-    totalActif: bilan.actif.totalActif, totalPassif: bilan.passif.totalPassif,
-    equilibreBilan: ecartBilan < 1, ecartBilan: r(ecartBilan),
-    resultatCR: sig.resultatNet, resultatBilan: bilan.passif.resultatNet,
-    coherenceResultat: Math.abs(sig.resultatNet - bilan.passif.resultatNet) < 1,
-    ecartResultatFEC: r(Math.abs(sig.resultatNet - resultatExerciceFEC)),
-    comptesNonReconnus: comptesNonReconnus.slice(0, 30),
-    comptesNonReconnusTotal: comptesNonReconnus.length,
+// ─── Gate dur ────────────────────────────────────────────────────
+function buildGate(ecartFEC: number, regime: string, resultatCR: number, resultat12: number, comptesNonReconnus: number, ecartBilan: number) {
+  const raisons: string[] = []
+  const equilibreFEC = ecartFEC < 0.005
+  if (!equilibreFEC) raisons.push(`FEC déséquilibré : débit ≠ crédit (écart ${r(ecartFEC)} €). Fichier corrompu ou tronqué.`)
+  if (comptesNonReconnus > 0) raisons.push(`${comptesNonReconnus} compte(s) non classé(s) — certification impossible.`)
+  // Réconciliation résultat : seulement contraignante en régime après affectation.
+  let reconciliationOK = true
+  if (regime === 'apres_affectation') {
+    const ecartR = Math.abs(resultatCR - resultat12)
+    reconciliationOK = ecartR < 1
+    if (!reconciliationOK) raisons.push(`Résultat CR (${r(resultatCR)}) ≠ résultat comptable 12x (${r(resultat12)}), écart ${r(ecartR)} € > 1 €.`)
   }
+  const passed = equilibreFEC && comptesNonReconnus === 0 && reconciliationOK
+  return { passed, bloquant: !passed, raisons, equilibreFEC, reconciliationOK, ecartBilanInfo: r(ecartBilan) }
 }
 
-function normaliserDate(d: string): string {
-  // Accepte YYYYMMDD ou YYYY-MM-DD → retourne YYYYMMDD
-  return d.replace(/-/g, '')
+function normaliserDate(d: string){ return d.replace(/-/g, '') }
+function filtrerParPeriode(lignes: LigneFEC[], dd: string, df: string){
+  const a = normaliserDate(dd), b = normaliserDate(df)
+  return lignes.filter(l => { if (!l.EcritureDate) return true; const d = normaliserDate(String(l.EcritureDate)); if (d.length !== 8) return true; return d >= a && d <= b })
 }
 
-function filtrerParPeriode(lignes: LigneFEC[], dateDebut: string, dateFin: string): LigneFEC[] {
-  const debut = normaliserDate(dateDebut)
-  const fin   = normaliserDate(dateFin)
-  return lignes.filter(l => {
-    if (!l.EcritureDate) return true // pas de date → inclus
-    const d = normaliserDate(String(l.EcritureDate))
-    if (d.length !== 8) return true  // date illisible → inclus
-    return d >= debut && d <= fin
-  })
-}
-
-// ─── Pipeline ────────────────────────────────────────────────
-
+// ─── Pipeline ────────────────────────────────────────────────────
 function calculer(lignes: LigneFEC[], annee: number, dateDebut?: string, dateFin?: string) {
-  // Filtrage de période si les deux bornes sont présentes
-  const lignesFiltrees = (dateDebut && dateFin)
-    ? filtrerParPeriode(lignes, dateDebut, dateFin)
-    : lignes
+  const lignesFiltrees = (dateDebut && dateFin) ? filtrerParPeriode(lignes, dateDebut, dateFin) : lignes
 
-  const { balance, totalDebit, totalCredit, nbLignes, nbLignesAN67, nbLignes89 } = buildBalance(lignesFiltrees)
+  const { regime, ecrituresClotureNum } = detecterRegime(lignesFiltrees)
+  const { balance, totalDebit, totalCredit, nbLignesAN67, nbLignes89, nbLignesCloture67 } = buildBalance(lignesFiltrees, ecrituresClotureNum)
   const { aggregats, comptesNonReconnus } = buildStatements(balance)
+
+  // R2 — résultat comptable lu directement sur les comptes 12x (signe natif, bénéfice positif)
+  let solde12 = 0
+  for (const s of balance.values()) if (s.compteNum.startsWith('12')) solde12 += s.solde
+  const resultat12 = r(-solde12)
+
   const sig   = buildSIG(aggregats)
   const cr    = buildCR(aggregats, sig)
-  const bilan = buildBilan(aggregats, sig.resultatNet)
-  const controles = buildControles(totalDebit, totalCredit, bilan, sig, nbLignes, nbLignesAN67, nbLignes89, comptesNonReconnus, aggregats.resultatExercice ?? 0)
+  // En régime avant affectation, le résultat de l'exercice vit dans les 6/7 (R1) → capitaux propres.
+  // En régime après affectation, il est déjà dans les 12x (R2).
+  const resultatBilan = regime === 'apres_affectation' ? resultat12 : sig.resultatNet
+  const bilan = buildBilan(aggregats, resultatBilan)
 
-  // On expose la période effective dans la réponse
-  const periode = (dateDebut && dateFin)
-    ? { type: 'perso' as const, dateDebut, dateFin }
-    : { type: 'exercice' as const, dateDebut: `${annee}-01-01`, dateFin: `${annee}-12-31` }
+  const ecartFEC   = Math.abs(totalDebit - totalCredit)
+  const ecartBilan = Math.abs(bilan.actif.totalActif - bilan.passif.totalPassif)
+  const gate = buildGate(ecartFEC, regime, sig.resultatNet, resultat12, comptesNonReconnus.length, ecartBilan)
 
-  return { annee, periode, controles, sig, cr, bilan }
+  const controles = {
+    regime, nbLignesAN67, nbLignes89, nbLignesCloture67,
+    debitTotal: totalDebit, creditTotal: totalCredit, ecartFEC: r(ecartFEC), equilibreFEC: ecartFEC < 0.005,
+    totalActif: bilan.actif.totalActif, totalPassif: bilan.passif.totalPassif, ecartBilan: r(ecartBilan),
+    resultatCR: sig.resultatNet, resultat12, resultatBilan,
+    comptesNonReconnus: comptesNonReconnus.slice(0, 30), comptesNonReconnusTotal: comptesNonReconnus.length,
+  }
+  const periode = (dateDebut && dateFin) ? { type: 'perso' as const, dateDebut, dateFin } : { type: 'exercice' as const, dateDebut: `${annee}-01-01`, dateFin: `${annee}-12-31` }
+  return { annee, periode, regime, gate, controles, sig, cr, bilan }
 }
-
-// ─── Route Next.js ───────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const annee      = parseInt(searchParams.get('annee')      || '0')
-  const userId     = searchParams.get('user_id')             || ''
-  const dateDebut  = searchParams.get('dateDebut')           || ''
-  const dateFin    = searchParams.get('dateFin')             || ''
-
+  const annee = parseInt(searchParams.get('annee') || '0')
+  const userId = searchParams.get('user_id') || ''
+  const dateDebut = searchParams.get('dateDebut') || ''
+  const dateFin = searchParams.get('dateFin') || ''
   if (!annee || !userId) return NextResponse.json({ erreur: 'annee et user_id requis' }, { status: 400 })
   if (annee < 2000 || annee > 2030) return NextResponse.json({ erreur: 'annee invalide (2000–2030)' }, { status: 400 })
-
-  // Validation des dates si fournies (format YYYY-MM-DD ou YYYYMMDD)
-  if ((dateDebut && !dateFin) || (!dateDebut && dateFin)) {
-    return NextResponse.json({ erreur: 'dateDebut et dateFin doivent être fournis ensemble' }, { status: 400 })
-  }
-
+  if ((dateDebut && !dateFin) || (!dateDebut && dateFin)) return NextResponse.json({ erreur: 'dateDebut et dateFin doivent être fournis ensemble' }, { status: 400 })
   const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
   const { data, error } = await admin.from('fec_exercices').select('ecritures').eq('user_id', userId).eq('annee', annee).single()
   if (error || !data) return NextResponse.json({ erreur: 'FEC introuvable' }, { status: 404 })
-
   try {
     const ecritures = data.ecritures
-    if (!Array.isArray(ecritures) || ecritures.length === 0) {
-      return NextResponse.json({ erreur: 'FEC vide ou invalide' }, { status: 422 })
-    }
+    if (!Array.isArray(ecritures) || ecritures.length === 0) return NextResponse.json({ erreur: 'FEC vide ou invalide' }, { status: 422 })
     return NextResponse.json(calculer(ecritures as LigneFEC[], annee, dateDebut || undefined, dateFin || undefined))
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur interne du moteur comptable'
