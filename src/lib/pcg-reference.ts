@@ -1007,14 +1007,14 @@ export const PCG_RULES: PcgRule[] = [
     libelle: `Variation des stocks de matières premières et fournitures`,
     destination: "variationStocksMat",
     sens_normal: "crediteur",
-    remarque: `Créditeur si augmentation stock (production), débiteur si diminution`,
+    remarque: `Variation de stocks — sens_normal crediteur. buildSIG soustrait cet agrégat (valeur toujours positive) pour calculer le coût.`,
   },
   {
     prefixe: "6032",
     libelle: `Variation des stocks des autres approvisionnements`,
     destination: "variationStocksMat",
     sens_normal: "crediteur",
-    remarque: `DOUTE : sens variable`,
+    remarque: `Variation de stocks — sens_normal crediteur. buildSIG soustrait cet agrégat (valeur toujours positive) pour calculer le coût.`,
   },
   {
     prefixe: "6037",

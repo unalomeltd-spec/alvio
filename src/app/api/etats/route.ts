@@ -176,11 +176,11 @@ function r(n: number): number { return Math.round(n * 100) / 100 }
 // Note : article 842-1 SIG supprimé du PCG 2025 — cascade maintenue à titre d'usage
 
 function buildSIG(a: Aggregats) {
-  const coutMarchandises   = r(a.achatsMarchandises + a.variationStocksMarch)
+  const coutMarchandises   = r(a.achatsMarchandises - a.variationStocksMarch) // variationStocksMarch toujours positif (abs) ; déstockage réduit le coût
   const margeCommerciale   = r(a.ventesMarchandises - coutMarchandises)
   const prodExercice       = r(a.productionVendue + a.productionStockee + a.productionImmobilisee)
   // VA : subventions exploitation incluses (74x + 747 PCG 2025)
-  const cosoIntermediaires = r(a.achatsMatieres + a.variationStocksMat + a.autresAchats + a.servicesExt)
+  const cosoIntermediaires = r(a.achatsMatieres - a.variationStocksMat + a.autresAchats // variationStocksMat toujours positif (abs) + a.servicesExt)
   const valeurAjoutee      = r(margeCommerciale + prodExercice + a.subventionsExploit - cosoIntermediaires)
   const ebe                = r(valeurAjoutee - a.impotsTaxes - a.chargesPersonnel)
   // RE : 657 (cessions immos PCG 2025) inclus dans autresChargesExploit, 757 dans autresProduits
@@ -224,7 +224,7 @@ function buildCR(a: Aggregats, sig: ReturnType<typeof buildSIG>) {
       autresAchats: r(a.autresAchats), servicesExt: r(a.servicesExt),
       impotsTaxes: r(a.impotsTaxes), chargesPersonnel: r(a.chargesPersonnel),
       dotations: r(a.dotationsExploit), autresCharges: r(a.autresChargesExploit),
-      total: r(sig.coutMarchandises + a.achatsMatieres + a.variationStocksMat + a.autresAchats + a.servicesExt + a.impotsTaxes + a.chargesPersonnel + a.dotationsExploit + a.autresChargesExploit),
+      total: r(sig.coutMarchandises + a.achatsMatieres - a.variationStocksMat + a.autresAchats // variationStocksMat toujours positif (abs) + a.servicesExt + a.impotsTaxes + a.chargesPersonnel + a.dotationsExploit + a.autresChargesExploit),
     },
     resultatExploitation: sig.rex,
     produitsFinanciers: r(a.produitsFinanciers), chargesFinancieres: r(a.chargesFinancieres),
