@@ -4,6 +4,30 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { classifyCompte, getDestinationEffective, type Destination } from '@/lib/pcg-reference'
 
+// ─── Types ───────────────────────────────────────────────────
+
+interface LigneFEC {
+  CompteNum: string
+  CompteLib?: string
+  Debit: number | string
+  Credit: number | string
+  JournalCode?: string
+  EcritureDate?: string
+  EcritureLib?: string
+  PieceRef?: string
+}
+
+interface SoldeCompte {
+  compteNum: string
+  compteLib: string
+  debit: number
+  credit: number
+  solde: number
+}
+
+type Balance = Map<string, SoldeCompte>
+
+
 // ─── Types FEC ───────────────────────────────────────────────
 
 // ─── Normalisation ───────────────────────────────────────────
