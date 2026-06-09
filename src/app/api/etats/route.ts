@@ -153,30 +153,22 @@ function buildStatements(balance: Balance): { aggregats: Aggregats; comptesNonRe
       continue
     }
 
+    // sens : crediteur → -1 (passif/produit, solde créditeur contribue positivement)
+    //        debiteur  → +1 (actif/charge, solde débiteur contribue positivement)
+    const sens: 1 | -1 = rule.sens_normal === 'crediteur' ? -1 : 1
+
     const destEffective = getDestinationEffective(compte.compteNum, compte.solde, rule)
 
-    // getDestinationEffective retourne la destination après basculement L2.
-    // Le sens de contribution est déterminé par rule.sens_normal :
-    //   crediteur → le solde créditeur (négatif) contribue positivement → multiplier par -1
-    //   debiteur  → le solde débiteur (positif) contribue positivement  → multiplier par +1
-    // Pour les basculements L2 (ex. client créditeur → autresDettes), le solde est déjà
-    // signé correctement : on prend la valeur absolue et on l'affecte positivement.
+    // Calcul de la valeur : identique au moteur v4
+    // Si sens anormal (basculement L2) : la valeur contribue positivement à la dest cible → abs(solde)
+    // Si sens normal : solde × sens
     const sensAnormal =
       (rule.sens_normal === 'crediteur' && compte.solde > 0) ||
       (rule.sens_normal === 'debiteur'  && compte.solde < 0)
 
-    let valeur: number
-    if (sensAnormal) {
-      // Basculement L2 : la valeur contribue positivement à la destination cible
-      valeur = Math.abs(compte.solde)
-    } else {
-      // Sens normal : contribution = solde × signe selon sens_normal
-      valeur = rule.sens_normal === 'crediteur' ? -compte.solde : compte.solde
-    }
+    const valeur = sensAnormal ? Math.abs(compte.solde) : compte.solde * sens
 
-    if (DESTINATIONS.includes(destEffective as Destination)) {
-      agg[destEffective as Destination] += valeur
-    }
+    agg[destEffective] += valeur
   }
 
   for (const d of DESTINATIONS) agg[d] = Math.round(agg[d] * 100) / 100
@@ -184,9 +176,8 @@ function buildStatements(balance: Balance): { aggregats: Aggregats; comptesNonRe
   // Remboursements de charges personnel (649 — rétrocompat 791) déduits des charges personnel
   agg['chargesPersonnel'] = Math.round((agg['chargesPersonnel'] - agg['remboursementsPers']) * 100) / 100
 
-  // Détection écart résultatExercice vs résultat SIG (règle L3-4b)
-  // Stocké dans l'agrégat resultatExercice — comparaison faite dans buildControles
-  // NB : buildBilan utilise sig.resultatNet (cascade CR), pas cet agrégat
+  // resultatExercice : agrégat d'isolation pour 120/129 — utilisé uniquement pour ecartResultatFEC
+  // buildBilan et buildSIG utilisent sig.resultatNet (cascade CR), pas cet agrégat
 
   return { aggregats: agg, comptesNonReconnus }
 }
