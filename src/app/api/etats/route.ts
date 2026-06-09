@@ -116,8 +116,6 @@ function buildBalance(lignes: LigneFEC[]): {
 
 
 // ─── Agrégation depuis la balance ────────────────────────────
-// classifyCompte() et getDestinationEffective() importées depuis @/lib/pcg-reference
-
 type Aggregats = Record<Destination, number>
 
 const DESTINATIONS: Destination[] = [
@@ -142,30 +140,19 @@ const DESTINATIONS: Destination[] = [
 function buildStatements(balance: Balance): { aggregats: Aggregats; comptesNonReconnus: string[] } {
   const agg = {} as Aggregats
   for (const d of DESTINATIONS) agg[d] = 0
-
   const comptesNonReconnus: string[] = []
-
   for (const compte of balance.values()) {
     if (Math.abs(compte.solde) < 0.01) continue
-
     const rule = classifyCompte(compte.compteNum)
     if (!rule) {
       comptesNonReconnus.push(`${compte.compteNum} (${compte.compteLib || '?'}) solde=${compte.solde}`)
       continue
     }
-
-    // getDestinationEffective retourne { destination, valeur } — valeur toujours positive
-    // Sens et basculements L2 entièrement gérés dans pcg-reference, identique au moteur v4
     const { destination: destEffective, valeur } = getDestinationEffective(compte.compteNum, compte.solde, rule)
-
     agg[destEffective] += valeur
   }
-
   for (const d of DESTINATIONS) agg[d] = Math.round(agg[d] * 100) / 100
-
-  // Remboursements de charges personnel (649) déduits des charges personnel
   agg['chargesPersonnel'] = Math.round((agg['chargesPersonnel'] - agg['remboursementsPers']) * 100) / 100
-
   return { aggregats: agg, comptesNonReconnus }
 }
 
@@ -176,11 +163,11 @@ function r(n: number): number { return Math.round(n * 100) / 100 }
 // Note : article 842-1 SIG supprimé du PCG 2025 — cascade maintenue à titre d'usage
 
 function buildSIG(a: Aggregats) {
-  const coutMarchandises   = r(a.achatsMarchandises - a.variationStocksMarch) // variationStocksMarch toujours positif (abs) ; déstockage réduit le coût
+  const coutMarchandises   = r(a.achatsMarchandises - a.variationStocksMarch)
   const margeCommerciale   = r(a.ventesMarchandises - coutMarchandises)
   const prodExercice       = r(a.productionVendue + a.productionStockee + a.productionImmobilisee)
   // VA : subventions exploitation incluses (74x + 747 PCG 2025)
-  const cosoIntermediaires = r(a.achatsMatieres - a.variationStocksMat + a.autresAchats + a.servicesExt) // variationStocksMat toujours positif (abs) ; déstockage réduit le coût
+  const cosoIntermediaires = r(a.achatsMatieres - a.variationStocksMat + a.autresAchats + a.servicesExt)
   const valeurAjoutee      = r(margeCommerciale + prodExercice + a.subventionsExploit - cosoIntermediaires)
   const ebe                = r(valeurAjoutee - a.impotsTaxes - a.chargesPersonnel)
   // RE : 657 (cessions immos PCG 2025) inclus dans autresChargesExploit, 757 dans autresProduits
@@ -224,7 +211,7 @@ function buildCR(a: Aggregats, sig: ReturnType<typeof buildSIG>) {
       autresAchats: r(a.autresAchats), servicesExt: r(a.servicesExt),
       impotsTaxes: r(a.impotsTaxes), chargesPersonnel: r(a.chargesPersonnel),
       dotations: r(a.dotationsExploit), autresCharges: r(a.autresChargesExploit),
-      total: r(sig.coutMarchandises + a.achatsMatieres - a.variationStocksMat + a.autresAchats // variationStocksMat toujours positif (abs) + a.servicesExt + a.impotsTaxes + a.chargesPersonnel + a.dotationsExploit + a.autresChargesExploit),
+  const cosoIntermediaires = r(a.achatsMatieres - a.variationStocksMat + a.autresAchats + a.servicesExt)
     },
     resultatExploitation: sig.rex,
     produitsFinanciers: r(a.produitsFinanciers), chargesFinancieres: r(a.chargesFinancieres),
@@ -276,6 +263,12 @@ function buildControles(
   nbLignes: number, nbLignesAN67: number, nbLignes89: number,
   comptesNonReconnus: string[],
   resultatExerciceFEC: number
+) {
+  totalDebit: number, totalCredit: number,
+  bilan: ReturnType<typeof buildBilan>,
+  sig: ReturnType<typeof buildSIG>,
+  nbLignes: number, nbLignesAN67: number, nbLignes89: number,
+  comptesNonReconnus: string[]
 ) {
   const ecartFEC   = Math.abs(totalDebit - totalCredit)
   const ecartBilan = Math.abs(bilan.actif.totalActif - bilan.passif.totalPassif)
