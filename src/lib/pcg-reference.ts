@@ -1,0 +1,4361 @@
+// ============================================================
+// pcg-reference.ts
+// Source de vérité — PCG 2025 (ANC 2022-06)
+// Généré depuis PCG2025_Classification_Alvio.xlsx — Valentin Dutote
+// NE PAS MODIFIER MANUELLEMENT — regénérer via scripts/generate-pcg.py
+// v7 — 615 règles L1 · 37 L2 · 7 L3 · 11 SIG
+// ============================================================
+
+// ── Types ─────────────────────────────────────────────────────
+export type SensNormal = "crediteur" | "debiteur";
+
+export type Destination =
+  | "immoIncorpBrut"
+  | "immoCorpBrut"
+  | "immoFinBrut"
+  | "amortIncorp"
+  | "amortCorp"
+  | "deprecImmoFin"
+  | "stocksMarchandises"
+  | "stocksMatieres"
+  | "stocksEncours"
+  | "stocksProduits"
+  | "deprecStocks"
+  | "creancesClients"
+  | "deprecCreances"
+  | "creancesEtat"
+  | "autresCreances"
+  | "chargesConstatees"
+  | "tresorerieActif"
+  | "deprecTreso"
+  | "capitalNonAppele"
+  | "capital"
+  | "primes"
+  | "ecarts"
+  | "reserves"
+  | "reportNouveau"
+  | "resultatExercice"
+  | "subventionsInvest"
+  | "provisionsReglementees"
+  | "provisionsRisques"
+  | "empruntsOblig"
+  | "empruntsEtablissement"
+  | "autresEmpruntsLT"
+  | "dettesFournisseurs"
+  | "dettesSociales"
+  | "dettesFiscales"
+  | "autresDettes"
+  | "produitsConstates"
+  | "tresoreriePassif"
+  | "ventesMarchandises"
+  | "productionVendue"
+  | "productionStockee"
+  | "productionImmobilisee"
+  | "subventionsExploit"
+  | "autresProduits"
+  | "reprises"
+  | "achatsMarchandises"
+  | "variationStocksMarch"
+  | "achatsMatieres"
+  | "variationStocksMat"
+  | "autresAchats"
+  | "servicesExt"
+  | "impotsTaxes"
+  | "chargesPersonnel"
+  | "remboursementsPers"
+  | "dotationsExploit"
+  | "autresChargesExploit"
+  | "produitsFinanciers"
+  | "reprisesFin"
+  | "chargesFinancieres"
+  | "dotationsFin"
+  | "produitsExcep"
+  | "reprisesExcep"
+  | "prixCession"
+  | "chargesExcep"
+  | "dotationsExcep"
+  | "vncActifsCedes"
+  | "participation"
+  | "is";
+
+export interface PcgRule {
+  prefixe: string;
+  libelle: string;
+  destination: Destination;
+  sens_normal: SensNormal;
+  remarque?: string;
+}
+
+export interface SensAnormal {
+  compte: string;
+  situation: string;
+  traitement: string;
+}
+
+export interface FecRule {
+  question: string;
+  regle: string;
+  remarque?: string;
+}
+
+export interface SigFormule {
+  sig: string;
+  formule: string;
+  comptes: string;
+}
+
+// ── L1 — Règles de classification PCG 2025 ───────────────────
+// 615 règles — triées du préfixe le plus précis (5 chiffres) au plus large (1 chiffre)
+// À longueur égale : ordre numérique croissant pour la lisibilité
+// classifyCompte() applique un startsWith dans cet ordre — premier match gagne
+export const PCG_RULES: PcgRule[] = [
+  {
+    prefixe: "44562",
+    libelle: `TVA sur immobilisations`,
+    destination: "creancesEtat",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "44566",
+    libelle: `TVA sur autres biens et services`,
+    destination: "creancesEtat",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "44581",
+    libelle: `Acomptes de TVA`,
+    destination: "dettesFiscales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "44583",
+    libelle: `Remboursement de TVA demandé`,
+    destination: "creancesEtat",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "44584",
+    libelle: `TVA sur achats intracommunautaires — acompte`,
+    destination: "dettesFiscales",
+    sens_normal: "crediteur",
+    remarque: `Sens variable : créditeur → dettesFiscales (sens normal) ; débiteur → creancesEtat (basculement L2). Cohérent avec 44566/44586/44587.`,
+  },
+  {
+    prefixe: "44586",
+    libelle: `Taxes sur le CA — charges à payer`,
+    destination: "dettesFiscales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "44587",
+    libelle: `Taxes sur le CA — produits à recevoir`,
+    destination: "creancesEtat",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "1011",
+    libelle: `Capital souscrit non appelé`,
+    destination: "capitalNonAppele",
+    sens_normal: "crediteur",
+    remarque: `Contra-actif au bilan actif — PCG 2025 maintient ce traitement`,
+  },
+  {
+    prefixe: "1012",
+    libelle: `Capital souscrit appelé, non versé`,
+    destination: "capital",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1013",
+    libelle: `Capital souscrit appelé, versé`,
+    destination: "capital",
+    sens_normal: "crediteur",
+    remarque: `Compte courant du capital libéré`,
+  },
+  {
+    prefixe: "1018",
+    libelle: `Capital souscrit — autres`,
+    destination: "capital",
+    sens_normal: "crediteur",
+    remarque: `DOUTE : préfixe rare, traiter comme 101 par défaut`,
+  },
+  {
+    prefixe: "1041",
+    libelle: `Primes d'émission`,
+    destination: "primes",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1042",
+    libelle: `Primes de fusion`,
+    destination: "primes",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1043",
+    libelle: `Primes d'apport`,
+    destination: "primes",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1044",
+    libelle: `Primes de conversion d'obligations en actions`,
+    destination: "primes",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1051",
+    libelle: `Écart de réévaluation légale`,
+    destination: "ecarts",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1052",
+    libelle: `Écart de réévaluation libre`,
+    destination: "ecarts",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1061",
+    libelle: `Réserve légale`,
+    destination: "reserves",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1062",
+    libelle: `Réserves indisponibles (actions propres)`,
+    destination: "reserves",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1063",
+    libelle: `Réserves statutaires ou contractuelles`,
+    destination: "reserves",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1064",
+    libelle: `Réserves réglementées`,
+    destination: "reserves",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1068",
+    libelle: `Autres réserves`,
+    destination: "reserves",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1209",
+    libelle: `Acomptes sur dividendes`,
+    destination: "capital",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 NOUVEAU — vient en déduction des capitaux propres (sens débiteur). Inexistant dans l'ancien PCG.`,
+  },
+  {
+    prefixe: "1511",
+    libelle: `Provisions pour litiges`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1512",
+    libelle: `Provisions pour garanties données aux clients`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1513",
+    libelle: `Provisions pour pertes sur marchés à terme`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1514",
+    libelle: `Provisions pour amendes et pénalités`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1515",
+    libelle: `Provisions pour pertes de change`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1516",
+    libelle: `Provisions pour restructurations`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1518",
+    libelle: `Autres provisions pour risques`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1521",
+    libelle: `Provisions pour pensions et obligations similaires`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — remplace 153. Engagements de retraite, IFC, médailles du travail.`,
+  },
+  {
+    prefixe: "1522",
+    libelle: `Provisions pour restructurations`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — remplace 154. Provisions pour restructurations.`,
+  },
+  {
+    prefixe: "1523",
+    libelle: `Provisions pour renouvellement des immobilisations (concessions)`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — remplace 156 (renouvellement des immobilisations — entreprises concessionnaires), pas 155.`,
+  },
+  {
+    prefixe: "1524",
+    libelle: `Provisions pour charges à répartir sur plusieurs exercices`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — remplace ex-157 (charges à répartir hors gros entretien). Distinct de 1525 qui reprend le gros entretien.`,
+  },
+  {
+    prefixe: "1525",
+    libelle: `Provisions pour gros entretien ou grandes révisions`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — remplace 157/1572 (ancienne provision pour charges à répartir sur plusieurs exercices). Attention : seules les provisions pour gros entretien subsistent ; la provision pour charges à répartir en général disparaît.`,
+  },
+  {
+    prefixe: "1526",
+    libelle: `Provisions pour remise en état`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — remplace 1581.`,
+  },
+  {
+    prefixe: "1527",
+    libelle: `Autres provisions pour charges`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — remplace 158. Autres provisions pour charges.`,
+  },
+  {
+    prefixe: "1611",
+    libelle: `Emprunts obligataires convertibles en actions`,
+    destination: "empruntsOblig",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1618",
+    libelle: `Intérêts courus sur emprunts obligataires convertibles`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — remplace l'ancien 16881. Rattaché au compte 161.`,
+  },
+  {
+    prefixe: "1638",
+    libelle: `Intérêts courus sur autres emprunts obligataires`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — remplace l'ancien 16883. Rattaché au compte 163.`,
+  },
+  {
+    prefixe: "1641",
+    libelle: `Emprunts en euros`,
+    destination: "empruntsEtablissement",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1643",
+    libelle: `Emprunts en devises`,
+    destination: "empruntsEtablissement",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1644",
+    libelle: `Emprunts participatifs`,
+    destination: "empruntsEtablissement",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "1648",
+    libelle: `Intérêts courus sur emprunts auprès des établissements de crédit`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — remplace l'ancien 16884. Rattaché au compte 164.`,
+  },
+  {
+    prefixe: "1658",
+    libelle: `Intérêts courus sur dépôts et cautionnements reçus`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — remplace l'ancien 16885. Rattaché au compte 165.`,
+  },
+  {
+    prefixe: "1668",
+    libelle: `Intérêts courus sur participation des salariés aux résultats`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — remplace l'ancien 16886. Rattaché au compte 166.`,
+  },
+  {
+    prefixe: "1674",
+    libelle: `Billets de trésorerie émis`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+    remarque: `DOUTE : à court terme, basculer en tresoreriePassif si < 1 an`,
+  },
+  {
+    prefixe: "1681",
+    libelle: `Intérêts courus sur emprunts obligataires convertibles`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+    remarque: `Ancien PCG — renuméroté 1618 (rattaché au compte 161). Conserver en rétrocompat pour FEC antérieurs à PCG 2025 uniquement.`,
+  },
+  {
+    prefixe: "1683",
+    libelle: `Intérêts courus sur autres emprunts obligataires`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+    remarque: `Ancien PCG — renuméroté 1638 (rattaché au compte 163). Conserver en rétrocompat pour FEC antérieurs à PCG 2025.`,
+  },
+  {
+    prefixe: "1684",
+    libelle: `Intérêts courus sur emprunts auprès des établissements de crédit`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+    remarque: `Ancien PCG — renuméroté 1648 (rattaché au compte 164). Conserver en rétrocompat pour FEC antérieurs à PCG 2025.`,
+  },
+  {
+    prefixe: "1687",
+    libelle: `Intérêts courus sur dettes diverses`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+    remarque: `Ancien PCG — renuméroté 1688 (intérêts courus sur autres emprunts et dettes assimilées). Regroupe les anciens 1687/16888. Conserver en rétrocompat pour FEC antérieurs à PCG 2025.`,
+  },
+  {
+    prefixe: "1688",
+    libelle: `Intérêts courus sur autres emprunts et dettes assimilées`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — remplace et regroupe 1687/16888. Compte cible des anciens sous-comptes d'intérêts courus.`,
+  },
+  {
+    prefixe: "2051",
+    libelle: `Concessions`,
+    destination: "immoIncorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2052",
+    libelle: `Brevets`,
+    destination: "immoIncorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2053",
+    libelle: `Licences`,
+    destination: "immoIncorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2054",
+    libelle: `Marques`,
+    destination: "immoIncorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2055",
+    libelle: `Procédés, formules`,
+    destination: "immoIncorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2056",
+    libelle: `Droits et valeurs similaires`,
+    destination: "immoIncorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2111",
+    libelle: `Terrains nus`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2112",
+    libelle: `Terrains aménagés`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2113",
+    libelle: `Sous-sols et sur-sols`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2114",
+    libelle: `Terrains de gîsement`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2115",
+    libelle: `Terrains bâtis`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2131",
+    libelle: `Bâtiments`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2132",
+    libelle: `Constructions complexes (part non propriété du sol)`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2135",
+    libelle: `Installations générales, agencements, aménagements des constructions`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2138",
+    libelle: `Autres constructions`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2151",
+    libelle: `Installations complexes spécialisées`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2153",
+    libelle: `Installations à caractère spécifique`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2154",
+    libelle: `Matériel industriel`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2155",
+    libelle: `Outillage industriel`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2157",
+    libelle: `Agencements et aménagements du matériel et de l'outillage industriels`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2181",
+    libelle: `Installations générales, agencements et aménagements divers`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2182",
+    libelle: `Matériel de transport`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2183",
+    libelle: `Matériel de bureau et matériel informatique`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2184",
+    libelle: `Mobilier`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2185",
+    libelle: `Cheptel`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2186",
+    libelle: `Emballages récupérables`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "2801",
+    libelle: `Amortissements des frais d'établissement`,
+    destination: "amortIncorp",
+    sens_normal: "crediteur",
+    remarque: `Obsolète PCG 2025 mais peut exister dans anciens FEC`,
+  },
+  {
+    prefixe: "2803",
+    libelle: `Amortissements des frais de recherche et développement`,
+    destination: "amortIncorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "2805",
+    libelle: `Amortissements des concessions, brevets, licences...`,
+    destination: "amortIncorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "2807",
+    libelle: `Amortissements du fonds commercial`,
+    destination: "amortIncorp",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 : fonds commercial amortissable`,
+  },
+  {
+    prefixe: "2808",
+    libelle: `Amortissements des autres immobilisations incorporelles`,
+    destination: "amortIncorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "2812",
+    libelle: `Amortissements des agencements et aménagements de terrains`,
+    destination: "amortCorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "2813",
+    libelle: `Amortissements des constructions`,
+    destination: "amortCorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "2814",
+    libelle: `Amortissements des constructions sur sol d'autrui`,
+    destination: "amortCorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "2815",
+    libelle: `Amortissements des installations techniques, matériel et outillage industriels`,
+    destination: "amortCorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "2818",
+    libelle: `Amortissements des autres immobilisations corporelles`,
+    destination: "amortCorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "2841",
+    libelle: `Amortissements des droits d'utilisation des terrains`,
+    destination: "amortCorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "2843",
+    libelle: `Amortissements des droits d'utilisation des constructions`,
+    destination: "amortCorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "2845",
+    libelle: `Amortissements des droits d'utilisation du matériel`,
+    destination: "amortCorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "2848",
+    libelle: `Amortissements des droits d'utilisation des autres immo. corp.`,
+    destination: "amortCorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "2849",
+    libelle: `Amortissements des droits d'utilisation des immo. incorp.`,
+    destination: "amortIncorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "2905",
+    libelle: `Dépréciations des concessions, brevets, licences...`,
+    destination: "amortIncorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "2907",
+    libelle: `Dépréciations du fonds commercial`,
+    destination: "amortIncorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4011",
+    libelle: `Fournisseurs — achats de biens et prestations de services`,
+    destination: "dettesFournisseurs",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4017",
+    libelle: `Fournisseurs — avoirs à recevoir`,
+    destination: "dettesFournisseurs",
+    sens_normal: "debiteur",
+    remarque: `Avoirs à recevoir des fournisseurs — sens normal débiteur (créance en attente d'avoir). Ce n'est pas un sens anormal.`,
+  },
+  {
+    prefixe: "4085",
+    libelle: `Fournisseurs d'immobilisations — factures non parvenues`,
+    destination: "dettesFournisseurs",
+    sens_normal: "crediteur",
+    remarque: `FNP sur immobilisations — sous-compte de 408.`,
+  },
+  {
+    prefixe: "4091",
+    libelle: `Fournisseurs — avances et acomptes versés sur commandes`,
+    destination: "autresCreances",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "4096",
+    libelle: `Fournisseurs — créances pour emballages et matériels à rendre`,
+    destination: "autresCreances",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "4097",
+    libelle: `Fournisseurs — autres avoirs`,
+    destination: "autresCreances",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "4111",
+    libelle: `Clients — ventes de biens ou prestations de services`,
+    destination: "creancesClients",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "4117",
+    libelle: `Clients — avoirs à établir`,
+    destination: "creancesClients",
+    sens_normal: "crediteur",
+    remarque: `Avoirs à établir — sens normal créditeur car représente une dette potentielle envers le client en attente d'avoir. Distinct du compte 411 clients.`,
+  },
+  {
+    prefixe: "4191",
+    libelle: `Clients — avances et acomptes reçus sur commandes`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4196",
+    libelle: `Clients — dettes pour emballages et matériels consignés`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4197",
+    libelle: `Clients — autres avoirs à accorder`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4281",
+    libelle: `Dettes provisionnées pour participation aux bénéfices`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4282",
+    libelle: `Dettes provisionnées pour congés à payer`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4284",
+    libelle: `Dettes provisionnées pour congés payés direction`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4286",
+    libelle: `Autres charges à payer — personnel`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4287",
+    libelle: `Personnel — produits à recevoir`,
+    destination: "autresCreances",
+    sens_normal: "debiteur",
+    remarque: `DOUTE : rare`,
+  },
+  {
+    prefixe: "4381",
+    libelle: `Organismes sociaux — cotisations à payer`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+    remarque: `Sous-compte de 438 — charges sociales à payer.`,
+  },
+  {
+    prefixe: "4382",
+    libelle: `Charges sociales sur congés à payer`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4386",
+    libelle: `Autres charges à payer — organismes sociaux`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4387",
+    libelle: `Organismes sociaux — produits à recevoir`,
+    destination: "autresCreances",
+    sens_normal: "debiteur",
+    remarque: `Sous-compte de 438 — remboursements à recevoir des organismes sociaux.`,
+  },
+  {
+    prefixe: "4411",
+    libelle: `Subventions d'exploitation à recevoir`,
+    destination: "creancesEtat",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "4412",
+    libelle: `Subventions d'équipement à recevoir`,
+    destination: "creancesEtat",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "4418",
+    libelle: `Autres subventions à recevoir`,
+    destination: "creancesEtat",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "4421",
+    libelle: `TVA collectée`,
+    destination: "dettesFiscales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4427",
+    libelle: `TVA collectée sur encaissements`,
+    destination: "dettesFiscales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4451",
+    libelle: `TVA à décaisser`,
+    destination: "dettesFiscales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4452",
+    libelle: `TVA due intracommunautaire`,
+    destination: "dettesFiscales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4455",
+    libelle: `Taxes sur le chiffre d'affaires à décaisser`,
+    destination: "dettesFiscales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4456",
+    libelle: `Taxes sur le chiffre d'affaires déductibles`,
+    destination: "creancesEtat",
+    sens_normal: "debiteur",
+    remarque: `TVA déductible`,
+  },
+  {
+    prefixe: "4457",
+    libelle: `Taxes collectées — à reverser`,
+    destination: "dettesFiscales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4458",
+    libelle: `Taxes sur le CA — charges à payer et produits à recevoir`,
+    destination: "dettesFiscales",
+    sens_normal: "crediteur",
+    remarque: `Fallback pour les sous-comptes 4458x. Le sous-compte 44584 (acomptes TVA intracommunautaires) bénéficie désormais d'une règle L1 propre. Traitement L2 commun : si débiteur → creancesEtat.`,
+  },
+  {
+    prefixe: "4482",
+    libelle: `Charges fiscales sur congés à payer`,
+    destination: "dettesFiscales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4486",
+    libelle: `Charges fiscales à payer`,
+    destination: "dettesFiscales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4487",
+    libelle: `Produits fiscaux à recevoir`,
+    destination: "creancesEtat",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "4686",
+    libelle: `Divers — charges à payer`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "4687",
+    libelle: `Divers — produits à recevoir`,
+    destination: "autresCreances",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "5181",
+    libelle: `Intérêts courus à recevoir`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "5186",
+    libelle: `Intérêts courus à payer`,
+    destination: "tresoreriePassif",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "5191",
+    libelle: `Crédit de mobilisation de créances commerciales (CMCC)`,
+    destination: "tresoreriePassif",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "5199",
+    libelle: `Intérêts courus sur concours bancaires courants`,
+    destination: "tresoreriePassif",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "6011",
+    libelle: `Matières premières`,
+    destination: "achatsMatieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6012",
+    libelle: `Matières et fournitures consommables`,
+    destination: "achatsMatieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6013",
+    libelle: `Combustibles`,
+    destination: "achatsMatieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6014",
+    libelle: `Produits d'entretien`,
+    destination: "achatsMatieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6015",
+    libelle: `Fournitures d'atelier et de magasin`,
+    destination: "achatsMatieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6016",
+    libelle: `Fournitures de bureau`,
+    destination: "autresAchats",
+    sens_normal: "debiteur",
+    remarque: `DOUTE : certains classent en 606/607 — à harmoniser`,
+  },
+  {
+    prefixe: "6017",
+    libelle: `Fournitures informatiques`,
+    destination: "autresAchats",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6019",
+    libelle: `Rabais, remises et ristournes obtenus sur achats de matières premières`,
+    destination: "achatsMatieres",
+    sens_normal: "crediteur",
+    remarque: `Compte de RRR — sens normal créditeur (minore les achats)`,
+  },
+  {
+    prefixe: "6031",
+    libelle: `Variation des stocks de matières premières et fournitures`,
+    destination: "variationStocksMat",
+    sens_normal: "crediteur",
+    remarque: `Créditeur si augmentation stock (production), débiteur si diminution`,
+  },
+  {
+    prefixe: "6032",
+    libelle: `Variation des stocks des autres approvisionnements`,
+    destination: "variationStocksMat",
+    sens_normal: "crediteur",
+    remarque: `DOUTE : sens variable`,
+  },
+  {
+    prefixe: "6037",
+    libelle: `Variation des stocks de marchandises`,
+    destination: "variationStocksMarch",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "6061",
+    libelle: `Fournitures non stockables (eau, énergie)`,
+    destination: "autresAchats",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6063",
+    libelle: `Fournitures d'entretien et de petit équipement`,
+    destination: "autresAchats",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6064",
+    libelle: `Fournitures administratives`,
+    destination: "autresAchats",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6068",
+    libelle: `Autres matières et fournitures`,
+    destination: "autresAchats",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6071",
+    libelle: `Achats de marchandises (groupe A)`,
+    destination: "achatsMarchandises",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6097",
+    libelle: `Rabais, remises et ristournes obtenus sur achats de marchandises`,
+    destination: "achatsMarchandises",
+    sens_normal: "crediteur",
+    remarque: `RRR — minore le compte`,
+  },
+  {
+    prefixe: "6122",
+    libelle: `Crédit-bail mobilier`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6125",
+    libelle: `Crédit-bail immobilier`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6151",
+    libelle: `Entretien et réparations sur biens immobiliers`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6155",
+    libelle: `Entretien et réparations sur biens mobiliers`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6156",
+    libelle: `Maintenance`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6181",
+    libelle: `Documentation générale`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6183",
+    libelle: `Documentation technique`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6221",
+    libelle: `Commissions et courtages sur achats`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6222",
+    libelle: `Commissions et courtages sur ventes`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6224",
+    libelle: `Rémunérations des transitaires`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6225",
+    libelle: `Rémunérations d'affacturage`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6226",
+    libelle: `Honoraires`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6227",
+    libelle: `Frais d'actes et de contentieux`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6228",
+    libelle: `Divers`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6231",
+    libelle: `Annonces et insertions`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6232",
+    libelle: `Catalogues et imprimés`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6233",
+    libelle: `Foires et expositions`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6234",
+    libelle: `Cadeaux à la clientèle`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6235",
+    libelle: `Primes sur ventes (hors TVA)`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6236",
+    libelle: `Échantillons`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6237",
+    libelle: `Publications`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6238",
+    libelle: `Divers (dépenses publicitaires)`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6241",
+    libelle: `Transports sur achats`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6242",
+    libelle: `Transports sur ventes`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6243",
+    libelle: `Transports entre établissements ou chantiers`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6244",
+    libelle: `Transports administratifs`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6247",
+    libelle: `Transports collectifs du personnel`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6248",
+    libelle: `Autres transports`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6251",
+    libelle: `Voyages et déplacements`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6255",
+    libelle: `Frais de déménagement`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6256",
+    libelle: `Missions`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6257",
+    libelle: `Réceptions`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6271",
+    libelle: `Frais sur titres (achat, vente, garde)`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6272",
+    libelle: `Commissions et frais sur émission d'emprunts`,
+    destination: "chargesFinancieres",
+    sens_normal: "debiteur",
+    remarque: `Frais d'émission d'emprunts passés directement en charge (hors capitalisation via 481/6862). Liasse fiscale 2052 : classés en frais financiers, pas en services extérieurs.`,
+  },
+  {
+    prefixe: "6275",
+    libelle: `Frais sur effets`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6278",
+    libelle: `Autres frais et commissions sur prestations de services`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6281",
+    libelle: `Concours divers (cotisations)`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6282",
+    libelle: `Frais de gardiennage`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6283",
+    libelle: `Frais de nettoyage des locaux`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6284",
+    libelle: `Frais de recrutement du personnel`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6285",
+    libelle: `Frais de colloques, séminaires, conférences`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6288",
+    libelle: `Autres services extérieurs divers`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6311",
+    libelle: `Taxe sur les salaires`,
+    destination: "impotsTaxes",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6312",
+    libelle: `Taxe d'apprentissage`,
+    destination: "impotsTaxes",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6313",
+    libelle: `Participation des employeurs à la formation professionnelle continue`,
+    destination: "impotsTaxes",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6314",
+    libelle: `Cotisation pour défaut d'emploi de travailleurs handicapés (AGEFIPH)`,
+    destination: "impotsTaxes",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6318",
+    libelle: `Autres impôts, taxes et versements assimilés sur rémunérations`,
+    destination: "impotsTaxes",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6351",
+    libelle: `Impôts directs (sauf IS)`,
+    destination: "impotsTaxes",
+    sens_normal: "debiteur",
+    remarque: `Taxe foncière, CFE, CVAE, TaSCom...`,
+  },
+  {
+    prefixe: "6352",
+    libelle: `Taxe professionnelle (ancien compte — avant 2010)`,
+    destination: "impotsTaxes",
+    sens_normal: "debiteur",
+    remarque: `Obsolète — maintenu pour anciens FEC`,
+  },
+  {
+    prefixe: "6353",
+    libelle: `Impôts sur les véhicules de société (TVS → TEVS)`,
+    destination: "impotsTaxes",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6354",
+    libelle: `Droits d'enregistrement et de timbre`,
+    destination: "impotsTaxes",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6358",
+    libelle: `Autres droits`,
+    destination: "impotsTaxes",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6411",
+    libelle: `Salaires, appointements`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6412",
+    libelle: `Congés payés`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6413",
+    libelle: `Primes et gratifications`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6414",
+    libelle: `Indemnités et avantages divers`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6415",
+    libelle: `Supplément familial de traitement (secteur public)`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6416",
+    libelle: `Avantages en nature`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6417",
+    libelle: `Rémunérations des intermédiaires`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+    remarque: `DOUTE : parfois classé en 622`,
+  },
+  {
+    prefixe: "6418",
+    libelle: `Autres rémunérations`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6419",
+    libelle: `RRR obtenus sur rémunérations`,
+    destination: "chargesPersonnel",
+    sens_normal: "crediteur",
+    remarque: `Vient en déduction des charges de personnel.`,
+  },
+  {
+    prefixe: "6441",
+    libelle: `Rémunérations des gérants (SARL)`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+    remarque: `Rémunérations de gérance — fréquent en SARL/EURL.`,
+  },
+  {
+    prefixe: "6442",
+    libelle: `Rémunération du travail de l'exploitant (EI)`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+    remarque: `Entreprises individuelles — rémunération de l'exploitant.`,
+  },
+  {
+    prefixe: "6443",
+    libelle: `Rémunérations des dirigeants`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6451",
+    libelle: `Cotisations à l'URSSAF`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6452",
+    libelle: `Cotisations aux mutuelles`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6453",
+    libelle: `Cotisations aux caisses de retraites`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6454",
+    libelle: `Cotisations aux ASSEDIC`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+    remarque: `Obsolète — maintenir pour anciens FEC ; désormais France Travail`,
+  },
+  {
+    prefixe: "6458",
+    libelle: `Cotisations aux autres organismes sociaux`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6471",
+    libelle: `Prestations directes`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6472",
+    libelle: `Versements aux comités d'entreprise et d'établissement`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6473",
+    libelle: `Versements aux œuvres sociales`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6474",
+    libelle: `Médecine du travail, pharmacie`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6475",
+    libelle: `Versements aux OS`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6478",
+    libelle: `Autres charges sociales diverses`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6511",
+    libelle: `Redevances pour concessions`,
+    destination: "autresChargesExploit",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6516",
+    libelle: `Droits d'auteur et de reproduction`,
+    destination: "autresChargesExploit",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6541",
+    libelle: `Créances de l'exercice`,
+    destination: "autresChargesExploit",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6544",
+    libelle: `Créances des exercices antérieurs`,
+    destination: "autresChargesExploit",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6611",
+    libelle: `Intérêts des emprunts et dettes`,
+    destination: "chargesFinancieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6612",
+    libelle: `Intérêts des obligations convertibles`,
+    destination: "chargesFinancieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6615",
+    libelle: `Intérêts des comptes courants et des dépôts créditeurs`,
+    destination: "chargesFinancieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6616",
+    libelle: `Intérêts bancaires et sur opérations de financement`,
+    destination: "chargesFinancieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6617",
+    libelle: `Intérêts des obligations cautionnées`,
+    destination: "chargesFinancieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6618",
+    libelle: `Intérêts des autres dettes`,
+    destination: "chargesFinancieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6671",
+    libelle: `Charges nettes sur cessions d'immobilisations financières`,
+    destination: "chargesFinancieres",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 — sous-compte de 667. Remplace l'ancien 6756.`,
+  },
+  {
+    prefixe: "6711",
+    libelle: `Pénalités sur marchés et dédits`,
+    destination: "chargesExcep",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6712",
+    libelle: `Pénalités, amendes fiscales et pénales`,
+    destination: "chargesExcep",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6713",
+    libelle: `Dons, libéralités`,
+    destination: "chargesExcep",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6714",
+    libelle: `Créances devenues irrécouvrables dans l'exercice`,
+    destination: "chargesExcep",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6717",
+    libelle: `Rappels d'impôts autres que sur les bénéfices`,
+    destination: "chargesExcep",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6718",
+    libelle: `Autres charges exceptionnelles sur opérations de gestion`,
+    destination: "chargesExcep",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6811",
+    libelle: `Dotations aux amortissements des immo. incorp. et corp.`,
+    destination: "dotationsExploit",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6812",
+    libelle: `Dotations aux amortissements des charges d'exploitation à répartir`,
+    destination: "dotationsExploit",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6813",
+    libelle: `Dotations aux amortissements des droits d'utilisation`,
+    destination: "dotationsExploit",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 NOUVEAU`,
+  },
+  {
+    prefixe: "6815",
+    libelle: `Dotations aux provisions pour risques et charges d'exploitation`,
+    destination: "dotationsExploit",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6816",
+    libelle: `Dotations aux dépréciations des immobilisations incorporelles et corporelles`,
+    destination: "dotationsExploit",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6817",
+    libelle: `Dotations aux dépréciations des actifs circulants`,
+    destination: "dotationsExploit",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6861",
+    libelle: `Dotations aux amortissements des primes de remboursement des obligations`,
+    destination: "dotationsFin",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6862",
+    libelle: `Dotations aux amortissements des frais d'émission des emprunts`,
+    destination: "dotationsFin",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 NOUVEAU — amortissement des frais d'émission d'emprunts (compte 481). Remplace l'ancien transfert de charges 796 utilisé pour cet étalement.`,
+  },
+  {
+    prefixe: "6865",
+    libelle: `Dotations aux provisions pour risques et charges financiers`,
+    destination: "dotationsFin",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6866",
+    libelle: `Dotations aux dépréciations des éléments financiers`,
+    destination: "dotationsFin",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6871",
+    libelle: `Dotations aux amortissements exceptionnels des immobilisations`,
+    destination: "dotationsExcep",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6872",
+    libelle: `Dotations aux provisions réglementées (immo.)`,
+    destination: "dotationsExcep",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6873",
+    libelle: `Dotations aux provisions réglementées (stocks)`,
+    destination: "dotationsExcep",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6874",
+    libelle: `Dotations aux autres provisions réglementées`,
+    destination: "dotationsExcep",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6875",
+    libelle: `Dotations aux provisions pour risques et charges exceptionnels`,
+    destination: "dotationsExcep",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6876",
+    libelle: `Dotations aux dépréciations exceptionnelles`,
+    destination: "dotationsExcep",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6951",
+    libelle: `Impôts sur les bénéfices — France`,
+    destination: "is",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6952",
+    libelle: `Contributions additionnelles à l'IS (surtaxe)`,
+    destination: "is",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "6954",
+    libelle: `Contribution sociale de solidarité des sociétés (C3S)`,
+    destination: "impotsTaxes",
+    sens_normal: "debiteur",
+    remarque: `C3S : position standard = 635 ou sous-compte 6354. Ne pas confondre avec 6951 (IS uniquement).`,
+  },
+  {
+    prefixe: "7011",
+    libelle: `Produits finis — ventes en France`,
+    destination: "productionVendue",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7013",
+    libelle: `Produits finis — ventes à l'exportation`,
+    destination: "productionVendue",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7071",
+    libelle: `Ventes de marchandises en France`,
+    destination: "ventesMarchandises",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7073",
+    libelle: `Ventes de marchandises à l'exportation`,
+    destination: "ventesMarchandises",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7081",
+    libelle: `Produits des services exploités dans l'intérêt du personnel`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7082",
+    libelle: `Commissions et courtages`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7083",
+    libelle: `Locations diverses`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7084",
+    libelle: `Mise à disposition de personnel facturée`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7085",
+    libelle: `Ports et frais accessoires facturés`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7086",
+    libelle: `Bonis sur reprises d'emballages consignés`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7087",
+    libelle: `Bonifications obtenues`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7088",
+    libelle: `Autres produits d'activités annexes`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7091",
+    libelle: `RRR accordés sur ventes de produits finis`,
+    destination: "productionVendue",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "7097",
+    libelle: `RRR accordés sur ventes de marchandises`,
+    destination: "ventesMarchandises",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "7133",
+    libelle: `Variation des en-cours de production de biens`,
+    destination: "productionStockee",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7134",
+    libelle: `Variation des en-cours de production de services`,
+    destination: "productionStockee",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7135",
+    libelle: `Variation des stocks de produits intermédiaires et finis`,
+    destination: "productionStockee",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7181",
+    libelle: `Variation des stocks de produits résiduels`,
+    destination: "productionStockee",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7587",
+    libelle: `Indemnités d'assurance`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — remplace les anciens transferts de charges 791 pour les indemnités reçues des assureurs. Exception : si l'indemnité compense la destruction d'une immobilisation → enregistrer en 757 (prix de cession fictif).`,
+  },
+  {
+    prefixe: "7671",
+    libelle: `Produits des cessions d'immobilisations financières`,
+    destination: "produitsFinanciers",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 — sous-compte de 767. Remplace l'ancien 7756.`,
+  },
+  {
+    prefixe: "7711",
+    libelle: `Dégrèvements d'impôts autres que les impôts sur les bénéfices`,
+    destination: "produitsExcep",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7712",
+    libelle: `Dégrèvements d'impôts sur les bénéfices`,
+    destination: "produitsExcep",
+    sens_normal: "crediteur",
+    remarque: `Distinct de 699 (dégrèvement IS en classe 69). 7712 = dégrèvement IS en exceptionnel (rare).`,
+  },
+  {
+    prefixe: "7714",
+    libelle: `Rentrées sur créances amorties`,
+    destination: "produitsExcep",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7715",
+    libelle: `Subventions d'équilibre`,
+    destination: "produitsExcep",
+    sens_normal: "crediteur",
+    remarque: `ANCIEN PCG — subventions d'équilibre reclassées en 742 (exploitation) pour PCG 2025. Maintenir 7715 en rétrocompat FEC antérieurs. Si présent dans FEC 2025+ = signaler et reclasser en 742.`,
+  },
+  {
+    prefixe: "7717",
+    libelle: `Rappels de loyers, régularisation de charges`,
+    destination: "produitsExcep",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7718",
+    libelle: `Autres produits exceptionnels sur opérations de gestion`,
+    destination: "produitsExcep",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7811",
+    libelle: `Reprises sur amortissements des immo. incorp. et corp.`,
+    destination: "reprises",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7813",
+    libelle: `Reprises sur amortissements des droits d'utilisation`,
+    destination: "reprises",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU`,
+  },
+  {
+    prefixe: "7815",
+    libelle: `Reprises sur provisions pour risques et charges d'exploitation`,
+    destination: "reprises",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7816",
+    libelle: `Reprises sur dépréciations des immobilisations incorp. et corp.`,
+    destination: "reprises",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7817",
+    libelle: `Reprises sur dépréciations des actifs circulants`,
+    destination: "reprises",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7865",
+    libelle: `Reprises sur provisions pour risques et charges financiers`,
+    destination: "reprisesFin",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7866",
+    libelle: `Reprises sur dépréciations des éléments financiers`,
+    destination: "reprisesFin",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7872",
+    libelle: `Reprises sur provisions réglementées (immo.)`,
+    destination: "reprisesExcep",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7873",
+    libelle: `Reprises sur provisions réglementées (stocks)`,
+    destination: "reprisesExcep",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7874",
+    libelle: `Reprises sur autres provisions réglementées`,
+    destination: "reprisesExcep",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7875",
+    libelle: `Reprises sur provisions pour risques et charges exceptionnels`,
+    destination: "reprisesExcep",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "7876",
+    libelle: `Reprises sur dépréciations exceptionnelles`,
+    destination: "reprisesExcep",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "101",
+    libelle: `Capital social ou individuel (ou statutaire)`,
+    destination: "capital",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "102",
+    libelle: `Fonds fiduciaires`,
+    destination: "capital",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "104",
+    libelle: `Primes liées au capital social`,
+    destination: "primes",
+    sens_normal: "crediteur",
+    remarque: `Primes d'émission, de fusion, d'apport, de conversion`,
+  },
+  {
+    prefixe: "105",
+    libelle: `Écarts de réévaluation`,
+    destination: "ecarts",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "106",
+    libelle: `Réserves`,
+    destination: "reserves",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "107",
+    libelle: `Écarts d'équivalence`,
+    destination: "ecarts",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 : maintenu pour entreprises consolidantes à titre individuel — DOUTE : usage rare`,
+  },
+  {
+    prefixe: "108",
+    libelle: `Compte de l'exploitant`,
+    destination: "capital",
+    sens_normal: "crediteur",
+    remarque: `Entreprises individuelles uniquement ; solde débiteur possible si prélèvements > apports`,
+  },
+  {
+    prefixe: "109",
+    libelle: `Actionnaires — capital souscrit non appelé`,
+    destination: "capitalNonAppele",
+    sens_normal: "debiteur",
+    remarque: `Contra-passif — sens normal débiteur car c'est une créance sur actionnaires`,
+  },
+  {
+    prefixe: "110",
+    libelle: `Report à nouveau (solde créditeur)`,
+    destination: "reportNouveau",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "115",
+    libelle: `Écarts d'évaluation`,
+    destination: "ecarts",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — écarts d'évaluation des instruments financiers à la juste valeur.`,
+  },
+  {
+    prefixe: "116",
+    libelle: `Réserves liées aux instruments de couverture`,
+    destination: "reserves",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — réserves de couverture (cash-flow hedge).`,
+  },
+  {
+    prefixe: "119",
+    libelle: `Report à nouveau (solde débiteur)`,
+    destination: "reportNouveau",
+    sens_normal: "debiteur",
+    remarque: `Déficit reporté — sens normal débiteur`,
+  },
+  {
+    prefixe: "120",
+    libelle: `Résultat de l'exercice (bénéfice)`,
+    destination: "resultatExercice",
+    sens_normal: "crediteur",
+    remarque: `Résultat de l'exercice — ligne dédiée dans les capitaux propres, avant affectation. Distinct du report à nouveau.`,
+  },
+  {
+    prefixe: "129",
+    libelle: `Résultat de l'exercice (perte)`,
+    destination: "resultatExercice",
+    sens_normal: "debiteur",
+    remarque: `Résultat de l'exercice (perte) — ligne dédiée dans les capitaux propres, avant affectation. Sens débiteur = perte non encore affectée.`,
+  },
+  {
+    prefixe: "131",
+    libelle: `Subventions d'équipement reçues`,
+    destination: "subventionsInvest",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "138",
+    libelle: `Autres subventions d'investissement`,
+    destination: "subventionsInvest",
+    sens_normal: "crediteur",
+    remarque: `SUPPRIMÉ PCG 2025 — remplacé par 131 (libellé élargi : 'Subventions d'investissement octroyées'). Maintenir en rétrocompat FEC antérieurs.`,
+  },
+  {
+    prefixe: "139",
+    libelle: `Subventions d'investissement inscrites au CR`,
+    destination: "subventionsInvest",
+    sens_normal: "debiteur",
+    remarque: `Compte de virements — solde normal = 0 en fin d'exercice`,
+  },
+  {
+    prefixe: "141",
+    libelle: `Provisions réglementées relatives aux immobilisations`,
+    destination: "provisionsReglementees",
+    sens_normal: "crediteur",
+    remarque: `SUPPRIMÉ PCG 2025 — compte 141 supprimé (provisions réglementées relatives aux immobilisations). Maintenir en rétrocompat FEC antérieurs.`,
+  },
+  {
+    prefixe: "142",
+    libelle: `Provisions réglementées relatives aux stocks`,
+    destination: "provisionsReglementees",
+    sens_normal: "crediteur",
+    remarque: `SUPPRIMÉ PCG 2025 — compte supprimé. Maintenir en rétrocompat FEC antérieurs.`,
+  },
+  {
+    prefixe: "143",
+    libelle: `Provisions réglementées relatives aux autres éléments de l'actif`,
+    destination: "provisionsReglementees",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 : libellé modifié → '143 Provisions réglementées pour hausse de prix'. Sous-compte 1432 (fluctuation des cours) SUPPRIMÉ. 1431 → 143.`,
+  },
+  {
+    prefixe: "144",
+    libelle: `Provisions réglementées relatives aux plus-values à long terme`,
+    destination: "provisionsReglementees",
+    sens_normal: "crediteur",
+    remarque: `SUPPRIMÉ PCG 2025 — provisions réglementées relatives aux autres éléments de l'actif. Maintenir en rétrocompat FEC antérieurs.`,
+  },
+  {
+    prefixe: "145",
+    libelle: `Amortissements dérogatoires`,
+    destination: "provisionsReglementees",
+    sens_normal: "crediteur",
+    remarque: `Sous-catégorie des provisions réglementées — PCG 2025 maintient le compte 145`,
+  },
+  {
+    prefixe: "146",
+    libelle: `Provision spéciale de réévaluation`,
+    destination: "provisionsReglementees",
+    sens_normal: "crediteur",
+    remarque: `SUPPRIMÉ PCG 2025 — provision spéciale de réévaluation. Maintenir en rétrocompat FEC antérieurs.`,
+  },
+  {
+    prefixe: "147",
+    libelle: `Plus-values réinvesties`,
+    destination: "provisionsReglementees",
+    sens_normal: "crediteur",
+    remarque: `SUPPRIMÉ PCG 2025 — plus-values réinvesties. Maintenir en rétrocompat FEC antérieurs.`,
+  },
+  {
+    prefixe: "148",
+    libelle: `Autres provisions réglementées`,
+    destination: "provisionsReglementees",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "151",
+    libelle: `Provisions pour risques`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "153",
+    libelle: `Provisions pour pensions et obligations similaires`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 : renuméroté 1521 — Provisions pour pensions et obligations similaires (IFC, retraites). Maintenir 153 en rétrocompat pour FEC antérieurs à 2025.`,
+  },
+  {
+    prefixe: "154",
+    libelle: `Provisions pour restructurations`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 : renuméroté 1522. Maintenir 154 en rétrocompat FEC antérieurs.`,
+  },
+  {
+    prefixe: "155",
+    libelle: `Provisions pour impôts`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 : reclassé sous 152x. Maintenir 155 en rétrocompat FEC antérieurs.`,
+  },
+  {
+    prefixe: "156",
+    libelle: `Provisions pour renouvellement des immobilisations`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 : reclassé sous 152x. Maintenir 156 en rétrocompat FEC antérieurs.`,
+  },
+  {
+    prefixe: "157",
+    libelle: `Provisions pour charges à répartir sur plusieurs exercices`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 : sous-compte 1572 (gros entretien) → renuméroté 1525. Le libellé 'charges à répartir' disparaît — remplacé par 'gros entretien ou grandes révisions'. Maintenir 157 en rétrocompat FEC antérieurs.`,
+  },
+  {
+    prefixe: "158",
+    libelle: `Autres provisions pour charges`,
+    destination: "provisionsRisques",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 : reclassé sous 152x. Maintenir 158 en rétrocompat FEC antérieurs.`,
+  },
+  {
+    prefixe: "161",
+    libelle: `Emprunts obligataires convertibles`,
+    destination: "empruntsOblig",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "163",
+    libelle: `Autres emprunts obligataires`,
+    destination: "empruntsOblig",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "164",
+    libelle: `Emprunts auprès des établissements de crédit`,
+    destination: "empruntsEtablissement",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "165",
+    libelle: `Dépôts et cautionnements reçus`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "166",
+    libelle: `Participation des salariés aux résultats`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+    remarque: `La part bloquée — PCG 2025 maintient sous 166`,
+  },
+  {
+    prefixe: "167",
+    libelle: `Emprunts et dettes assimilées — divers`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "168",
+    libelle: `Autres emprunts et dettes assimilées`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 : libellé modifié — anciennement 'Intérêts courus'. Subdivisions intérêts courus migrées vers 16x8.`,
+  },
+  {
+    prefixe: "169",
+    libelle: `Primes de remboursement des obligations`,
+    destination: "chargesConstatees",
+    sens_normal: "debiteur",
+    remarque: `Primes de remboursement des obligations — à amortir sur la durée de l'emprunt. Figurent en charges à répartir (actif de régularisation), pas en immobilisations financières.`,
+  },
+  {
+    prefixe: "171",
+    libelle: `Dettes rattachées à des participations (groupe)`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "174",
+    libelle: `Dettes rattachées à des participations (hors groupe)`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "178",
+    libelle: `Dettes rattachées à des associés`,
+    destination: "autresEmpruntsLT",
+    sens_normal: "crediteur",
+    remarque: `Compte courant d'associés bloqués`,
+  },
+  {
+    prefixe: "181",
+    libelle: `Comptes de liaison des établissements`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+    remarque: `Comptes de liaison des établissements (GIE, succursales). Destination autresDettes par défaut — sens créditeur habituel. Si débiteur : basculer en autresCreances (cas rare, non implémenté en L2).`,
+  },
+  {
+    prefixe: "182",
+    libelle: `Résultats mis en commun`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+    remarque: `Résultats mis en commun (GIE, succursales). Destination autresDettes par défaut — sens créditeur habituel. Si débiteur : basculer en autresCreances (cas rare, non implémenté en L2).`,
+  },
+  {
+    prefixe: "201",
+    libelle: `Frais d'établissement`,
+    destination: "immoIncorpBrut",
+    sens_normal: "debiteur",
+    remarque: `Frais d'établissement — maintenus dans le PCG 2025. Amortissables sur 5 ans maximum. Sous-comptes : 2011/2012/2013.`,
+  },
+  {
+    prefixe: "202",
+    libelle: `Frais de recherche et développement`,
+    destination: "immoIncorpBrut",
+    sens_normal: "debiteur",
+    remarque: `DOUTE : PCG 2025 réserve la capitalisation aux frais de développement stricto sensu (IAS 38-like). Frais de recherche = charge 617 ou 623.`,
+  },
+  {
+    prefixe: "203",
+    libelle: `Frais de développement`,
+    destination: "immoIncorpBrut",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 : libellé modifié — anciennement 'Frais d'exploration et d'évaluation de ressources minières'. Seuls les frais de DÉVELOPPEMENT sont capitalisables. Frais de recherche pure = charge (617).`,
+  },
+  {
+    prefixe: "204",
+    libelle: `Dépenses d'exploration et de mise en valeur des ressources naturelles`,
+    destination: "immoIncorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "205",
+    libelle: `Concessions, brevets, licences, marques, procédés, logiciels, droits et valeurs similaires`,
+    destination: "immoIncorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "206",
+    libelle: `Droit au bail`,
+    destination: "immoIncorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "207",
+    libelle: `Fonds commercial`,
+    destination: "immoIncorpBrut",
+    sens_normal: "debiteur",
+    remarque: `Goodwill — PCG 2025 : amortissable sur durée déterminée ou max 10 ans si durée indéterminée`,
+  },
+  {
+    prefixe: "208",
+    libelle: `Autres immobilisations incorporelles`,
+    destination: "immoIncorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "211",
+    libelle: `Terrains`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "212",
+    libelle: `Agencements et aménagements de terrains`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "213",
+    libelle: `Constructions`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "214",
+    libelle: `Constructions sur sol d'autrui`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "215",
+    libelle: `Installations techniques, matériel et outillage industriels`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "218",
+    libelle: `Autres immobilisations corporelles`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "231",
+    libelle: `Immobilisations corporelles en cours`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+    remarque: `Chantier non terminé — pas encore amorti`,
+  },
+  {
+    prefixe: "232",
+    libelle: `Immobilisations incorporelles en cours`,
+    destination: "immoIncorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "237",
+    libelle: `Avances et acomptes versés sur commandes d'immobilisations incorporelles`,
+    destination: "immoIncorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "238",
+    libelle: `Avances et acomptes versés sur commandes d'immobilisations corporelles`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "241",
+    libelle: `Droits d'utilisation des terrains`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 NOUVEAU`,
+  },
+  {
+    prefixe: "242",
+    libelle: `Droits d'utilisation des agencements et aménagements de terrains`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 NOUVEAU`,
+  },
+  {
+    prefixe: "243",
+    libelle: `Droits d'utilisation des constructions`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 NOUVEAU`,
+  },
+  {
+    prefixe: "245",
+    libelle: `Droits d'utilisation des installations, matériel et outillage`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 NOUVEAU`,
+  },
+  {
+    prefixe: "248",
+    libelle: `Droits d'utilisation des autres immobilisations corporelles`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 NOUVEAU`,
+  },
+  {
+    prefixe: "249",
+    libelle: `Droits d'utilisation des immobilisations incorporelles`,
+    destination: "immoIncorpBrut",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 NOUVEAU`,
+  },
+  {
+    prefixe: "251",
+    libelle: `Parts dans des entreprises liées`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "253",
+    libelle: `Créances sur des entreprises liées`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "255",
+    libelle: `Dépôts et cautionnements versés à des entreprises liées`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "258",
+    libelle: `Intérêts courus sur créances rattachées à des participations`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "261",
+    libelle: `Titres de participation`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "262",
+    libelle: `Titres évalués par équivalence (MEE)`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+    remarque: `DOUTE : PCG 2025 introduit la MEE pour comptes individuels ? Règlement ANC 2022-06 : option MEE limitée.`,
+  },
+  {
+    prefixe: "263",
+    libelle: `Intérêts dans des entités contrôlées conjointement`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "264",
+    libelle: `Titres de participation évalués par équivalence`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "265",
+    libelle: `Versements représentatifs d'apports au fonds associatif sans droit de reprise`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+    remarque: `Versements à titre d'apport sans droit de reprise dans des entités à but non lucratif (ex : fondations, associations). Rare en contexte commercial. Classification en immoFinBrut par analogie avec les participations.`,
+  },
+  {
+    prefixe: "266",
+    libelle: `Créances rattachées à des participations (groupe)`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "267",
+    libelle: `Créances rattachées à des participations (hors groupe)`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "268",
+    libelle: `Créances rattachées à des participations — intérêts courus`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "269",
+    libelle: `Versements restant à effectuer sur titres de participation non libérés`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+    remarque: `Contra-actif — sens créditeur au passif`,
+  },
+  {
+    prefixe: "271",
+    libelle: `Titres immobilisés (droit de propriété)`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "272",
+    libelle: `Titres immobilisés (droit de créance)`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "273",
+    libelle: `Titres immobilisés de l'activité de portefeuille (TIAP)`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "274",
+    libelle: `Prêts`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "275",
+    libelle: `Dépôts et cautionnements versés`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "276",
+    libelle: `Autres créances immobilisées`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "277",
+    libelle: `Actions propres ou parts propres`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+    remarque: `Actions propres — PCG 2025 art. 221-3 : si destinées à l'annulation → déduction des capitaux propres (hors périmètre moteur, traitement manuel). Si détenues pour régulation de cours ou attribution aux salariés → maintien en immoFinBrut. Destination moteur = immoFinBrut par défaut (cas le plus fréquent en TPE/PME).`,
+  },
+  {
+    prefixe: "278",
+    libelle: `Intérêts courus sur prêts et autres créances immobilisées`,
+    destination: "immoFinBrut",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "279",
+    libelle: `Versements restant à effectuer sur titres immobilisés non libérés`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+    remarque: `Contra-passif`,
+  },
+  {
+    prefixe: "280",
+    libelle: `Amortissements des immobilisations incorporelles`,
+    destination: "amortIncorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "281",
+    libelle: `Amortissements des immobilisations corporelles`,
+    destination: "amortCorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "284",
+    libelle: `Amortissements des droits d'utilisation`,
+    destination: "amortCorp",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — amortissement des droits d'utilisation classe 24`,
+  },
+  {
+    prefixe: "290",
+    libelle: `Dépréciations des immobilisations incorporelles`,
+    destination: "amortIncorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "291",
+    libelle: `Dépréciations des immobilisations corporelles`,
+    destination: "amortCorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "293",
+    libelle: `Dépréciations des immobilisations en cours`,
+    destination: "amortCorp",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "294",
+    libelle: `Dépréciations des droits d'utilisation`,
+    destination: "amortCorp",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU`,
+  },
+  {
+    prefixe: "296",
+    libelle: `Dépréciations des participations et créances rattachées`,
+    destination: "deprecImmoFin",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "297",
+    libelle: `Dépréciations des autres immobilisations financières`,
+    destination: "deprecImmoFin",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "321",
+    libelle: `Matières consommables`,
+    destination: "stocksMatieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "322",
+    libelle: `Fournitures consommables`,
+    destination: "stocksMatieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "326",
+    libelle: `Emballages`,
+    destination: "stocksMatieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "351",
+    libelle: `Produits intermédiaires`,
+    destination: "stocksProduits",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "355",
+    libelle: `Produits finis`,
+    destination: "stocksProduits",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "358",
+    libelle: `Produits résiduels ou matières de récupération`,
+    destination: "stocksProduits",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "391",
+    libelle: `Dépréciations des matières premières et fournitures`,
+    destination: "deprecStocks",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "392",
+    libelle: `Dépréciations des autres approvisionnements`,
+    destination: "deprecStocks",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "393",
+    libelle: `Dépréciations des en-cours de production de biens`,
+    destination: "deprecStocks",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "394",
+    libelle: `Dépréciations des en-cours de production de services`,
+    destination: "deprecStocks",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "395",
+    libelle: `Dépréciations des stocks de produits`,
+    destination: "deprecStocks",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "397",
+    libelle: `Dépréciations des stocks de marchandises`,
+    destination: "deprecStocks",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "401",
+    libelle: `Fournisseurs`,
+    destination: "dettesFournisseurs",
+    sens_normal: "crediteur",
+    remarque: `Solde débiteur possible → basculer en autresCreances`,
+  },
+  {
+    prefixe: "403",
+    libelle: `Fournisseurs — effets à payer`,
+    destination: "dettesFournisseurs",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "404",
+    libelle: `Fournisseurs d'immobilisations`,
+    destination: "dettesFournisseurs",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "405",
+    libelle: `Fournisseurs d'immobilisations — effets à payer`,
+    destination: "dettesFournisseurs",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "408",
+    libelle: `Fournisseurs — factures non parvenues`,
+    destination: "dettesFournisseurs",
+    sens_normal: "crediteur",
+    remarque: `Charges à payer — FNP`,
+  },
+  {
+    prefixe: "409",
+    libelle: `Fournisseurs débiteurs`,
+    destination: "autresCreances",
+    sens_normal: "debiteur",
+    remarque: `Avances et acomptes versés fournisseurs`,
+  },
+  {
+    prefixe: "411",
+    libelle: `Clients`,
+    destination: "creancesClients",
+    sens_normal: "debiteur",
+    remarque: `Solde créditeur → avances clients → basculer en autresDettes`,
+  },
+  {
+    prefixe: "413",
+    libelle: `Clients — effets à recevoir`,
+    destination: "creancesClients",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "416",
+    libelle: `Clients douteux ou litigieux`,
+    destination: "creancesClients",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "418",
+    libelle: `Clients — produits non encore facturés`,
+    destination: "creancesClients",
+    sens_normal: "debiteur",
+    remarque: `Produits à recevoir — FAE / PNF`,
+  },
+  {
+    prefixe: "419",
+    libelle: `Clients créditeurs`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+    remarque: `Avances et acomptes reçus des clients`,
+  },
+  {
+    prefixe: "421",
+    libelle: `Personnel — rémunérations dues`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "422",
+    libelle: `Comité d'entreprise (CSE)`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "424",
+    libelle: `Participation des salariés aux résultats`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+    remarque: `Part courante — la part bloquée est en 166`,
+  },
+  {
+    prefixe: "425",
+    libelle: `Personnel — avances et acomptes`,
+    destination: "autresCreances",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "426",
+    libelle: `Personnel — dépôts`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "427",
+    libelle: `Personnel — oppositions`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "428",
+    libelle: `Personnel — charges à payer et produits à recevoir`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "431",
+    libelle: `Sécurité sociale`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "432",
+    libelle: `Caisse de retraite`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+    remarque: `Certains logiciels subdivisent 431 en 432 (retraite) et 433 (mutuelles).`,
+  },
+  {
+    prefixe: "433",
+    libelle: `Mutuelles et prévoyance`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+    remarque: `Certains logiciels subdivisent 431 en 432 (retraite) et 433 (mutuelles).`,
+  },
+  {
+    prefixe: "437",
+    libelle: `Autres organismes sociaux`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "438",
+    libelle: `Organismes sociaux — charges à payer et produits à recevoir`,
+    destination: "dettesSociales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "441",
+    libelle: `État — subventions à recevoir`,
+    destination: "creancesEtat",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "442",
+    libelle: `État — impôts et taxes recouvrables sur des tiers (TVA collectée)`,
+    destination: "dettesFiscales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "443",
+    libelle: `Opérations particulières avec l'État, les collectivités, les établissements publics`,
+    destination: "creancesEtat",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "444",
+    libelle: `État — impôts sur les bénéfices`,
+    destination: "dettesFiscales",
+    sens_normal: "crediteur",
+    remarque: `Solde débiteur = créance IS → basculer en creancesEtat`,
+  },
+  {
+    prefixe: "446",
+    libelle: `Obligations cautionnées`,
+    destination: "dettesFiscales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "447",
+    libelle: `Autres impôts, taxes et versements assimilés`,
+    destination: "dettesFiscales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "448",
+    libelle: `État — charges à payer et produits à recevoir`,
+    destination: "dettesFiscales",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "451",
+    libelle: `Groupe — comptes courants`,
+    destination: "autresCreances",
+    sens_normal: "debiteur",
+    remarque: `Sens variable — créditeur : basculé en autresDettes (entité liée créditrice) ; débiteur : reste en autresCreances (sens normal). Basculement géré en L2.`,
+  },
+  {
+    prefixe: "455",
+    libelle: `Associés — comptes courants`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+    remarque: `Solde créditeur = dette envers associés ; débiteur = créance`,
+  },
+  {
+    prefixe: "456",
+    libelle: `Associés — opérations sur le capital`,
+    destination: "capital",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "457",
+    libelle: `Associés — dividendes à payer`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "458",
+    libelle: `Associés — opérations faites en commun et en GIE`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "461",
+    libelle: `Débiteurs divers`,
+    destination: "autresCreances",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "462",
+    libelle: `Créditeurs divers`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "463",
+    libelle: `Avances reçues sur commandes en cours`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "464",
+    libelle: `Dettes sur acquisitions de valeurs mobilières de placement`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "465",
+    libelle: `Créances sur cessions de valeurs mobilières de placement`,
+    destination: "autresCreances",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "467",
+    libelle: `Autres comptes débiteurs ou créditeurs`,
+    destination: "autresCreances",
+    sens_normal: "debiteur",
+    remarque: `Sens variable — débiteur : autresCreances (sens normal) ; créditeur : basculé en autresDettes. Basculement géré en L2.`,
+  },
+  {
+    prefixe: "468",
+    libelle: `Divers — charges à payer et produits à recevoir`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "471",
+    libelle: `Comptes d'attente`,
+    destination: "autresCreances",
+    sens_normal: "debiteur",
+    remarque: `DOUTE : à solder avant clôture — si présent, signaler. Bilan provisoire = autresCreances ou autresDettes selon solde`,
+  },
+  {
+    prefixe: "472",
+    libelle: `Comptes de régularisation — divers`,
+    destination: "autresCreances",
+    sens_normal: "debiteur",
+    remarque: `DOUTE`,
+  },
+  {
+    prefixe: "476",
+    libelle: `Différences de conversion — actif`,
+    destination: "autresCreances",
+    sens_normal: "debiteur",
+    remarque: `Pertes latentes de change`,
+  },
+  {
+    prefixe: "477",
+    libelle: `Différences de conversion — passif`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+    remarque: `Gains latents de change`,
+  },
+  {
+    prefixe: "478",
+    libelle: `Autres comptes de régularisation`,
+    destination: "autresCreances",
+    sens_normal: "debiteur",
+    remarque: `DOUTE`,
+  },
+  {
+    prefixe: "481",
+    libelle: `Charges à répartir sur plusieurs exercices`,
+    destination: "chargesConstatees",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 : usage précisé — frais d'émission d'emprunts à étaler. Amorti chaque année par débit du compte 6862 (dotations aux amortissements des frais d'émission d'emprunts).`,
+  },
+  {
+    prefixe: "486",
+    libelle: `Charges constatées d'avance`,
+    destination: "chargesConstatees",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "487",
+    libelle: `Produits constatés d'avance`,
+    destination: "produitsConstates",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "488",
+    libelle: `Comptes de régularisation — divers`,
+    destination: "chargesConstatees",
+    sens_normal: "debiteur",
+    remarque: `DOUTE`,
+  },
+  {
+    prefixe: "489",
+    libelle: `Charges à distribuer sur plusieurs exercices — amortissements`,
+    destination: "chargesConstatees",
+    sens_normal: "debiteur",
+    remarque: `DOUTE — même remarque que 481`,
+  },
+  {
+    prefixe: "491",
+    libelle: `Dépréciations des comptes de clients`,
+    destination: "deprecCreances",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "495",
+    libelle: `Dépréciations des comptes du groupe et des associés`,
+    destination: "deprecCreances",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "496",
+    libelle: `Dépréciations des comptes de débiteurs divers`,
+    destination: "deprecCreances",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "501",
+    libelle: `Parts dans des entreprises liées`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+    remarque: `VMP — PCG 2025 : DOUTE sur classification. Si intention de détention court terme = trésorerie. Si long terme = immoFinBrut.`,
+  },
+  {
+    prefixe: "502",
+    libelle: `Actions propres`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+    remarque: `Actions propres en classe 5 = VMP détenus pour revente à court terme. PCG 2025 : si intention d'annulation → déduction des capitaux propres (traitement manuel hors moteur). Sinon : tresorerieActif maintenu.`,
+  },
+  {
+    prefixe: "503",
+    libelle: `Actions`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "504",
+    libelle: `Autres titres conférant un droit de propriété`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "505",
+    libelle: `Obligations et bons émis par la société et rachetés par elle`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "506",
+    libelle: `Obligations`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "507",
+    libelle: `Bons du Trésor et bons de caisse à court terme`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "508",
+    libelle: `Autres valeurs mobilières de placement et autres créances assimilées`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "509",
+    libelle: `Versements restant à effectuer sur valeurs mobilières de placement non libérées`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "511",
+    libelle: `Valeurs à l'encaissement`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+    remarque: `Chèques à encaisser`,
+  },
+  {
+    prefixe: "512",
+    libelle: `Banques`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+    remarque: `Solde créditeur → découvert → basculer en tresoreriePassif`,
+  },
+  {
+    prefixe: "513",
+    libelle: `Chèques postaux`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "514",
+    libelle: `Chèques de voyage`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "515",
+    libelle: `Virements internes`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+    remarque: `Compte de virement — solde normal = 0`,
+  },
+  {
+    prefixe: "516",
+    libelle: `Société financière`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "517",
+    libelle: `Autres organismes financiers`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "518",
+    libelle: `Intérêts courus`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+    remarque: `Intérêts courus trésorerie — débiteur : tresorerieActif (sens normal) ; créditeur : basculé en tresoreriePassif. Basculement géré en L2.`,
+  },
+  {
+    prefixe: "519",
+    libelle: `Concours bancaires courants`,
+    destination: "tresoreriePassif",
+    sens_normal: "crediteur",
+    remarque: `Découverts, crédits spot — sens normal créditeur`,
+  },
+  {
+    prefixe: "531",
+    libelle: `Caisse siège social`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "532",
+    libelle: `Caisses des succursales ou des établissements`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "590",
+    libelle: `Dépréciations des valeurs mobilières de placement`,
+    destination: "deprecTreso",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "591",
+    libelle: `Dépréciations des valeurs à l'encaissement`,
+    destination: "deprecTreso",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "601",
+    libelle: `Achats de matières premières et fournitures`,
+    destination: "achatsMatieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "602",
+    libelle: `Achats de matières et fournitures consommables`,
+    destination: "achatsMatieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "604",
+    libelle: `Achats d'études et prestations de services`,
+    destination: "autresAchats",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "605",
+    libelle: `Achats de matériels, équipements et travaux`,
+    destination: "autresAchats",
+    sens_normal: "debiteur",
+    remarque: `DOUTE : si < seuil immo = charge ; si ≥ seuil = immo. Traiter comme charge sauf indication contraire.`,
+  },
+  {
+    prefixe: "606",
+    libelle: `Achats non stockés de matières et fournitures`,
+    destination: "autresAchats",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "607",
+    libelle: `Achats de marchandises`,
+    destination: "achatsMarchandises",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "609",
+    libelle: `Rabais, remises et ristournes obtenus sur achats`,
+    destination: "achatsMatieres",
+    sens_normal: "crediteur",
+    remarque: `Regroupement RRR — traiter selon nature achats concernés — DOUTE`,
+  },
+  {
+    prefixe: "611",
+    libelle: `Sous-traitance générale`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "612",
+    libelle: `Redevances de crédit-bail et contrats de location-financement`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 : subsiste pour les contrats de location-financement (crédit-bail) hors champ de la classe 24. Contrats entrant dans le champ (durée > 12 mois, valeur non faible) → classe 24 obligatoire + amortissement 6813 + intérêts 662. Contrats < 12 mois ou faible valeur → 613 maintenu.`,
+  },
+  {
+    prefixe: "613",
+    libelle: `Locations`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 : loyers sur contrats de location hors champ de la classe 24 (< 12 mois ou faible valeur unitaire). Contrats dans le champ → classe 24 obligatoire.`,
+  },
+  {
+    prefixe: "614",
+    libelle: `Charges locatives et de copropriété`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "615",
+    libelle: `Entretien et réparations`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "616",
+    libelle: `Primes d'assurances`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "617",
+    libelle: `Études et recherches`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "618",
+    libelle: `Divers`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "619",
+    libelle: `Rabais, remises et ristournes obtenus sur services extérieurs`,
+    destination: "servicesExt",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "621",
+    libelle: `Personnel intérimaire`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+    remarque: `Classé servicesExt (position PCG 2025 / liasse 2053). Ne pas basculer en chargesPersonnel dans la classification PCG. Le coût total travail (621 + 641...) est un agrégat analytique CFO séparé, hors états financiers légaux.`,
+  },
+  {
+    prefixe: "622",
+    libelle: `Rémunérations d'intermédiaires et honoraires`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "623",
+    libelle: `Publicité, publications, relations publiques`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "624",
+    libelle: `Transports de biens et transports collectifs du personnel`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "625",
+    libelle: `Déplacements, missions et réceptions`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "626",
+    libelle: `Frais postaux et de télécommunications`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "627",
+    libelle: `Services bancaires et assimilés`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "628",
+    libelle: `Divers`,
+    destination: "servicesExt",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "629",
+    libelle: `Rabais, remises et ristournes obtenus sur services extérieurs (2)`,
+    destination: "servicesExt",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "631",
+    libelle: `Impôts, taxes et versements assimilés sur rémunérations`,
+    destination: "impotsTaxes",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "633",
+    libelle: `Impôts, taxes et versements assimilés sur rémunérations (N–1 et antérieurs)`,
+    destination: "impotsTaxes",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "635",
+    libelle: `Autres impôts, taxes et versements assimilés`,
+    destination: "impotsTaxes",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "637",
+    libelle: `Autres impôts, taxes et versements assimilés (N–1 et antérieurs)`,
+    destination: "impotsTaxes",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "641",
+    libelle: `Rémunérations du personnel`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "645",
+    libelle: `Charges de sécurité sociale et de prévoyance`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "647",
+    libelle: `Autres charges sociales`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "648",
+    libelle: `Autres charges de personnel`,
+    destination: "chargesPersonnel",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "649",
+    libelle: `Remboursements de charges de personnel`,
+    destination: "remboursementsPers",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — remplace les anciens transferts de charges 791 relatifs au personnel (indemnités reçues en compensation de charges de personnel, ex : remboursement employeur maladie, IJ subrogées nettes). Sens créditeur = minore les charges de personnel.`,
+  },
+  {
+    prefixe: "651",
+    libelle: `Redevances pour concessions, brevets, licences, marques, procédés, droits et valeurs similaires`,
+    destination: "autresChargesExploit",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "652",
+    libelle: `Charges résultant de la mise en jeu des garanties`,
+    destination: "autresChargesExploit",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "653",
+    libelle: `Jetons de présence`,
+    destination: "autresChargesExploit",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "654",
+    libelle: `Pertes sur créances irrécouvrables`,
+    destination: "autresChargesExploit",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "655",
+    libelle: `Quote-part de résultat sur opérations faites en commun`,
+    destination: "autresChargesExploit",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "656",
+    libelle: `Charges des activités annexes`,
+    destination: "autresChargesExploit",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "657",
+    libelle: `Charges nettes sur cessions d'immobilisations incorporelles et corporelles`,
+    destination: "autresChargesExploit",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 NOUVEAU — remplace 675 (VNC) pour immos incorp/corp. Sorties d'immos reclassées en exploitation. Ancien 675 = exceptionnel → conserver 675 en rétrocompat FEC antérieurs. La VNC sort ici, le prix de cession va en 757.`,
+  },
+  {
+    prefixe: "658",
+    libelle: `Charges diverses de gestion courante`,
+    destination: "autresChargesExploit",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "661",
+    libelle: `Charges d'intérêts`,
+    destination: "chargesFinancieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "662",
+    libelle: `Charges financières sur dettes de location-financement (droits d'utilisation)`,
+    destination: "chargesFinancieres",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 NOUVEAU — contrepartie des droits d'utilisation classe 24`,
+  },
+  {
+    prefixe: "663",
+    libelle: `Intérêts des dettes sur contrats de location-financement`,
+    destination: "chargesFinancieres",
+    sens_normal: "debiteur",
+    remarque: `Ancien PCG — maintenir en rétrocompat. PCG 2025 : remplacé par 662 pour les contrats entrant dans le champ de la classe 24.`,
+  },
+  {
+    prefixe: "664",
+    libelle: `Pertes sur créances liées à des participations`,
+    destination: "chargesFinancieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "665",
+    libelle: `Escomptes accordés`,
+    destination: "chargesFinancieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "666",
+    libelle: `Pertes de change`,
+    destination: "chargesFinancieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "667",
+    libelle: `Charges nettes sur cessions d'immobilisations financières`,
+    destination: "chargesFinancieres",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 : libellé modifié — anciennement 'Charges nettes sur cessions de valeurs mobilières de placement'. Remplace 6756 (ancien VNC immos financières en exceptionnel). Reclassé en financier.`,
+  },
+  {
+    prefixe: "668",
+    libelle: `Autres charges financières`,
+    destination: "chargesFinancieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "671",
+    libelle: `Charges exceptionnelles sur opérations de gestion`,
+    destination: "chargesExcep",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "672",
+    libelle: `Charges sur exercices antérieurs`,
+    destination: "chargesExcep",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "675",
+    libelle: `Valeurs comptables des éléments d'actif cédés`,
+    destination: "vncActifsCedes",
+    sens_normal: "debiteur",
+    remarque: `ANCIEN PCG — remplacé par 657 (PCG 2025) pour immos incorp/corp. Maintenir en rétrocompat FEC antérieurs à 2025. Si présent dans FEC 2025+ = signaler anomalie.`,
+  },
+  {
+    prefixe: "676",
+    libelle: `Différences sur réalisations de placements financiers`,
+    destination: "chargesExcep",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "678",
+    libelle: `Autres charges exceptionnelles`,
+    destination: "chargesExcep",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "681",
+    libelle: `Dotations aux amortissements, dépréciations et provisions — charges d'exploitation`,
+    destination: "dotationsExploit",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "686",
+    libelle: `Dotations aux amortissements, dépréciations et provisions — charges financières`,
+    destination: "dotationsFin",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "687",
+    libelle: `Dotations aux amortissements, dépréciations et provisions — charges exceptionnelles`,
+    destination: "dotationsExcep",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "691",
+    libelle: `Participation des salariés aux résultats`,
+    destination: "participation",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "695",
+    libelle: `Impôts sur les bénéfices`,
+    destination: "is",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "697",
+    libelle: `Imposition forfaitaire annuelle (IFA)`,
+    destination: "is",
+    sens_normal: "debiteur",
+    remarque: `Supprimée — maintenu pour anciens FEC`,
+  },
+  {
+    prefixe: "699",
+    libelle: `Produits — dégrèvements d'impôts sur les bénéfices`,
+    destination: "is",
+    sens_normal: "crediteur",
+    remarque: `Dégrèvement IS — créditeur (minore l'IS)`,
+  },
+  {
+    prefixe: "701",
+    libelle: `Ventes de produits finis`,
+    destination: "productionVendue",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "702",
+    libelle: `Ventes de produits intermédiaires`,
+    destination: "productionVendue",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "703",
+    libelle: `Ventes de produits résiduels`,
+    destination: "productionVendue",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "704",
+    libelle: `Travaux`,
+    destination: "productionVendue",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "705",
+    libelle: `Études`,
+    destination: "productionVendue",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "706",
+    libelle: `Prestations de services`,
+    destination: "productionVendue",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "707",
+    libelle: `Ventes de marchandises`,
+    destination: "ventesMarchandises",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "708",
+    libelle: `Produits des activités annexes`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 : rôle élargi — inclut désormais les refacturations de personnel et de services (anciennement 791). Ex : refacturation de personnel mis à disposition, rebilling de frais.`,
+  },
+  {
+    prefixe: "709",
+    libelle: `Rabais, remises et ristournes accordés par l'entreprise`,
+    destination: "autresProduits",
+    sens_normal: "debiteur",
+    remarque: `RRR accordés tous produits confondus (701 à 708). Destination autresProduits par défaut — vient en déduction du CA. Pour un suivi analytique fin, ventiler via 7091/7097.`,
+  },
+  {
+    prefixe: "713",
+    libelle: `Variation des stocks (en-cours de production, produits)`,
+    destination: "productionStockee",
+    sens_normal: "crediteur",
+    remarque: `Créditeur si stockage (production), débiteur si déstockage`,
+  },
+  {
+    prefixe: "721",
+    libelle: `Immobilisations incorporelles (production immobilisée)`,
+    destination: "productionImmobilisee",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "722",
+    libelle: `Immobilisations corporelles (production immobilisée)`,
+    destination: "productionImmobilisee",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "724",
+    libelle: `Droits d'utilisation (production immobilisée)`,
+    destination: "productionImmobilisee",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU`,
+  },
+  {
+    prefixe: "741",
+    libelle: `Subventions de l'État`,
+    destination: "subventionsExploit",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "742",
+    libelle: `Subventions des collectivités publiques`,
+    destination: "subventionsExploit",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 : ce compte prend une nouvelle importance — les subventions d'équilibre (anciennement en 7715 exceptionnel) sont reclassées ici en exploitation. Vérifier FEC 2025+ : 7715 ne devrait plus être utilisé pour les subventions d'équilibre courantes.`,
+  },
+  {
+    prefixe: "743",
+    libelle: `Subventions des organismes internationaux`,
+    destination: "subventionsExploit",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "744",
+    libelle: `Subventions d'organismes privés`,
+    destination: "subventionsExploit",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "745",
+    libelle: `Subventions des autres collectivités publiques`,
+    destination: "subventionsExploit",
+    sens_normal: "crediteur",
+    remarque: `Collectivités territoriales hors État — entre 744 et 747.`,
+  },
+  {
+    prefixe: "746",
+    libelle: `Subventions des établissements publics`,
+    destination: "subventionsExploit",
+    sens_normal: "crediteur",
+    remarque: `Établissements publics (BPI, ADEME, etc.).`,
+  },
+  {
+    prefixe: "747",
+    libelle: `Quote-part des subventions d'investissement virée au résultat de l'exercice`,
+    destination: "subventionsExploit",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — remplace l'ancien compte 777. Reclassé de l'exceptionnel vers l'exploitation (classe 74). Inclus dans la VA. Contre-écriture du 131/138 au passif via 139.`,
+  },
+  {
+    prefixe: "748",
+    libelle: `Autres subventions d'exploitation`,
+    destination: "subventionsExploit",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "751",
+    libelle: `Redevances pour concessions, brevets, licences, marques, procédés`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "752",
+    libelle: `Revenus des immeubles non affectés aux activités professionnelles`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "753",
+    libelle: `Jetons de présence et rémunérations d'administrateurs ou de gérants`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "754",
+    libelle: `Ristournes perçues des coopératives (en tant qu'associés)`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "755",
+    libelle: `Quote-part de résultat sur opérations faites en commun`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "756",
+    libelle: `Produits des activités annexes — divers`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "757",
+    libelle: `Produits des cessions d'immobilisations incorporelles et corporelles`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 NOUVEAU — remplace 775 pour immos incorp/corp. Prix de cession reclassé en exploitation. Ancien 775 = exceptionnel → conserver 775 en rétrocompat FEC antérieurs.`,
+  },
+  {
+    prefixe: "758",
+    libelle: `Produits divers de gestion courante`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "761",
+    libelle: `Produits de participations`,
+    destination: "produitsFinanciers",
+    sens_normal: "crediteur",
+    remarque: `Dividendes reçus`,
+  },
+  {
+    prefixe: "762",
+    libelle: `Produits des autres immobilisations financières`,
+    destination: "produitsFinanciers",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "763",
+    libelle: `Revenus des autres créances`,
+    destination: "produitsFinanciers",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "764",
+    libelle: `Revenus des valeurs mobilières de placement`,
+    destination: "produitsFinanciers",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "765",
+    libelle: `Escomptes obtenus`,
+    destination: "produitsFinanciers",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "766",
+    libelle: `Gains de change`,
+    destination: "produitsFinanciers",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "767",
+    libelle: `Produits des cessions d'immobilisations financières`,
+    destination: "produitsFinanciers",
+    sens_normal: "crediteur",
+    remarque: `PCG 2025 : libellé modifié — anciennement 'Produits nets sur cessions de valeurs mobilières de placement'. Remplace 7756 (ancien prix cession immos fin. en exceptionnel). Reclassé en financier.`,
+  },
+  {
+    prefixe: "768",
+    libelle: `Autres produits financiers`,
+    destination: "produitsFinanciers",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "771",
+    libelle: `Produits exceptionnels sur opérations de gestion`,
+    destination: "produitsExcep",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "772",
+    libelle: `Produits sur exercices antérieurs`,
+    destination: "produitsExcep",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "775",
+    libelle: `Produits des cessions d'éléments d'actif`,
+    destination: "prixCession",
+    sens_normal: "crediteur",
+    remarque: `ANCIEN PCG — remplacé par 757 (PCG 2025) pour immos incorp/corp. Maintenir en rétrocompat FEC antérieurs à 2025. Si présent dans FEC 2025+ = signaler anomalie.`,
+  },
+  {
+    prefixe: "777",
+    libelle: `Quote-part des subventions d'investissement virée au résultat`,
+    destination: "reprisesExcep",
+    sens_normal: "crediteur",
+    remarque: `ANCIEN PCG uniquement — compte supprimé par ANC 2022-06 / PCG 2025. Remplacé par 747 (subventionsExploit). À conserver en rétrocompat pour FEC antérieurs à 2025. Si présent dans un FEC 2025+, signaler anomalie.`,
+  },
+  {
+    prefixe: "778",
+    libelle: `Autres produits exceptionnels`,
+    destination: "produitsExcep",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "781",
+    libelle: `Reprises sur amortissements, dépréciations et provisions — produits d'exploitation`,
+    destination: "reprises",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "786",
+    libelle: `Reprises sur dépréciations et provisions financières`,
+    destination: "reprisesFin",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "787",
+    libelle: `Reprises sur provisions exceptionnelles`,
+    destination: "reprisesExcep",
+    sens_normal: "crediteur",
+  },
+  {
+    prefixe: "791",
+    libelle: `Transferts de charges d'exploitation`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+    remarque: `SUPPRIMÉ PCG 2025 — remplacé par : 708 (refacturations/rebilling), 649 (remboursements charges personnel), 7587 (indemnités assurance). Maintenir en rétrocompat FEC antérieurs. Si présent dans FEC 2025+ = signaler anomalie et reclasser.`,
+  },
+  {
+    prefixe: "796",
+    libelle: `Transferts de charges financières`,
+    destination: "produitsFinanciers",
+    sens_normal: "crediteur",
+    remarque: `SUPPRIMÉ PCG 2025 — transferts de charges financières supprimés. Reclasser selon nature : 668 (autres charges fin.) ou 649. Maintenir en rétrocompat FEC antérieurs.`,
+  },
+  {
+    prefixe: "797",
+    libelle: `Transferts de charges exceptionnelles`,
+    destination: "produitsExcep",
+    sens_normal: "crediteur",
+    remarque: `SUPPRIMÉ PCG 2025 — transferts de charges exceptionnelles supprimés. Maintenir en rétrocompat FEC antérieurs.`,
+  },
+  {
+    prefixe: "18",
+    libelle: `Autres comptes de liaison`,
+    destination: "autresDettes",
+    sens_normal: "crediteur",
+    remarque: `Autres comptes de liaison hors 181/182 (GIE, succursales, SEP). Destination autresDettes par défaut — sens créditeur habituel. Si débiteur : basculer en autresCreances (cas rare, non implémenté en L2).`,
+  },
+  {
+    prefixe: "22",
+    libelle: `Immobilisations mises en concession`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+    remarque: `Secteurs concédés — DOUTE : rare en TPE/PME`,
+  },
+  {
+    prefixe: "24",
+    libelle: `Droits d'utilisation sur actifs`,
+    destination: "immoCorpBrut",
+    sens_normal: "debiteur",
+    remarque: `PCG 2025 NOUVEAU : droits d'utilisation issus des contrats de location (IFRS 16-like pour le PCG). Créé par ANC 2022-06.`,
+  },
+  {
+    prefixe: "31",
+    libelle: `Matières premières et fournitures`,
+    destination: "stocksMatieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "32",
+    libelle: `Autres approvisionnements`,
+    destination: "stocksMatieres",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "33",
+    libelle: `En-cours de production de biens`,
+    destination: "stocksEncours",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "34",
+    libelle: `En-cours de production de services`,
+    destination: "stocksEncours",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "35",
+    libelle: `Stocks de produits`,
+    destination: "stocksProduits",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "36",
+    libelle: `Stocks provenant d'immobilisations`,
+    destination: "stocksMatieres",
+    sens_normal: "debiteur",
+    remarque: `DOUTE : rare — traiter comme matières`,
+  },
+  {
+    prefixe: "37",
+    libelle: `Stocks de marchandises`,
+    destination: "stocksMarchandises",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "38",
+    libelle: `Stocks en voie d'acheminement, mis en dépôt, ou donnés en gage`,
+    destination: "stocksMatieres",
+    sens_normal: "debiteur",
+    remarque: `DOUTE : ventiler selon nature (marchandises ou matières)`,
+  },
+  {
+    prefixe: "52",
+    libelle: `Instruments de trésorerie`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+    remarque: `DOUTE : PCG 2025 — instruments de couverture de taux court terme`,
+  },
+  {
+    prefixe: "54",
+    libelle: `Régies d'avances et accréditifs`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+  },
+  {
+    prefixe: "58",
+    libelle: `Virements internes`,
+    destination: "tresorerieActif",
+    sens_normal: "debiteur",
+    remarque: `Compte de mouvement — solde normal = 0 en fin d'exercice`,
+  },
+  {
+    prefixe: "59",
+    libelle: `Dépréciations des comptes financiers`,
+    destination: "deprecTreso",
+    sens_normal: "crediteur",
+  },
+];
+
+// ── L2 — Basculements sens anormal ───────────────────────────
+// 37 règles — synchronisées avec getDestinationEffective()
+export const SENS_ANORMAUX: SensAnormal[] = [
+  {
+    compte: "411",
+    situation: `Solde créditeur (avance reçue, trop-perçu)`,
+    traitement: `Basculer en autresDettes (passif)`,
+  },
+  {
+    compte: "413",
+    situation: `Solde créditeur (effet retourné impayé)`,
+    traitement: `Basculer en autresDettes`,
+  },
+  {
+    compte: "416",
+    situation: `Solde créditeur`,
+    traitement: `Basculer en autresDettes — DOUTE : rare mais possible si provision soldée avec excédent`,
+  },
+  {
+    compte: "418",
+    situation: `Solde créditeur (avoir émis > PNF)`,
+    traitement: `Basculer en autresDettes`,
+  },
+  {
+    compte: "401",
+    situation: `Solde débiteur (fournisseur trop payé ou avoir reçu)`,
+    traitement: `Basculer en autresCreances (actif)`,
+  },
+  {
+    compte: "403",
+    situation: `Solde débiteur`,
+    traitement: `Basculer en autresCreances`,
+  },
+  {
+    compte: "404",
+    situation: `Solde débiteur (acompte > facture immo.)`,
+    traitement: `Basculer en autresCreances`,
+  },
+  {
+    compte: "408",
+    situation: `Solde débiteur (FNP annulée)`,
+    traitement: `Basculer en autresCreances — DOUTE : vérifier écritures`,
+  },
+  {
+    compte: "512",
+    situation: `Solde créditeur (découvert bancaire)`,
+    traitement: `Basculer en tresoreriePassif`,
+  },
+  {
+    compte: "513",
+    situation: `Solde créditeur`,
+    traitement: `Basculer en tresoreriePassif`,
+  },
+  {
+    compte: "514",
+    situation: `Solde créditeur`,
+    traitement: `Basculer en tresoreriePassif`,
+  },
+  {
+    compte: "503-508",
+    situation: `Solde créditeur (VMP — cession à découvert)`,
+    traitement: `Basculer en tresoreriePassif — DOUTE : cas très rare en TPE`,
+  },
+  {
+    compte: "444",
+    situation: `Solde débiteur (créance IS : acomptes > IS dû)`,
+    traitement: `Basculer en creancesEtat`,
+  },
+  {
+    compte: "4456",
+    situation: `Solde créditeur (TVA déductible > TVA collectée → décaisser)`,
+    traitement: `Basculer en dettesFiscales si négatif net — sinon laisser en creancesEtat`,
+  },
+  {
+    compte: "4451",
+    situation: `Solde débiteur (TVA à décaisser → remboursement en attente)`,
+    traitement: `Basculer en creancesEtat`,
+  },
+  {
+    compte: "421",
+    situation: `Solde débiteur (avance nette > salaire)`,
+    traitement: `Basculer en autresCreances`,
+  },
+  {
+    compte: "425",
+    situation: `Solde créditeur (avance remboursée en trop)`,
+    traitement: `Basculer en dettesSociales`,
+  },
+  {
+    compte: "431",
+    situation: `Solde débiteur (cotisations trop payées → remboursement attendu)`,
+    traitement: `Basculer en creancesEtat`,
+  },
+  {
+    compte: "455",
+    situation: `Solde débiteur (associé débiteur — compte courant)`,
+    traitement: `Basculer en autresCreances ; si gérant = vérifier convention réglementée`,
+  },
+  {
+    compte: "108",
+    situation: `Solde débiteur (exploitant individuel — prélèvements > apports)`,
+    traitement: `Maintenir en déduction des capitaux propres — sens normal variable`,
+  },
+  {
+    compte: "120/129",
+    situation: `Solde inverse (129 créditeur ou 120 débiteur)`,
+    traitement: `DOUTE : ne pas inverser. Signaler incohérence FEC. Le résultat peut être affecté partiellement.`,
+  },
+  {
+    compte: "164",
+    situation: `Solde débiteur (remboursement > capital emprunté)`,
+    traitement: `Basculer en autresCreances — DOUTE : vérifier erreur comptable`,
+  },
+  {
+    compte: "168",
+    situation: `Solde débiteur`,
+    traitement: `DOUTE : intérêts courus remboursés en trop — basculer en autresCreances`,
+  },
+  {
+    compte: "471",
+    situation: `Tout solde en fin d'exercice`,
+    traitement: `DOUTE : à investiguer — classer en autresCreances (débiteur) ou autresDettes (créditeur) selon sens`,
+  },
+  {
+    compte: "58",
+    situation: `Tout solde résiduel en fin d'exercice`,
+    traitement: `Virement interne non soldé — signaler anomalie FEC. Solde débiteur = autresCreances, créditeur = autresDettes`,
+  },
+  {
+    compte: "515",
+    situation: `Tout solde résiduel en fin d'exercice`,
+    traitement: `Même traitement que 58`,
+  },
+  {
+    compte: "39x",
+    situation: `Solde débiteur (dépréciation reprise en excès)`,
+    traitement: `DOUTE : signaler — normalement impossible. Remettre à zéro ou reclasser.`,
+  },
+  {
+    compte: "49x",
+    situation: `Solde débiteur`,
+    traitement: `DOUTE : même traitement`,
+  },
+  {
+    compte: "59x",
+    situation: `Solde débiteur`,
+    traitement: `DOUTE : même traitement`,
+  },
+  {
+    compte: "609/619/629",
+    situation: `Solde débiteur (RRR obtenus nets)`,
+    traitement: `Traitement normal — RRR viennent en déduction. Si solde créditeur net = anomalie — DOUTE`,
+  },
+  {
+    compte: "709",
+    situation: `Solde créditeur (RRR accordés nets)`,
+    traitement: `Traitement normal — RRR viennent en diminution CA. Si débiteur net = anomalie — DOUTE`,
+  },
+  {
+    compte: "145",
+    situation: `Solde débiteur (amortissement dérogatoire négatif)`,
+    traitement: `DOUTE : cas de reprise excédentaire — signaler. Normalement 787 reprise = solde ramené à 0.`,
+  },
+  {
+    compte: "110",
+    situation: `Solde débiteur (report à nouveau déficitaire)`,
+    traitement: `Maintenir en capital — sens normal débiteur pour ce sous-compte`,
+  },
+  {
+    compte: "119",
+    situation: `Solde créditeur (RAN bénéficiaire sur 119)`,
+    traitement: `DOUTE : erreur d'imputation probable — reclasser en 110`,
+  },
+  {
+    compte: "451",
+    situation: `Solde créditeur (filiale ou entité liée créditrice)`,
+    traitement: `Basculer en autresDettes`,
+  },
+  {
+    compte: "467",
+    situation: `Solde créditeur (débiteur divers devenu créditeur)`,
+    traitement: `Basculer en autresDettes`,
+  },
+  {
+    compte: "518",
+    situation: `Solde créditeur (intérêts courus à payer sur trésorerie)`,
+    traitement: `Basculer en tresoreriePassif`,
+  },
+];
+
+// ── L3 — Règles de périmètre et exclusions FEC ───────────────
+// 7 règles
+export const FEC_PERIMETER_RULES: FecRule[] = [
+  {
+    question: `1. Codes journaux à exclure du CR`,
+    regle: `Exclure du CR : journal AN (à-nouveaux). Exclure aussi : OD_AFF (opérations d'affectation du résultat N-1), journaux de clôture internes si distincts (ex : CL). Inclure : tous les autres journaux d'opérations (VT, AC, BQ, HA, OD, NDF, etc.).`,
+    remarque: `DOUTE : les libellés de codes journaux varient par logiciel. Liste minimale certaine à exclure du CR = AN. Vérifier si présence de journaux de centralisation (ex : CENTRAL, RECAP).`,
+  },
+  {
+    question: `2. Écritures AN classes 1 à 5 → Bilan ?`,
+    regle: `OUI. Les écritures du journal AN sur les classes 1 à 5 constituent les soldes d'ouverture du bilan. À inclure dans le bilan. Ne pas inclure les écritures AN sur les classes 6 et 7 (elles ne doivent pas exister — signaler si présentes).`,
+    remarque: `Si AN contient des lignes sur 6 ou 7, c'est une anomalie du FEC (erreur ou logiciel défaillant). Signaler et exclure.`,
+  },
+  {
+    question: `3. Exercice < 12 mois (création, fusion, scission)`,
+    regle: `Inclure toutes les écritures sur la période, sans proratisation. Le CR et le bilan reflètent la période réelle. Calculer et stocker la durée en jours (DateDerEcr - DatePremEcr + 1). Exposer la durée dans les métadonnées des états financiers.`,
+    remarque: `Ne jamais annualiser automatiquement sans instruction explicite. Pour les SIG, certains ratios (EBE/CA) sont comparables ; les montants bruts ne le sont pas.`,
+  },
+  {
+    question: `4. Résultat déjà affecté dans le FEC — détection`,
+    regle: `Détection : vérifier si le solde de 120 ou 129 est nul ET si 110 ou 119 ont été mouvementés dans le journal AN ou OD_AFF. Signe d'affectation : écritures D:120 C:110 (affectation bénéfice) ou D:110 C:129 (absorption perte). Si affectation partielle : 120 ou 129 solde résiduel ≠ résultat CR.`,
+    remarque: `DOUTE : si résultat CR ≠ solde 120+129, deux cas : (a) affectation déjà comptabilisée, (b) erreur FEC. Calculer résultat CR = Σ produits - Σ charges (hors AN). Si écart, signaler et utiliser résultat CR comme référence.`,
+  },
+  {
+    question: `4b. Traitement si résultat déjà affecté`,
+    regle: `Utiliser le résultat calculé via CR comme valeur de référence. Au bilan, reconstruire le résultat = actif net - passif hors résultat. Signaler l'écart à l'utilisateur. Ne pas modifier le FEC.`,
+  },
+  {
+    question: `5. Écritures de centralisation ou doublons`,
+    regle: `Identifier par : (a) même référence pièce, même date, montant identique dans deux journaux différents (ex : VT + CENTRAL) ; (b) lignes à zéro (débit = crédit = 0) ; (c) journaux dont le code contient 'CENTRAL', 'RECAP', 'REGR'. Règle : exclure le journal de centralisation si le journal détail est présent. Si seul le journal de centralisation est présent, l'utiliser.`,
+    remarque: `DOUTE : certains logiciels (ex : Cegid) génèrent des journaux de centralisation 'CTVA', 'CAC' — à identifier par analyse des codes journaux distincts du FEC. Pas de règle universelle.`,
+  },
+  {
+    question: `6. Comptes 8 et 9 (analytique, hors bilan)`,
+    regle: `Comptes 8 (engagements hors bilan) : ignorer pour le bilan et le CR. Ne pas inclure dans les états financiers de synthèse. Comptes 9 (comptabilité analytique) : ignorer totalement. Si présents dans le FEC, les stocker mais ne pas les intégrer aux calculs.`,
+    remarque: `DOUTE : certains logiciels utilisent les comptes 9 pour la paie analytique ou le refacturation interne. Signaler leur présence dans les métadonnées. [Information — hors périmètre PCG classique] Les comptes 86x (emplois) et 87x (ressources) du plan comptable associatif sont à traiter comme les comptes 8 : hors bilan.`,
+  },
+];
+
+// ── L4 — Cascade SIG PCG 2025 (proposition CNOEC) ───────────
+// ⚠ L'article 842-1 portant sur les SIG est SUPPRIMÉ du PCG 2025.
+// Cascade CNOEC — à documenter dans l'annexe Alvio.
+// 11 agrégats : MC · PROD · VA · EBE · RE · RF · RCAI · REXCEP · RN · CAF · BFRE
+export const SIG_FORMULES: SigFormule[] = [
+  {
+    sig: `Marge commerciale (MC)`,
+    formule: `+ ventesMarchandises  - achatsMarchandises  +/- variationStocksMarch`,
+    comptes: `707 (ventes marchandises)  – 6097 (RRR accordés sur marchandises)  – 607 (achats marchandises)  +/– 6037 (variation stocks marchandises)`,
+  },
+  {
+    sig: `Production de l'exercice (PROD)`,
+    formule: `+ productionVendue  + productionStockee  + productionImmobilisee`,
+    comptes: `701 à 706, 708 (production vendue)  – 7091 (RRR produits finis) · 7092/7093/7094/7095/7096 (RRR autres productions) · NB : 7097 (RRR marchandises) → inclus en MC ; 709 générique → autresProduits  +/– 713x (variation stocks produits)  + 721, 722, 724 (production immobilisée)`,
+  },
+  {
+    sig: `Valeur ajoutée (VA)`,
+    formule: `+ MC  + PROD  + subventionsExploit (74x) [INCLUS — choix figé PCG 2025]  – achatsMatieres  +/– variationStocksMat  – autresAchats  – servicesExt (incl. 621 intérim)`,
+    comptes: `74x : subventions d'exploitation INCLUSES dans la VA  → inclut désormais 747 (PCG 2025) = quote-part subv. invest. virée au résultat  → remplace l'ancien 777 qui était en exceptionnel    74x : 741, 742, 743, 744, 745, 746, 747, 748    621 (intérim) : déduit en servicesExt dans la VA  → coût total travail = agrégat analytique CFO séparé (621 + 64x + 624)`,
+  },
+  {
+    sig: `Excédent Brut d'Exploitation (EBE)`,
+    formule: `+ VA  + subventionsExploit [si non incluses en VA]  – impotsTaxes  – chargesPersonnel  + remboursementsPers`,
+    comptes: `+ 74x (si non pris en VA)  – 63x (impôts et taxes)  – 641, 645, 647, 648 (charges personnel)  + 649 (remboursements de charges de personnel — PCG 2025)  REMARQUE : 621 (intérim) inclus dans VA (services ext.) selon PCG — certains le transfèrent en chargesPersonnel. DOUTE à signaler.`,
+  },
+  {
+    sig: `Résultat d'exploitation (RE)`,
+    formule: `+ EBE  + autresProduits  – autresChargesExploit  + reprises (exploit.)  – dotationsExploit  + productionImmobilisee [si pas en PROD]`,
+    comptes: `+ 75x (autres produits gestion courante)  + 757 (PCG 2025 : produits cessions immos incorp/corp → exploitation)  + 781x (reprises exploitation)  – 65x (autres charges gestion courante)  – 657 (PCG 2025 : charges nettes cessions immos incorp/corp → exploitation)  – 681x (dotations exploitation)    NOTE : 675/775 (anciens comptes cessions) → exceptionnel pour FEC antérieurs 2025  NOTE : 791 supprimé PCG 2025 — ne plus attendre ce compte en 2025+`,
+  },
+  {
+    sig: `Résultat financier (RF)`,
+    formule: `+ produitsFinanciers  + reprisesFin  – chargesFinancieres  – dotationsFin`,
+    comptes: `+ 76x (produits financiers)  + 786x (reprises financières)  – 66x (charges financières)  – 686x (dotations financières)`,
+  },
+  {
+    sig: `Résultat courant avant impôts (RCAI)`,
+    formule: `+ RE  + RF`,
+    comptes: `Somme des deux agrégats ci-dessus`,
+  },
+  {
+    sig: `Résultat exceptionnel (REXCEP)`,
+    formule: `+ produitsExcep  + reprisesExcep  – chargesExcep  – dotationsExcep    PCG 2025 : le résultat exceptionnel est STRICTEMENT limité à :  • Événements majeurs ET inhabituels  • Corrections d'erreurs  • Opérations fiscales (amortissements dérogatoires)  • Changements de méthode    Sorties d'immos → plus en exceptionnel (PCG 2025)  Subventions invest. → plus en exceptionnel (PCG 2025)`,
+    comptes: `PCG 2025 : 675 et 775 SUPPRIMÉS de l'exceptionnel  → remplacés par 657 et 757 (exploitation)  → maintenir 675/775 en rétrocompat FEC antérieurs    PCG 2025 : 777 SUPPRIMÉ → remplacé par 747 (exploitation)  PCG 2025 : 791/796/797 SUPPRIMÉS    Restent en exceptionnel :  + 77x hors 775 et 777 (produits except.)  + 787x (reprises except.)  – 67x hors 675 (charges except.)  – 687x (dotations except.)`,
+  },
+  {
+    sig: `Résultat net (RN)`,
+    formule: `+ RCAI  + REXCEP  – participation  – is`,
+    comptes: `– 691 (participation salariés)  – 695x (impôts sur bénéfices)  +/– 699 (dégrèvements IS — créditeur)`,
+  },
+  {
+    sig: `CAF — méthode additive (recommandée)`,
+    formule: `+ RN  + dotationsExploit  + dotationsFin  + dotationsExcep  – reprises (exploit.)  – reprisesFin  – reprisesExcep  + vncActifsCedes  – prixCession  – subventionsExploit liées à subv. invest. (747 en PCG 2025 ; 777 en rétrocompat FEC antérieurs)`,
+    comptes: `DOUTE : la CAF n'est pas un SIG au sens strict du PCG 2025 — elle figure dans le tableau de financement ou l'annexe. Inclure dans le moteur comme agrégat de synthèse. Exclure les plus/moins-values de cession (neutralisation). Exclure la quote-part des subventions d'investissement — 747 en PCG 2025 (dans subventionsExploit), 777 en rétrocompat FEC antérieurs (dans reprisesExcep). Inclure la dotation aux amortissements des droits d'utilisation (6813) — PCG 2025 NOUVEAU.`,
+  },
+  {
+    sig: `BFRE`,
+    formule: `Stocks + Créances clients + Autres créances d'exploitation  – Dettes fournisseurs – Dettes fiscales/sociales d'exploitation`,
+    comptes: `Actif : 3x, 41x, 418, 486, 44566  Passif : 401, 403, 408, 421, 431, 432, 433, 437, 438, 442, 445, 447, 448  DOUTE : périmètre BFRE à paramétrer selon secteur.`,
+  },
+];
+
+// ── Moteur de classification ──────────────────────────────────
+
+/**
+ * classifyCompte — règle PCG la plus précise pour un compte donné.
+ * - Rejette vide, non-string, classes 8/9 et tout compte ne commençant pas par 1–7.
+ *   (les comptes 0xxx n'existent pas dans le PCG standard mais peuvent apparaître
+ *   dans certains logiciels — rejetés par précaution).
+ * - Premier match dans PCG_RULES gagne (du plus précis au plus large).
+ * - Retourne null si aucun préfixe ne matche — à signaler dans comptesNonReconnus.
+ */
+export function classifyCompte(compte: string): PcgRule | null {
+  if (!compte || typeof compte !== "string") return null;
+  const c = compte.trim();
+  if (!/^[1-7]/.test(c)) return null;
+  for (const rule of PCG_RULES) {
+    if (c.startsWith(rule.prefixe)) return rule;
+  }
+  return null;
+}
+
+/**
+ * getDestinationEffective — applique les basculements L2 selon le solde réel.
+ * solde > 0 = débiteur · solde < 0 = créditeur · |solde| < 0.01 = ignoré.
+ * 37 règles L2 (SENS_ANORMAUX) synchronisées avec cette fonction.
+ */
+export function getDestinationEffective(
+  compte: string,
+  solde: number,
+  rule: PcgRule
+): Destination {
+  if (Math.abs(solde) < 0.01) return rule.destination;
+
+  const c = compte.trim();
+  const estDebiteur = solde > 0;
+  const estCrediteur = solde < 0;
+  const sensAnormal =
+    (rule.sens_normal === "crediteur" && estDebiteur) ||
+    (rule.sens_normal === "debiteur" && estCrediteur);
+
+  if (!sensAnormal) return rule.destination;
+
+  // ── Basculements L2 ─────────────────────────────────────
+
+  // Clients : créditeur → avances reçues (passif)
+  if ((c.startsWith("411") || c.startsWith("413") || c.startsWith("416") || c.startsWith("418")) && estCrediteur)
+    return "autresDettes";
+
+  // Fournisseurs : débiteur → trop-payé / avoir (actif)
+  if ((c.startsWith("401") || c.startsWith("403") || c.startsWith("404") || c.startsWith("408")) && estDebiteur)
+    return "autresCreances";
+
+  // Banque : créditrice → découvert (passif)
+  if ((c.startsWith("512") || c.startsWith("513") || c.startsWith("514")) && estCrediteur)
+    return "tresoreriePassif";
+
+  // IS : 444 débiteur → acomptes > IS dû → créance État
+  if (c.startsWith("444") && estDebiteur) return "creancesEtat";
+
+  // TVA : 4451 débiteur → remboursement attendu
+  if (c.startsWith("4451") && estDebiteur) return "creancesEtat";
+
+  // TVA : comptes à sens variable (44566, 44584, 44586, 44587) → basculement selon solde
+  if (["44566","44584","44586","44587"].some(p => c.startsWith(p)))
+    return estDebiteur ? "creancesEtat" : "dettesFiscales";
+
+  // TVA collectée : 4421 débiteur → créance État
+  if (c.startsWith("4421") && estDebiteur) return "creancesEtat";
+
+  // Personnel : avance nette > salaire → créance
+  if (c.startsWith("421") && estDebiteur) return "autresCreances";
+
+  // Personnel : avance remboursée en trop → dette
+  if (c.startsWith("425") && estCrediteur) return "dettesSociales";
+
+  // Organismes sociaux : cotisations trop payées → créance État
+  if (c.startsWith("431") && estDebiteur) return "creancesEtat";
+
+  // Groupe/interco : 451 créditeur → dette envers entité liée
+  if (c.startsWith("451") && estCrediteur) return "autresDettes";
+
+  // Associés : 455 débiteur → créance sur associé
+  if (c.startsWith("455") && estDebiteur) return "autresCreances";
+
+  // Débiteurs/créditeurs divers : 467 créditeur → dette
+  if (c.startsWith("467") && estCrediteur) return "autresDettes";
+
+  // Emprunts : remboursement excédentaire → créance
+  if (c.startsWith("164") && estDebiteur) return "autresCreances";
+
+  // Intérêts courus tréso : créditeur → passif
+  if (c.startsWith("518") && estCrediteur) return "tresoreriePassif";
+
+  // Virements internes non soldés (58x couvre 580–589, 515, 471)
+  // Sûr dans ce contexte : on est dans le bloc sensAnormal uniquement
+  if (c.startsWith("58") || c.startsWith("515") || c.startsWith("471")) {
+    return estDebiteur ? "autresCreances" : "autresDettes";
+  }
+
+  return rule.destination; // Sens anormal non critique — conserver destination d'origine
+}
