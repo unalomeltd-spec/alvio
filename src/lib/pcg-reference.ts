@@ -3,7 +3,7 @@
 // Source de vérité — PCG 2025 (ANC 2022-06)
 // Généré depuis PCG2025_Classification_Alvio.xlsx — Valentin Dutote
 // NE PAS MODIFIER MANUELLEMENT — regénérer via scripts/generate-pcg.py
-// v7 — 673 règles L1 · 37 L2 · 7 L3 · 11 SIG
+// v7 — 674 règles L1 · 37 L2 · 7 L3 · 11 SIG
 // ============================================================
 
 // ── Types ─────────────────────────────────────────────────────
@@ -3561,9 +3561,16 @@ export const PCG_RULES: PcgRule[] = [
   {
     prefixe: "6981",
     libelle: `Intégration fiscale — charges`,
-    destination: "is",
+    destination: "autresChargesExploit",
     sens_normal: "debiteur",
-    remarque: `Charge d'IS dans un groupe d'intégration fiscale. Rôle identique à 695x — classé en 'is' pour le calcul du résultat net.`,
+    remarque: `Charge IS dans un groupe d'intégration fiscale. Classé en autresChargesExploit — déjà inclus dans le résultat net via les flux 6x. Ne pas classer en 'is' (évite double déduction dans buildSIG).`,
+  },
+  {
+    prefixe: "6982",
+    libelle: `Intégration fiscale — produits`,
+    destination: "autresProduits",
+    sens_normal: "crediteur",
+    remarque: `Produit IS dans un groupe d'intégration fiscale. Classé en autresProduits — déjà inclus dans le résultat net via les flux 7x. Ne pas classer en 'is'.`,
   },
   {
     prefixe: "699",
