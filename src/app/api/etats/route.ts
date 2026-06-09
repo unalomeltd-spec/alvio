@@ -34,10 +34,6 @@ interface SoldeCompte {
 
 type Balance = Map<string, SoldeCompte>
 
-
-  destination: Destination
-}
-
 // ─── Normalisation ───────────────────────────────────────────
 
 function parseLigne(l: LigneFEC): { compteNum: string; compteLib: string; debit: number; credit: number; journal: string } | null {
