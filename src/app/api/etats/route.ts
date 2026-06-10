@@ -1,6 +1,13 @@
-// ALVIO — Moteur comptable v6.2
+// ALVIO — Moteur comptable v6.3
 // Source de vérité unique : @/lib/pcg-reference
-// v6.2 (10 juin 2026) — Règles comptables validées par Valentin (audit 5 dossiers) :
+// v6.3 (10 juin 2026) — Derniers points Valentin (audit 5 dossiers, tour 2) :
+//   FIX C — 627x Services bancaires et assimiles → servicesExt (exploitation, pas financier).
+//     Valentin : classe sur le numero de compte, jamais sur le libelle. 627 = classe 62.
+//   FIX D — Normalisation 44x : suffixes analytiques Pennylane (ex. 4456400009 = 44564 + code
+//     regime TVA "00009") tronques aux 5 premiers chiffres dans buildBalance. Les sous-comptes
+//     analytiques d'un meme compte TVA se compensent naturellement (44564 + 4456400009 → solde
+//     net 6695,97 → dettesFiscales). Regle Valentin : TVA = position nette par declaration.
+// v6.2 (10 juin 2026) — Regles comptables validees par Valentin (audit 5 dossiers) :
 //   • GROSS-UP DES BIVALENTS (item #5) — non-compensation PCG au grain TIERS (CompAuxNum).
 //     On gross-up les comptes de tiers (classe 4 hors dépréciations 49) et les banques (51x) :
 //     un fournisseur débiteur / une TVA inversée / un compte courant passe du bon côté du bilan.
@@ -97,11 +104,16 @@ function buildBalance(lignes: LigneFEC[], ecrituresCloture: Set<string>, anRepri
     // Régime après affectation : neutraliser les écritures de solde 6/7 pour reconstruire R1
     if ((classe === '6' || classe === '7') && ecrituresCloture.has(`${l.journal}#${l.ecritureNum}`)) { nbLignesCloture67++; continue }
     totalDebit += l.debit; totalCredit += l.credit
-    // Clé au grain TIERS (compte + auxiliaire) → permet le gross-up des comptes collectifs 401/411.
-    const key = `${l.compteNum}|${l.aux}`
+    // Cle au grain TIERS (40x/41x : CompteNum complet + aux pour le gross-up par tiers).
+    // 44x avec > 5 chiffres : tronques aux 5 premiers (FIX D — suffixes analytiques Pennylane :
+    //   4456400009 = 44564 + code regime → meme cle "44564" que le compte racine).
+    // Regle Valentin : TVA = position nette par declaration (44564 + 4456400009 → solde net).
+    let canonical = l.compteNum
+    if (l.compteNum.startsWith('44') && l.compteNum.length > 5) canonical = l.compteNum.slice(0, 5)
+    const key = `${canonical}|${l.aux}`
     const ex = balance.get(key)
     if (ex) { ex.debit += l.debit; ex.credit += l.credit; ex.solde = ex.debit - ex.credit; if (!ex.compteLib && l.compteLib) ex.compteLib = l.compteLib }
-    else balance.set(key, { compteNum: l.compteNum, compteLib: l.compteLib, debit: l.debit, credit: l.credit, solde: l.debit - l.credit, aux: l.aux })
+    else balance.set(key, { compteNum: canonical, compteLib: l.compteLib, debit: l.debit, credit: l.credit, solde: l.debit - l.credit, aux: l.aux })
   }
   for (const s of balance.values()) { s.debit = r(s.debit); s.credit = r(s.credit); s.solde = r(s.solde) }
   return { balance, totalDebit: r(totalDebit), totalCredit: r(totalCredit), nbLignesAN67, nbLignes89, nbLignesCloture67 }
@@ -178,7 +190,11 @@ function buildStatements(balance: Balance) {
     const rule = classifyCompte(compte.compteNum)
     if (!rule) { comptesNonReconnus.push(`${compte.compteNum} (${compte.compteLib || '?'}) solde=${compte.solde}`); continue }
     const ano = detectAnomalie(compte.compteNum, compte.solde); if (ano) anomalies.push(ano)
-    // CA (Valentin) : 708 « activités annexes » DANS le CA ; 709 « RRR accordés » EN MOINS.
+    // FIX C — 627x Services bancaires → exploitation (Valentin, 10/06/2026).
+    // Classe 62 = services exterieurs. "Frais sur emission emprunts" sonne financier
+    // mais le PCG range la remuneration du service bancaire en 62, pas en 66.
+    if (compte.compteNum.startsWith('627')) { agg['servicesExt'] += compte.solde; continue }
+        // CA (Valentin) : 708 « activités annexes » DANS le CA ; 709 « RRR accordés » EN MOINS.
     // Les deux portent leur signe natif → contribution = -solde (708 créditeur ↑ CA ; 709 débiteur ↓ CA).
     if (compte.compteNum.startsWith('708') || compte.compteNum.startsWith('709')) { agg['productionVendue'] += -compte.solde; continue }
     // Gross-up des bivalents (tiers classe 4 + banques classe 5) — routage par signe réel.
