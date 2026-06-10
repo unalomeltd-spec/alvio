@@ -279,7 +279,7 @@ function buildBilan(a: Aggregats, resultatNet: number) {
   const totalPassif   = r(capPropres + dettesLT + dettesCT)
   return {
     actif: { actifImmoNet, stocksNets, creancesClients: creancesNettes, creancesEtat: r(a.creancesEtat), autresCreances: r(a.autresCreances), chargesConstatees: r(a.chargesConstatees), tresorerie: tresoActifNet, totalActif },
-    passif: { capital: r(a.capital), reserves: r(a.reserves), reportNouveau: r(a.reportNouveau), resultatNet, capitauxPropres: capPropres, dettesLT, dettesCT, totalPassif },
+    passif: { capital: r(a.capital), reserves: r(a.reserves), reportNouveau: r(a.reportNouveau), resultatNet, capitauxPropres: capPropres, dettesLT, dettesCT, dettesFournisseurs: r(a.dettesFournisseurs), dettesSociales: r(a.dettesSociales), dettesFiscales: r(a.dettesFiscales), autresDettes: r(a.autresDettes), produitsConstates: r(a.produitsConstates), totalPassif },
   }
 }
 
