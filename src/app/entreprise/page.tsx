@@ -154,13 +154,19 @@ export default function EntreprisePage() {
         }
         return -1
       }
-      const iDate   = getIdx(['EcritureDate'], ['ecrituredate', 'datepiece', 'date'])
-      const iCompte = getIdx(['CompteNum'], ['comptenum', 'compte'])
-      const iLib    = getIdx(['CompteLib'], ['comptelib', 'libellecompte'])
-      const iEcLib  = getIdx(['EcritureLib'], ['ecriturelib', 'libelle'])
-      const iPiece  = getIdx(['PieceRef'], ['pieceref', 'piece'])
-      const iDebit  = getIdx(['Debit', 'MontantDebit'], ['debit', 'montantdebit'])
-      const iCredit = getIdx(['Credit', 'MontantCredit'], ['credit', 'montantcredit'])
+      const iDate     = getIdx(['EcritureDate'], ['ecrituredate', 'datepiece', 'date'])
+      const iCompte   = getIdx(['CompteNum'], ['comptenum', 'compte'])
+      const iLib      = getIdx(['CompteLib'], ['comptelib', 'libellecompte'])
+      const iEcLib    = getIdx(['EcritureLib'], ['ecriturelib', 'libelle'])
+      const iPiece    = getIdx(['PieceRef'], ['pieceref', 'piece'])
+      const iDebit    = getIdx(['Debit', 'MontantDebit'], ['debit', 'montantdebit'])
+      const iCredit   = getIdx(['Credit', 'MontantCredit'], ['credit', 'montantcredit'])
+      const iAux      = getIdx(['CompAuxNum'], ['compauxnum', 'auxnum', 'comptea'])
+      const iAuxLib   = getIdx(['CompAuxLib'], ['compauxlib', 'auxlib'])
+      const iJournal  = getIdx(['JournalCode'], ['journalcode', 'journal', 'codejournal'])
+      const iJournalL = getIdx(['JournalLib'], ['journallib', 'libellejournal'])
+      const iEcNum    = getIdx(['EcritureNum'], ['ecriturenum', 'numpiece', 'numero'])
+      const iPieceD   = getIdx(['PieceDate'], ['piecedate', 'datepiece'])
       if (iDate < 0 || iCompte < 0) {
         setUploadMsg('Format FEC non reconnu — colonnes : ' + header.join(', '))
         setUploading(false); return
@@ -172,11 +178,17 @@ export default function EntreprisePage() {
         const debit  = parseFloat((cols[iDebit]  || '0').replace(',', '.')) || 0
         const credit = parseFloat((cols[iCredit] || '0').replace(',', '.')) || 0
         return [{
-          EcritureDate: cols[iDate]  || '',
+          EcritureDate: cols[iDate]     || '',
           CompteNum:    compteNum,
-          CompteLib:    iLib   >= 0 ? (cols[iLib]   || '') : '',
-          EcritureLib:  iEcLib >= 0 ? (cols[iEcLib] || '') : '',
-          PieceRef:     iPiece >= 0 ? (cols[iPiece] || '') : '',
+          CompteLib:    iLib      >= 0 ? (cols[iLib]      || '') : '',
+          CompAuxNum:   iAux      >= 0 ? (cols[iAux]      || '') : '',
+          CompAuxLib:   iAuxLib   >= 0 ? (cols[iAuxLib]   || '') : '',
+          JournalCode:  iJournal  >= 0 ? (cols[iJournal]  || '') : '',
+          JournalLib:   iJournalL >= 0 ? (cols[iJournalL] || '') : '',
+          EcritureNum:  iEcNum    >= 0 ? (cols[iEcNum]    || '') : '',
+          EcritureLib:  iEcLib    >= 0 ? (cols[iEcLib]    || '') : '',
+          PieceRef:     iPiece    >= 0 ? (cols[iPiece]    || '') : '',
+          PieceDate:    iPieceD   >= 0 ? (cols[iPieceD]   || '') : '',
           Debit:  debit,
           Credit: credit,
         }]
