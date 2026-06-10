@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import Sidebar from '@/components/Sidebar'
 import { parseFEC, detectAnnee } from '@/lib/fec-parser'
+import { useActiveCompany } from '@/hooks/useActiveCompany'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -44,6 +45,8 @@ export default function EntreprisePage() {
   const [deletingAnnee, setDeletingAnnee] = useState<number | null>(null)
   const [exKpis, setExKpis] = useState<Record<number,{ca:number;mb:number;tauxMb:number;ebe:number;tauxEbe:number;rnet:number;treso:number}>>({})
   const [userId, setUserId] = useState<string | null>(null)
+  const { companies, activeId, activeCompany, setActiveId } = useActiveCompany()
+  const [creatingDossier, setCreatingDossier] = useState(false)
 
   // ── Pennylane ──
   const [pnxConnections, setPnxConnections] = useState<PennylaneConnection[]>([])
@@ -54,15 +57,15 @@ export default function EntreprisePage() {
   const [pnxSyncAnnee, setPnxSyncAnnee] = useState<Record<string, number>>({})
   const [pnxDeletingId, setPnxDeletingId] = useState<string | null>(null)
 
-  const rechargerFec = async (uid: string) => {
+  const rechargerFec = async (cid: string) => {
     const { data: fecData } = await supabase
       .from('fec_exercices').select('annee, nom_fichier, ecritures')
-      .eq('user_id', uid).order('annee', { ascending: false })
+      .eq('company_id', cid).order('annee', { ascending: false })
     if (fecData) {
       const kpisMap: Record<number,any> = {}
       await Promise.all(fecData.map(async (r) => {
         try {
-          const res = await fetch(`/api/etats?annee=${r.annee}&user_id=${uid}`)
+          const res = await fetch(`/api/etats?annee=${r.annee}&company_id=${cid}`)
           if (res.ok) {
             const etats = await res.json()
             const sig = etats?.sig
@@ -86,9 +89,9 @@ export default function EntreprisePage() {
     }
   }
 
-  const rechargerConnexions = async (uid: string) => {
+  const rechargerConnexions = async (cid: string) => {
     try {
-      const res = await fetch(`/api/pennylane/connections?user_id=${uid}`)
+      const res = await fetch(`/api/pennylane/connections?company_id=${cid}`)
       if (res.ok) {
         const data = await res.json()
         setPnxConnections(data.connections || [])
@@ -98,34 +101,34 @@ export default function EntreprisePage() {
 
   useEffect(() => {
     const charger = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { window.location.href = '/'; return }
+      setUserId(user.id)
+      if (!activeId) return  // attend la résolution du dossier actif
       setChargement(true)
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) { window.location.href = '/'; return }
-        setUserId(user.id)
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('siren, entreprise')
-          .eq('user_id', user.id)
-          .single()
-        if (profile?.siren) {
-          const sirenVal = profile.siren as string
-          setSirenInput(sirenVal)
-          try {
-            const res = await fetch('/api/siren?siren=' + sirenVal)
-            if (res.ok) { setEntreprise(await res.json()); setSiren(sirenVal) }
-            else if (profile.entreprise) { setEntreprise(profile.entreprise as EntrepriseInfo); setSiren(sirenVal) }
-          } catch {
-            if (profile.entreprise) { setEntreprise(profile.entreprise as EntrepriseInfo); setSiren(sirenVal) }
+        // Fiche entreprise depuis le dossier actif (companies.entreprise / siren)
+        const ent = (activeCompany?.entreprise as EntrepriseInfo | null) || null
+        const sir = activeCompany?.siren || ''
+        if (sir) {
+          setSirenInput(sir)
+          if (ent) { setEntreprise(ent); setSiren(sir) }
+          else {
+            try {
+              const res = await fetch('/api/siren?siren=' + sir)
+              if (res.ok) { setEntreprise(await res.json()); setSiren(sir) }
+            } catch {}
           }
+        } else {
+          setEntreprise(null); setSirenInput(''); setSiren('')
         }
-        await rechargerFec(user.id)
-        await rechargerConnexions(user.id)
+        await rechargerFec(activeId)
+        await rechargerConnexions(activeId)
       } catch (e) { console.error(e) }
       finally { setChargement(false) }
     }
     charger()
-  }, [])
+  }, [activeId])
 
   const handleSirenLookup = async (v: string) => {
     const clean = v.replace(/\D/g, '').slice(0, 9)
@@ -142,16 +145,31 @@ export default function EntreprisePage() {
   }
 
   const handleSave = async () => {
-    if (!entreprise) return
+    if (!entreprise || !activeId) return
     setSaving(true)
     try {
-      await supabase.from('user_profiles').upsert(
-        { user_id: userId, siren: sirenInput, entreprise, updated_at: new Date().toISOString() },
-        { onConflict: 'user_id' }
-      )
+      await supabase.from('companies').update(
+        { siren: sirenInput, entreprise, nom: entreprise.nom || 'Mon entreprise', updated_at: new Date().toISOString() }
+      ).eq('id', activeId)
       setSiren(sirenInput); setSaved(true); setTimeout(() => setSaved(false), 3000)
     } catch (e) { console.error(e) }
     finally { setSaving(false) }
+  }
+
+  const handleNewDossier = async () => {
+    if (!userId) return
+    setCreatingDossier(true)
+    try {
+      const { data, error } = await supabase.from('companies')
+        .insert({ user_id: userId, nom: 'Nouveau dossier', is_default: false })
+        .select('id').single()
+      if (!error && data) {
+        // Bascule sur le nouveau dossier : la fiche entreprise sera vide → formulaire SIREN
+        setEntreprise(null); setSiren(''); setSirenInput('')
+        setActiveId(data.id)
+      }
+    } catch (e) { console.error(e) }
+    finally { setCreatingDossier(false) }
   }
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,9 +183,10 @@ export default function EntreprisePage() {
       const { lignes, erreur } = parseFEC(text)
       if (erreur) { setUploadMsg(erreur); setUploading(false); return }
       const annee = detectAnnee(lignes, file.name)
+      if (!activeId) { setUploadMsg('Aucun dossier actif'); setUploading(false); return }
       await supabase.from('fec_exercices').upsert(
-        { user_id: user.id, annee, ecritures: lignes, nom_fichier: file.name },
-        { onConflict: 'user_id,annee' }
+        { user_id: user.id, company_id: activeId, annee, ecritures: lignes, nom_fichier: file.name },
+        { onConflict: 'company_id,annee' }
       )
       setFecExercices(prev => {
         const filtered = prev.filter(f => f.annee !== annee)
@@ -191,7 +210,7 @@ export default function EntreprisePage() {
       const res = await fetch('/api/pennylane/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, token: pnxToken.trim() }),
+        body: JSON.stringify({ user_id: userId, company_id: activeId, token: pnxToken.trim() }),
       })
       const data = await res.json()
       if (!res.ok || !data.ok) {
@@ -200,7 +219,7 @@ export default function EntreprisePage() {
       }
       setPnxMsg(`Dossier ${data.company_name} connecté`)
       setPnxToken('')
-      await rechargerConnexions(userId)
+      await rechargerConnexions(activeId!)
     } catch (err) {
       setPnxMsg('Erreur lors de la connexion Pennylane')
       console.error(err)
@@ -230,7 +249,7 @@ export default function EntreprisePage() {
         return
       }
       setPnxMsg(`FEC ${data.annee} \u2014 ${data.nb_ecritures.toLocaleString('fr-FR')} \u00e9critures synchronis\u00e9es`)
-      await rechargerFec(userId)
+      await rechargerFec(activeId!)
     } catch (err) {
       setPnxMsg('Erreur lors de la synchronisation Pennylane')
       console.error(err)
@@ -260,7 +279,7 @@ export default function EntreprisePage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      await supabase.from('fec_exercices').delete().eq('user_id', user.id).eq('annee', annee)
+      await supabase.from('fec_exercices').delete().eq('company_id', activeId).eq('annee', annee)
       setFecExercices(prev => prev.filter(f => f.annee !== annee))
     } catch (e) { console.error(e) }
     finally { setDeletingAnnee(null) }
@@ -290,6 +309,21 @@ export default function EntreprisePage() {
         </div>
 
         <div style={{ flex:1, padding:24, overflowY:'auto' }}>
+          {/* Barre de dossiers — basculer entre dossiers + en créer un nouveau */}
+          <div style={{ maxWidth:960, display:'flex', alignItems:'center', gap:8, marginBottom:16, flexWrap:'wrap' as const }}>
+            <span style={{ fontSize:10, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase' as const, letterSpacing:'.08em', marginRight:4 }}>Dossiers</span>
+            {companies.map(c => (
+              <button key={c.id} onClick={() => setActiveId(c.id)}
+                style={{ fontSize:12, fontWeight:500, padding:'5px 12px', borderRadius:7, border:'0.5px solid rgba(0,0,0,0.12)', background: c.id === activeId ? '#1A1A1A' : '#fff', color: c.id === activeId ? '#fff' : '#1A1A1A', cursor:'pointer' }}>
+                {c.nom}
+              </button>
+            ))}
+            <button onClick={handleNewDossier} disabled={creatingDossier}
+              style={{ fontSize:12, fontWeight:500, padding:'5px 12px', borderRadius:7, border:'0.5px dashed rgba(0,0,0,0.2)', background:'transparent', color:'#8C9BAB', cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              {creatingDossier ? '...' : 'Nouveau dossier'}
+            </button>
+          </div>
           {!entreprise ? (
             <div style={{ maxWidth:480, margin:'40px auto', background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'18px 20px' }}>
               <div style={{ fontSize:14, fontWeight:500, color:'#1A1A1A', marginBottom:6 }}>Associer votre entreprise</div>
