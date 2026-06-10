@@ -1,5 +1,20 @@
-// ALVIO — Moteur comptable v6
+// ALVIO — Moteur comptable v6.2
 // Source de vérité unique : @/lib/pcg-reference
+// v6.2 (10 juin 2026) — Règles comptables validées par Valentin (audit 5 dossiers) :
+//   • GROSS-UP DES BIVALENTS (item #5) — non-compensation PCG au grain TIERS (CompAuxNum).
+//     On gross-up les comptes de tiers (classe 4 hors dépréciations 49) et les banques (51x) :
+//     un fournisseur débiteur / une TVA inversée / un compte courant passe du bon côté du bilan.
+//     Les comptes monovalents (classe 1/2/3, caisse 53) NE basculent jamais → signalés en anomalie.
+//   • CA — 708 « activités annexes » DANS le CA ; 709 « RRR accordés » EN MOINS du CA.
+//   • AN 6/7 — on n'exclut que les reprises de résultat (contrepartie 11/12) ; un produit/charge
+//     mal journalisé en AN (contrepartie tiers) est CONSERVÉ et signalé.
+//   ⚠ Requiert que les écritures stockées portent le CompAuxNum (sinon gross-up 401/411 dégradé).
+// v6.1 (10 juin 2026) — Audit non-régression (5 dossiers Pennylane) :
+//   • FIX A — détection de régime durcie : bascule après-affectation UNIQUEMENT si le
+//     résultat est réellement viré dans les comptes 12x (solde 12x non nul). Une écriture
+//     touchant par hasard un 12x et un 6/7 (ex : différence de lettrage) ne suffit plus.
+//   • FIX B — équilibre FEC évalué sur le FICHIER BRUT (avant exclusions analytiques),
+//     pour ne plus déclencher de faux « FEC déséquilibré » sur les exclusions légitimes.
 // v6 (10 juin 2026) — Refonte du SIGNE : lecture native du FEC, jamais d'absolutisation.
 //   • Corrige le CA/SIG faussés par les comptes à contre-sens (709 RRR, 603/713 variations).
 //   • Subventions d'exploitation (74) à l'EBE (et non en VA) — règle CNOEC / Valentin.
@@ -12,9 +27,9 @@ import { classifyCompte, getDestinationEffective, type Destination } from '@/lib
 
 interface LigneFEC {
   CompteNum: string; CompteLib?: string; Debit: number | string; Credit: number | string
-  JournalCode?: string; EcritureNum?: string; EcritureDate?: string; EcritureLib?: string; PieceRef?: string
+  JournalCode?: string; EcritureNum?: string; EcritureDate?: string; EcritureLib?: string; PieceRef?: string; CompAuxNum?: string
 }
-interface SoldeCompte { compteNum: string; compteLib: string; debit: number; credit: number; solde: number }
+interface SoldeCompte { compteNum: string; compteLib: string; debit: number; credit: number; solde: number; aux: string }
 type Balance = Map<string, SoldeCompte>
 
 function r(n: number): number { return Math.round(n * 100) / 100 }
@@ -29,32 +44,45 @@ function parseLigne(l: LigneFEC) {
     debit: r(debit), credit: r(credit),
     journal: (l.JournalCode || '').trim().toUpperCase(),
     ecritureNum: (l.EcritureNum || '').trim(),
+    aux: (l.CompAuxNum || '').trim(),
   }
 }
 
 // ─── Détection de régime (avant / après affectation) ─────────────
-// Signal : une écriture qui solde les classes 6/7 contre un compte 12x dans
-// le même mouvement (OD de clôture / OD_AFF). On la DÉTECTE, on ne la masque pas.
+// FIX A (audit 10/06/2026) — Signal d'affectation FIABLE : le résultat n'est en régime
+// "après affectation" QUE s'il a réellement été viré dans les comptes 12x (solde 12x non
+// nul). En avant affectation les 12x sont vides → on ne masque AUCUNE écriture. Une simple
+// écriture touchant par hasard un 12x ET un 6/7 (ex : OD de différence de lettrage) ne
+// bascule plus le régime, et l'écriture de clôture doit porter un montant 6/7 matériel.
 function detecterRegime(lignes: LigneFEC[]): { regime: 'avant_affectation' | 'apres_affectation'; ecrituresClotureNum: Set<string> } {
-  const parEcriture = new Map<string, Set<string>>() // ecritureNum -> classes touchées
+  const parEcriture = new Map<string, { classes: Set<string>; montant67: number }>()
+  let solde12 = 0
   for (const raw of lignes) {
     const l = parseLigne(raw)
-    if (!l || !l.ecritureNum) continue
+    if (!l) continue
     const classe = l.compteNum[0]
+    if (l.compteNum.startsWith('12')) solde12 += l.debit - l.credit
+    if (!l.ecritureNum) continue
     const key = `${l.journal}#${l.ecritureNum}`
-    if (!parEcriture.has(key)) parEcriture.set(key, new Set())
-    if (classe === '6' || classe === '7') parEcriture.get(key)!.add('gestion')
-    if (l.compteNum.startsWith('12')) parEcriture.get(key)!.add('resultat12')
+    let e = parEcriture.get(key)
+    if (!e) { e = { classes: new Set<string>(), montant67: 0 }; parEcriture.set(key, e) }
+    if (classe === '6' || classe === '7') { e.classes.add('gestion'); e.montant67 += l.debit + l.credit }
+    if (l.compteNum.startsWith('12')) e.classes.add('resultat12')
   }
+  solde12 = r(solde12)
+  const aRes12 = Math.abs(solde12) > 1
   const ecrituresClotureNum = new Set<string>()
-  for (const [key, classes] of parEcriture) if (classes.has('gestion') && classes.has('resultat12')) ecrituresClotureNum.add(key)
-  return { regime: ecrituresClotureNum.size > 0 ? 'apres_affectation' : 'avant_affectation', ecrituresClotureNum }
+  if (aRes12) {
+    for (const [key, e] of parEcriture)
+      if (e.classes.has('gestion') && e.classes.has('resultat12') && e.montant67 > 1) ecrituresClotureNum.add(key)
+  }
+  return { regime: (aRes12 && ecrituresClotureNum.size > 0) ? 'apres_affectation' : 'avant_affectation', ecrituresClotureNum }
 }
 
 // ─── Balance ─────────────────────────────────────────────────────
 // L3 (Valentin) : AN exclu des classes 6/7 ; classes 8/9 ignorées ;
 // en régime "après affectation", les OD de solde 6/7 sont exclues du calcul de R1.
-function buildBalance(lignes: LigneFEC[], ecrituresCloture: Set<string>) {
+function buildBalance(lignes: LigneFEC[], ecrituresCloture: Set<string>, anReprise: Set<string>) {
   const balance: Balance = new Map()
   let totalDebit = 0, totalCredit = 0, nbLignesAN67 = 0, nbLignes89 = 0, nbLignesCloture67 = 0
   for (const raw of lignes) {
@@ -62,13 +90,18 @@ function buildBalance(lignes: LigneFEC[], ecrituresCloture: Set<string>) {
     if (!l) continue
     const classe = l.compteNum[0]
     if (classe === '8' || classe === '9') { nbLignes89++; continue }
-    if (l.journal === 'AN' && (classe === '6' || classe === '7')) { nbLignesAN67++; continue }
+    // AN 6/7 (règle Valentin affinée) : on N'EXCLUT QUE les reprises de résultat (écriture AN
+    // dont la contrepartie est un 11/12). Un vrai produit/charge mal journalisé en AN
+    // (contrepartie tiers) est CONSERVÉ et signalé, jamais absorbé en silence.
+    if (l.journal === 'AN' && (classe === '6' || classe === '7') && anReprise.has(`${l.journal}#${l.ecritureNum}`)) { nbLignesAN67++; continue }
     // Régime après affectation : neutraliser les écritures de solde 6/7 pour reconstruire R1
     if ((classe === '6' || classe === '7') && ecrituresCloture.has(`${l.journal}#${l.ecritureNum}`)) { nbLignesCloture67++; continue }
     totalDebit += l.debit; totalCredit += l.credit
-    const ex = balance.get(l.compteNum)
+    // Clé au grain TIERS (compte + auxiliaire) → permet le gross-up des comptes collectifs 401/411.
+    const key = `${l.compteNum}|${l.aux}`
+    const ex = balance.get(key)
     if (ex) { ex.debit += l.debit; ex.credit += l.credit; ex.solde = ex.debit - ex.credit; if (!ex.compteLib && l.compteLib) ex.compteLib = l.compteLib }
-    else balance.set(l.compteNum, { compteNum: l.compteNum, compteLib: l.compteLib, debit: l.debit, credit: l.credit, solde: l.debit - l.credit })
+    else balance.set(key, { compteNum: l.compteNum, compteLib: l.compteLib, debit: l.debit, credit: l.credit, solde: l.debit - l.credit, aux: l.aux })
   }
   for (const s of balance.values()) { s.debit = r(s.debit); s.credit = r(s.credit); s.solde = r(s.solde) }
   return { balance, totalDebit: r(totalDebit), totalCredit: r(totalCredit), nbLignesAN67, nbLignes89, nbLignesCloture67 }
@@ -95,20 +128,69 @@ const DESTINATIONS: Destination[] = [
   'dettesFournisseurs','dettesSociales','dettesFiscales','autresDettes','produitsConstates','tresoreriePassif',
 ]
 
+// ─── FIX item #5 — Gross-up des comptes bivalents (règles Valentin, 10/06/2026) ───
+// Non-compensation du PCG appréciée AU NIVEAU DU TIERS (compte auxiliaire). On ne gross-up
+// QUE les comptes de tiers (classe 4, hors dépréciations 49) et les comptes financiers
+// bivalents de classe 5 (banques 51x). Tout le reste suit son signe natif ; un solde inversé
+// sur un compte monovalent (classe 1/2/3, caisse 53…) est une ANOMALIE signalée, jamais basculée.
+const FAMILLE_TIERS: Array<[string, Destination, Destination]> = [
+  // préfixe, destination si solde DÉBITEUR (→ actif), destination si solde CRÉDITEUR (→ passif)
+  ['40', 'autresCreances', 'dettesFournisseurs'],
+  ['41', 'creancesClients', 'autresDettes'],
+  ['42', 'autresCreances', 'dettesSociales'],
+  ['43', 'autresCreances', 'dettesSociales'],
+  ['44', 'creancesEtat', 'dettesFiscales'],
+  ['45', 'autresCreances', 'autresEmpruntsLT'],   // comptes courants d'associés / groupe
+  ['46', 'autresCreances', 'autresDettes'],
+  ['47', 'autresCreances', 'autresDettes'],
+]
+function grossUpRoute(compteNum: string, solde: number): { destination: Destination; valeur: number } | null {
+  const c = compteNum
+  if (c[0] === '5') {                                                  // banques bivalentes uniquement
+    if (c.startsWith('51')) return solde >= 0 ? { destination: 'tresorerieActif', valeur: solde } : { destination: 'tresoreriePassif', valeur: -solde }
+    return null                                                        // 53 caisse, 50 VMP, 58 virements : signe natif
+  }
+  if (c[0] !== '4') return null
+  if (c.startsWith('49')) return null                                  // dépréciations de tiers = contra, signe natif
+  if (c.startsWith('486')) return solde >= 0 ? { destination: 'chargesConstatees', valeur: solde } : null
+  if (c.startsWith('487')) return solde <= 0 ? { destination: 'produitsConstates', valeur: -solde } : null
+  for (const [p, dActif, dPassif] of FAMILLE_TIERS)
+    if (c.startsWith(p)) return solde >= 0 ? { destination: dActif, valeur: solde } : { destination: dPassif, valeur: -solde }
+  return solde >= 0 ? { destination: 'autresCreances', valeur: solde } : { destination: 'autresDettes', valeur: -solde }
+}
+// Anomalies « signaler, ne pas basculer » : solde inversé sur compte monovalent (classe 1/2/3, caisse).
+function detectAnomalie(c: string, solde: number): string | null {
+  const cl = c[0]
+  if (cl === '2' && !c.startsWith('28') && !c.startsWith('29') && solde < -0.01) return `${c} : actif immobilisé à solde créditeur (${solde} €) — anomalie, à remonter en révision`
+  if (cl === '3' && !c.startsWith('39') && solde < -0.01) return `${c} : stock à solde créditeur (${solde} €) — anomalie`
+  if (c.startsWith('53') && solde < -0.01) return `${c} : caisse à solde créditeur (${solde} €) — impossible, à corriger`
+  if ((c.startsWith('455') || c.startsWith('451')) && solde > 0.01) return `${c} : compte courant/groupe débiteur (${solde} €) — avance possible, à vérifier`
+  return null
+}
+
 function buildStatements(balance: Balance) {
   const agg = {} as Aggregats
   for (const d of DESTINATIONS) agg[d] = 0
   const comptesNonReconnus: string[] = []
+  const anomalies: string[] = []
   for (const compte of balance.values()) {
     if (Math.abs(compte.solde) < 0.01) continue
     const rule = classifyCompte(compte.compteNum)
     if (!rule) { comptesNonReconnus.push(`${compte.compteNum} (${compte.compteLib || '?'}) solde=${compte.solde}`); continue }
+    const ano = detectAnomalie(compte.compteNum, compte.solde); if (ano) anomalies.push(ano)
+    // CA (Valentin) : 708 « activités annexes » DANS le CA ; 709 « RRR accordés » EN MOINS.
+    // Les deux portent leur signe natif → contribution = -solde (708 créditeur ↑ CA ; 709 débiteur ↓ CA).
+    if (compte.compteNum.startsWith('708') || compte.compteNum.startsWith('709')) { agg['productionVendue'] += -compte.solde; continue }
+    // Gross-up des bivalents (tiers classe 4 + banques classe 5) — routage par signe réel.
+    const gu = grossUpRoute(compte.compteNum, compte.solde)
+    if (gu) { agg[gu.destination] += gu.valeur; continue }
+    // Sinon : mapping naturel (signe natif) de pcg-reference (source de vérité).
     const { destination, valeur } = getDestinationEffective(compte.compteNum, compte.solde, rule)
     agg[destination] += valeur
   }
   for (const d of DESTINATIONS) agg[d] = r(agg[d])
   agg['chargesPersonnel'] = r(agg['chargesPersonnel'] - agg['remboursementsPers'])
-  return { aggregats: agg, comptesNonReconnus }
+  return { aggregats: agg, comptesNonReconnus, anomalies }
 }
 
 // ─── SIG (signe natif déjà porté par les agrégats) ───────────────
@@ -213,8 +295,21 @@ function calculer(lignes: LigneFEC[], annee: number, dateDebut?: string, dateFin
   const lignesFiltrees = (dateDebut && dateFin) ? filtrerParPeriode(lignes, dateDebut, dateFin) : lignes
 
   const { regime, ecrituresClotureNum } = detecterRegime(lignesFiltrees)
-  const { balance, totalDebit, totalCredit, nbLignesAN67, nbLignes89, nbLignesCloture67 } = buildBalance(lignesFiltrees, ecrituresClotureNum)
-  const { aggregats, comptesNonReconnus } = buildStatements(balance)
+  // AN reprise de résultat : écriture du journal AN touchant un compte 11/12 (report/affectation).
+  // Seules celles-ci justifient d'exclure les lignes 6/7 de l'AN (règle AN affinée).
+  const anReprise = new Set<string>()
+  {
+    const anEc = new Map<string, { a67: boolean; res: boolean }>()
+    for (const raw of lignesFiltrees) {
+      const l = parseLigne(raw); if (!l || l.journal !== 'AN' || !l.ecritureNum) continue
+      const k = `${l.journal}#${l.ecritureNum}`; let e = anEc.get(k); if (!e) { e = { a67: false, res: false }; anEc.set(k, e) }
+      const cl = l.compteNum[0]; if (cl === '6' || cl === '7') e.a67 = true
+      if (l.compteNum.startsWith('11') || l.compteNum.startsWith('12')) e.res = true
+    }
+    for (const [k, e] of anEc) if (e.a67 && e.res) anReprise.add(k)
+  }
+  const { balance, totalDebit, totalCredit, nbLignesAN67, nbLignes89, nbLignesCloture67 } = buildBalance(lignesFiltrees, ecrituresClotureNum, anReprise)
+  const { aggregats, comptesNonReconnus, anomalies } = buildStatements(balance)
 
   // R2 — résultat comptable lu directement sur les comptes 12x (signe natif, bénéfice positif)
   let solde12 = 0
@@ -228,7 +323,13 @@ function calculer(lignes: LigneFEC[], annee: number, dateDebut?: string, dateFin
   const resultatBilan = regime === 'apres_affectation' ? resultat12 : sig.resultatNet
   const bilan = buildBilan(aggregats, resultatBilan)
 
-  const ecartFEC   = Math.abs(totalDebit - totalCredit)
+  // FIX B (audit 10/06/2026) — L'équilibre FEC est une propriété du FICHIER BRUT
+  // (débit = crédit sur toutes les lignes), indépendante des exclusions analytiques
+  // (classes 8/9, AN 6/7, OD de clôture). On l'évalue donc sur l'entrée brute, sinon une
+  // exclusion légitime déclenche un faux « FEC déséquilibré ».
+  let rawDebit = 0, rawCredit = 0
+  for (const raw of lignesFiltrees) { const l = parseLigne(raw); if (!l) continue; rawDebit += l.debit; rawCredit += l.credit }
+  const ecartFEC   = Math.abs(r(rawDebit) - r(rawCredit))
   const ecartBilan = Math.abs(bilan.actif.totalActif - bilan.passif.totalPassif)
   const gate = buildGate(ecartFEC, regime, sig.resultatNet, resultat12, comptesNonReconnus.length, ecartBilan)
 
@@ -238,6 +339,7 @@ function calculer(lignes: LigneFEC[], annee: number, dateDebut?: string, dateFin
     totalActif: bilan.actif.totalActif, totalPassif: bilan.passif.totalPassif, ecartBilan: r(ecartBilan),
     resultatCR: sig.resultatNet, resultat12, resultatBilan,
     comptesNonReconnus: comptesNonReconnus.slice(0, 30), comptesNonReconnusTotal: comptesNonReconnus.length,
+    anomalies: anomalies.slice(0, 50), anomaliesTotal: anomalies.length,
   }
   const periode = (dateDebut && dateFin) ? { type: 'perso' as const, dateDebut, dateFin } : { type: 'exercice' as const, dateDebut: `${annee}-01-01`, dateFin: `${annee}-12-31` }
   return { annee, periode, regime, gate, controles, sig, cr, bilan }
