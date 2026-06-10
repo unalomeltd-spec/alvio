@@ -41,6 +41,12 @@ export default function EntreprisePage() {
   const [exKpis, setExKpis] = useState<Record<number,{ca:number;mb:number;tauxMb:number;ebe:number;tauxEbe:number;rnet:number;treso:number}>>({})
   const [userId, setUserId] = useState<string | null>(null)
 
+  // ── Pennylane sync ──
+  const [pennylaneToken, setPennylaneToken] = useState('')
+  const [pennylaneAnnee, setPennylaneAnnee] = useState<number>(new Date().getFullYear() - 1)
+  const [pennylaneSyncing, setPennylaneSyncing] = useState(false)
+  const [pennylaneMsg, setPennylaneMsg] = useState('')
+
   useEffect(() => {
     const charger = async () => {
       setChargement(true)
@@ -165,6 +171,39 @@ export default function EntreprisePage() {
     }
   }
 
+  const handlePennylaneSync = async () => {
+    if (!userId) return
+    if (!pennylaneToken.trim()) { setPennylaneMsg('Erreur : token Pennylane requis'); return }
+    setPennylaneSyncing(true); setPennylaneMsg('')
+    try {
+      const res = await fetch('/api/pennylane/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          token: pennylaneToken.trim(),
+          period_start: `${pennylaneAnnee}-01-01`,
+          period_end: `${pennylaneAnnee}-12-31`,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.ok) {
+        setPennylaneMsg('Erreur : ' + (data.erreur || 'synchronisation échouée'))
+        return
+      }
+      setPennylaneMsg(`FEC ${data.annee} \u2014 ${data.nb_ecritures.toLocaleString('fr-FR')} \u00e9critures synchronis\u00e9es depuis Pennylane`)
+      setFecExercices(prev => {
+        const filtered = prev.filter(f => f.annee !== data.annee)
+        return [{ annee: data.annee, nom_fichier: data.nom_fichier, nb_ecritures: data.nb_ecritures }, ...filtered].sort((a,b) => b.annee - a.annee)
+      })
+    } catch (err) {
+      setPennylaneMsg("Erreur lors de la synchronisation Pennylane")
+      console.error(err)
+    } finally {
+      setPennylaneSyncing(false)
+    }
+  }
+
 
   const handleDelete = async (annee: number) => {
     setDeletingAnnee(annee)
@@ -186,6 +225,10 @@ export default function EntreprisePage() {
 
   const lbl = (t: string) => <div style={{ fontSize:10, fontWeight:500, color:'#8C9BAB', textTransform:'uppercase' as const, letterSpacing:'.06em', marginBottom:3 }}>{t}</div>
   const val = (t: string) => <div style={{ fontSize:13, color:'#1A1A1A', fontWeight:500 }}>{t || '—'}</div>
+
+  // Années proposées au sélecteur Pennylane (5 dernières).
+  const anneeCourante = new Date().getFullYear()
+  const anneesPennylane = [anneeCourante, anneeCourante - 1, anneeCourante - 2, anneeCourante - 3, anneeCourante - 4]
 
   return (
     <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
@@ -317,6 +360,64 @@ export default function EntreprisePage() {
 
               {onglet === 'fec' && (
                 <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+
+                  {/* ── Bloc synchronisation Pennylane ── */}
+                  <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'18px 20px' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
+                      <div style={{ width:28, height:28, borderRadius:7, background:'rgba(0,153,118,0.1)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#009976" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                      </div>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:500, color:'#1A1A1A' }}>Synchroniser avec Pennylane</div>
+                        <div style={{ fontSize:11, color:'#8C9BAB' }}>Importez automatiquement le FEC d'un exercice via l'API Pennylane.</div>
+                      </div>
+                    </div>
+
+                    <div style={{ display:'flex', gap:10, alignItems:'flex-end', marginTop:16, flexWrap:'wrap' as const }}>
+                      <div style={{ flex:'1 1 280px', minWidth:0 }}>
+                        <label style={{ fontSize:10, fontWeight:500, color:'#8C9BAB', textTransform:'uppercase' as const, letterSpacing:'.06em', marginBottom:5, display:'block' }}>Token API Pennylane</label>
+                        <input
+                          type="password"
+                          placeholder="Collez votre token Pennylane"
+                          value={pennylaneToken}
+                          onChange={e => setPennylaneToken(e.target.value)}
+                          disabled={pennylaneSyncing}
+                          style={{ width:'100%', border:'1px solid rgba(0,0,0,0.12)', borderRadius:8, padding:'9px 12px', fontSize:13, fontFamily:'Plus Jakarta Sans,sans-serif', outline:'none', boxSizing:'border-box' as const }}
+                        />
+                      </div>
+                      <div style={{ flex:'0 0 110px' }}>
+                        <label style={{ fontSize:10, fontWeight:500, color:'#8C9BAB', textTransform:'uppercase' as const, letterSpacing:'.06em', marginBottom:5, display:'block' }}>Exercice</label>
+                        <select
+                          value={pennylaneAnnee}
+                          onChange={e => setPennylaneAnnee(parseInt(e.target.value))}
+                          disabled={pennylaneSyncing}
+                          style={{ width:'100%', border:'1px solid rgba(0,0,0,0.12)', borderRadius:8, padding:'9px 12px', fontSize:13, fontFamily:'Plus Jakarta Sans,sans-serif', outline:'none', boxSizing:'border-box' as const, background:'#fff', cursor:'pointer' }}
+                        >
+                          {anneesPennylane.map(a => <option key={a} value={a}>{a}</option>)}
+                        </select>
+                      </div>
+                      <button
+                        onClick={handlePennylaneSync}
+                        disabled={pennylaneSyncing || !pennylaneToken.trim()}
+                        style={{ flex:'0 0 auto', background: pennylaneSyncing || !pennylaneToken.trim() ? 'rgba(0,153,118,0.4)' : '#009976', color:'#fff', border:'none', borderRadius:8, padding:'9px 18px', fontSize:13, fontWeight:500, cursor: pennylaneSyncing || !pennylaneToken.trim() ? 'default' : 'pointer', display:'flex', alignItems:'center', gap:8, whiteSpace:'nowrap' as const }}
+                      >
+                        {pennylaneSyncing ? (
+                          <>
+                            <div style={{ width:12, height:12, border:'1.5px solid rgba(255,255,255,0.3)', borderTop:'1.5px solid #fff', borderRadius:'50%', animation:'spin .7s linear infinite' }}/>
+                            Synchronisation...
+                          </>
+                        ) : 'Synchroniser'}
+                      </button>
+                    </div>
+
+                    {pennylaneMsg && (
+                      <div style={{ marginTop:14, background: pennylaneMsg.includes('Erreur') ? 'rgba(216,90,48,0.06)' : 'rgba(29,158,117,0.06)', border: `0.5px solid ${pennylaneMsg.includes('Erreur') ? 'rgba(216,90,48,0.2)' : 'rgba(29,158,117,0.2)'}`, borderRadius:8, padding:'10px 14px', fontSize:12, color: pennylaneMsg.includes('Erreur') ? '#D85A30' : '#1D9E75' }}>
+                        {pennylaneMsg}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Bloc import manuel + liste des exercices ── */}
                   <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'18px 20px' }}>
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
                       <div>
@@ -349,7 +450,7 @@ export default function EntreprisePage() {
                       <div style={{ textAlign:'center', padding:'32px 0', color:'#8C9BAB' }}>
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D0CEC8" strokeWidth="1.2" style={{ marginBottom:10, display:'block', margin:'0 auto 10px' }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                         <div style={{ fontSize:13, color:'#1A1A1A', marginBottom:4 }}>Aucun FEC importé</div>
-                        <div style={{ fontSize:12 }}>Importez votre premier fichier FEC pour commencer l'analyse.</div>
+                        <div style={{ fontSize:12 }}>Importez votre premier fichier FEC ou synchronisez depuis Pennylane.</div>
                       </div>
                     ) : (
                       <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
