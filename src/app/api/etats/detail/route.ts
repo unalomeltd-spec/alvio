@@ -11,11 +11,11 @@ import { createClient } from '@supabase/supabase-js'
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const annee    = parseInt(searchParams.get('annee')    || '0')
-  const userId   = searchParams.get('user_id') || ''
+  const companyId = searchParams.get('company_id') || ''
   const prefixes = (searchParams.get('prefixes') || '').split(',').filter(Boolean)
 
-  if (!annee || !userId || prefixes.length === 0) {
-    return NextResponse.json({ erreur: 'annee, user_id et prefixes requis' }, { status: 400 })
+  if (!annee || !companyId || prefixes.length === 0) {
+    return NextResponse.json({ erreur: 'annee, company_id et prefixes requis' }, { status: 400 })
   }
 
   const admin = createClient(
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await admin
     .from('fec_exercices')
     .select('ecritures')
-    .eq('user_id', userId)
+    .eq('company_id', companyId)
     .eq('annee', annee)
     .single()
 

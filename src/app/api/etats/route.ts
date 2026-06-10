@@ -261,14 +261,14 @@ function calculer(lignes: LigneFEC[], annee: number, dateDebut?: string, dateFin
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const annee = parseInt(searchParams.get('annee') || '0')
-  const userId = searchParams.get('user_id') || ''
+  const companyId = searchParams.get('company_id') || ''
   const dateDebut = searchParams.get('dateDebut') || ''
   const dateFin = searchParams.get('dateFin') || ''
-  if (!annee || !userId) return NextResponse.json({ erreur: 'annee et user_id requis' }, { status: 400 })
+  if (!annee || !companyId) return NextResponse.json({ erreur: 'annee et company_id requis' }, { status: 400 })
   if (annee < 2000 || annee > 2030) return NextResponse.json({ erreur: 'annee invalide (2000–2030)' }, { status: 400 })
   if ((dateDebut && !dateFin) || (!dateDebut && dateFin)) return NextResponse.json({ erreur: 'dateDebut et dateFin doivent être fournis ensemble' }, { status: 400 })
   const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-  const { data, error } = await admin.from('fec_exercices').select('ecritures').eq('user_id', userId).eq('annee', annee).single()
+  const { data, error } = await admin.from('fec_exercices').select('ecritures').eq('company_id', companyId).eq('annee', annee).single()
   if (error || !data) return NextResponse.json({ erreur: 'FEC introuvable' }, { status: 404 })
   try {
     const ecritures = data.ecritures

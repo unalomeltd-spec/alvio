@@ -16,15 +16,15 @@ const supabaseAdmin = createClient(
 )
 
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get('user_id')
-  if (!userId) {
-    return NextResponse.json({ erreur: 'Paramètre requis : user_id' }, { status: 400 })
+  const companyId = req.nextUrl.searchParams.get('company_id')
+  if (!companyId) {
+    return NextResponse.json({ erreur: 'Paramètre requis : company_id' }, { status: 400 })
   }
 
   const { data, error } = await supabaseAdmin
     .from('pennylane_connections')
     .select('id, company_name, company_reg_no, created_at, updated_at')
-    .eq('user_id', userId)
+    .eq('company_id', companyId)
     .order('created_at', { ascending: false })
 
   if (error) {

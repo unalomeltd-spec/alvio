@@ -22,6 +22,7 @@ const supabaseAdmin = createClient(
 
 interface ConnectBody {
   user_id: string
+  company_id: string
   token: string
 }
 
@@ -33,9 +34,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erreur: 'Corps de requête invalide' }, { status: 400 })
   }
 
-  const { user_id, token } = body
-  if (!user_id || !token) {
-    return NextResponse.json({ erreur: 'Paramètres requis : user_id, token' }, { status: 400 })
+  const { user_id, company_id, token } = body
+  if (!user_id || !company_id || !token) {
+    return NextResponse.json({ erreur: 'Paramètres requis : user_id, company_id, token' }, { status: 400 })
   }
   const cleanToken = token.trim()
 
@@ -72,12 +73,13 @@ export async function POST(req: NextRequest) {
       .upsert(
         {
           user_id,
+          company_id,
           company_name: companyName,
           company_reg_no: companyRegNo,
           token_secret_id: secretId,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: 'user_id,company_reg_no' }
+        { onConflict: 'company_id,company_reg_no' }
       )
       .select('id, company_name, company_reg_no')
       .single()

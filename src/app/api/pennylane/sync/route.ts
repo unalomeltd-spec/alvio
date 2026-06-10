@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     // ── Étape 0 : récupérer + déchiffrer le token via Vault ───────────────
     const { data: conn, error: connError } = await supabaseAdmin
       .from('pennylane_connections')
-      .select('token_secret_id')
+      .select('token_secret_id, company_id')
       .eq('id', connection_id)
       .eq('user_id', user_id)
       .single()
@@ -131,8 +131,8 @@ export async function POST(req: NextRequest) {
     const { error: upsertError } = await supabaseAdmin
       .from('fec_exercices')
       .upsert(
-        { user_id, annee, ecritures: lignes, nom_fichier: nomFichier },
-        { onConflict: 'user_id,annee' }
+        { user_id, company_id: conn.company_id, annee, ecritures: lignes, nom_fichier: nomFichier },
+        { onConflict: 'company_id,annee' }
       )
     if (upsertError) {
       return NextResponse.json({ erreur: `Échec de l'enregistrement : ${upsertError.message}` }, { status: 500 })
