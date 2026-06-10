@@ -1,14 +1,15 @@
 // ─────────────────────────────────────────────────────────────────────────
 // src/app/api/pennylane/sync/route.ts — Synchronisation FEC via API Pennylane
 //
-// Workflow asynchrone Pennylane (validé le 10/06/2026) :
+// V2 : le token n'est plus passé en clair. La route reçoit un connection_id,
+// récupère le token_secret_id depuis pennylane_connections, et déchiffre le
+// token via Vault (public.alvio_vault_read) — uniquement côté serveur.
+//
+// Workflow Pennylane (validé 10/06/2026) :
 //   1. POST /exports/fecs { period_start, period_end }  → { id, status: pending }
 //   2. GET  /exports/fecs/{id} (polling)                → { status: ready, file_url }
-//   3. GET  file_url                                    → FEC brut (texte TSV)
+//   3. GET  file_url                                    → FEC brut (TSV)
 //   4. parseFEC(text)  →  upsert dans fec_exercices
-//
-// Le token Pennylane transite UNIQUEMENT côté serveur (jamais exposé client).
-// V1 : token passé dans le body. V2 : lecture depuis stockage chiffré (Vault).
 // ─────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -17,7 +18,6 @@ import { parseFEC, detectAnnee } from '@/lib/fec-parser'
 
 const PENNYLANE_BASE = 'https://app.pennylane.com/api/external/v2'
 
-// Client admin (service role) — écriture serveur dans fec_exercices.
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -27,7 +27,7 @@ const sleep = (ms: number) => new Promise(res => setTimeout(res, ms))
 
 interface SyncBody {
   user_id: string
-  token: string
+  connection_id: string
   period_start: string   // 'YYYY-MM-DD'
   period_end: string     // 'YYYY-MM-DD'
 }
@@ -40,20 +40,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erreur: 'Corps de requête invalide' }, { status: 400 })
   }
 
-  const { user_id, token, period_start, period_end } = body
-  if (!user_id || !token || !period_start || !period_end) {
+  const { user_id, connection_id, period_start, period_end } = body
+  if (!user_id || !connection_id || !period_start || !period_end) {
     return NextResponse.json(
-      { erreur: 'Paramètres requis : user_id, token, period_start, period_end' },
+      { erreur: 'Paramètres requis : user_id, connection_id, period_start, period_end' },
       { status: 400 }
     )
   }
 
-  const headers = {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  }
-
   try {
+    // ── Étape 0 : récupérer + déchiffrer le token via Vault ───────────────
+    const { data: conn, error: connError } = await supabaseAdmin
+      .from('pennylane_connections')
+      .select('token_secret_id')
+      .eq('id', connection_id)
+      .eq('user_id', user_id)
+      .single()
+    if (connError || !conn) {
+      return NextResponse.json({ erreur: 'Connexion Pennylane introuvable' }, { status: 404 })
+    }
+
+    const { data: token, error: vaultError } = await supabaseAdmin
+      .rpc('alvio_vault_read', { p_secret_id: conn.token_secret_id })
+    if (vaultError || !token) {
+      return NextResponse.json({ erreur: 'Échec de la lecture du token sécurisé' }, { status: 500 })
+    }
+
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    }
+
     // ── Étape 1 : créer l'export FEC ──────────────────────────────────────
     const createRes = await fetch(`${PENNYLANE_BASE}/exports/fecs`, {
       method: 'POST',
@@ -74,7 +91,6 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Étape 2 : polling jusqu'à status "ready" ──────────────────────────
-    // Export observé prêt en ~5s ; on tente jusqu'à ~30s (10 essais espacés de 3s).
     let fileUrl: string | null = null
     for (let attempt = 0; attempt < 10; attempt++) {
       await sleep(3000)
@@ -109,7 +125,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ erreur: `FEC Pennylane illisible : ${erreur}` }, { status: 422 })
     }
 
-    // Nom de fichier conventionnel basé sur la période.
     const nomFichier = `Pennylane_FEC_${period_start}_${period_end}.txt`
     const annee = detectAnnee(lignes, `FEC${period_start.slice(0, 4)}`)
 
