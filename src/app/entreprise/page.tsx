@@ -151,9 +151,10 @@ export default function EntreprisePage() {
       await supabase.from('companies').update(
         { siren: sirenInput, entreprise, nom: entreprise.nom || 'Mon entreprise', updated_at: new Date().toISOString() }
       ).eq('id', activeId)
-      setSiren(sirenInput); setSaved(true); setTimeout(() => setSaved(false), 3000)
-    } catch (e) { console.error(e) }
-    finally { setSaving(false) }
+      setSiren(sirenInput); setSaved(true)
+      // Recharge pour que la barre de dossiers reflète le nouveau nom du dossier
+      setTimeout(() => window.location.reload(), 600)
+    } catch (e) { console.error(e); setSaving(false) }
   }
 
   const handleNewDossier = async () => {
