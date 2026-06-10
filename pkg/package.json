@@ -1,0 +1,8 @@
+{
+  "name": "alvio-moteur-nonregression",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Harnais de non-régression du moteur comptable Alvio (5 dossiers Pennylane, validation au centime)",
+  "scripts": { "test": "tsx harness.ts" },
+  "devDependencies": { "tsx": "4.19.2" }
+}
