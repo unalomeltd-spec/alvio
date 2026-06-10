@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import Sidebar from '@/components/Sidebar'
+import { parseFEC, detectAnnee } from '@/lib/fec-parser'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -139,75 +140,13 @@ export default function EntreprisePage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       const text = await file.text()
-      const lines = text.split('\n').filter(l => l.trim())
-      if (lines.length < 2) { setUploadMsg('Fichier vide ou illisible'); setUploading(false); return }
-      const sep = lines[0].includes('\t') ? '\t' : lines[0].includes(';') ? ';' : '|'
-      const header = lines[0].split(sep).map(h => h.trim().replace(/"/g, ''))
-      const getIdx = (exactNames: string[], partialNames: string[]) => {
-        for (const n of exactNames) {
-          const i = header.findIndex(h => h.toLowerCase() === n.toLowerCase())
-          if (i >= 0) return i
-        }
-        for (const n of partialNames) {
-          const i = header.findIndex(h => h.toLowerCase().includes(n.toLowerCase()))
-          if (i >= 0) return i
-        }
-        return -1
-      }
-      const iDate     = getIdx(['EcritureDate'], ['ecrituredate', 'datepiece', 'date'])
-      const iCompte   = getIdx(['CompteNum'], ['comptenum', 'compte'])
-      const iLib      = getIdx(['CompteLib'], ['comptelib', 'libellecompte'])
-      const iEcLib    = getIdx(['EcritureLib'], ['ecriturelib', 'libelle'])
-      const iPiece    = getIdx(['PieceRef'], ['pieceref', 'piece'])
-      const iDebit    = getIdx(['Debit', 'MontantDebit'], ['debit', 'montantdebit'])
-      const iCredit   = getIdx(['Credit', 'MontantCredit'], ['credit', 'montantcredit'])
-      const iAux      = getIdx(['CompAuxNum'], ['compauxnum', 'auxnum', 'comptea'])
-      const iAuxLib   = getIdx(['CompAuxLib'], ['compauxlib', 'auxlib'])
-      const iJournal  = getIdx(['JournalCode'], ['journalcode', 'journal', 'codejournal'])
-      const iJournalL = getIdx(['JournalLib'], ['journallib', 'libellejournal'])
-      const iEcNum    = getIdx(['EcritureNum'], ['ecriturenum', 'numpiece', 'numero'])
-      const iPieceD   = getIdx(['PieceDate'], ['piecedate', 'datepiece'])
-      if (iDate < 0 || iCompte < 0) {
-        setUploadMsg('Format FEC non reconnu — colonnes : ' + header.join(', '))
-        setUploading(false); return
-      }
-      const lignes = lines.slice(1).flatMap(l => {
-        const cols = l.split(sep).map(c => c.trim().replace(/"/g, ''))
-        const compteNum = cols[iCompte] || ''
-        if (!compteNum) return []
-        const debit  = parseFloat((cols[iDebit]  || '0').replace(',', '.')) || 0
-        const credit = parseFloat((cols[iCredit] || '0').replace(',', '.')) || 0
-        return [{
-          EcritureDate: cols[iDate]     || '',
-          CompteNum:    compteNum,
-          CompteLib:    iLib      >= 0 ? (cols[iLib]      || '') : '',
-          CompAuxNum:   iAux      >= 0 ? (cols[iAux]      || '') : '',
-          CompAuxLib:   iAuxLib   >= 0 ? (cols[iAuxLib]   || '') : '',
-          JournalCode:  iJournal  >= 0 ? (cols[iJournal]  || '') : '',
-          JournalLib:   iJournalL >= 0 ? (cols[iJournalL] || '') : '',
-          EcritureNum:  iEcNum    >= 0 ? (cols[iEcNum]    || '') : '',
-          EcritureLib:  iEcLib    >= 0 ? (cols[iEcLib]    || '') : '',
-          PieceRef:     iPiece    >= 0 ? (cols[iPiece]    || '') : '',
-          PieceDate:    iPieceD   >= 0 ? (cols[iPieceD]   || '') : '',
-          Debit:  debit,
-          Credit: credit,
-        }]
-      })
-      if (lignes.length === 0) { setUploadMsg('Aucune ecriture valide trouvee'); setUploading(false); return }
-      const dateStr = lignes.find(l => l.EcritureDate && l.EcritureDate.length >= 8)?.EcritureDate || ''
-      let annee: number
-      if (dateStr.includes('-')) {
-        annee = parseInt(dateStr.slice(0, 4))
-      } else if (dateStr.length === 8) {
-        annee = parseInt(dateStr.slice(0, 4))
-      } else {
-        const match = file.name.match(/FEC(\d{4})/)
-        annee = match ? parseInt(match[1]) : new Date().getFullYear()
-      }
-      if (isNaN(annee) || annee < 2000 || annee > 2100) {
-        const match = file.name.match(/FEC(\d{4})/)
-        annee = match ? parseInt(match[1]) : new Date().getFullYear()
-      }
+
+      // Parsing via module partagé (src/lib/fec-parser.ts)
+      const { lignes, erreur } = parseFEC(text)
+      if (erreur) { setUploadMsg(erreur); setUploading(false); return }
+
+      const annee = detectAnnee(lignes, file.name)
+
       await supabase.from('fec_exercices').upsert(
         { user_id: user.id, annee, ecritures: lignes, nom_fichier: file.name },
         { onConflict: 'user_id,annee' }
