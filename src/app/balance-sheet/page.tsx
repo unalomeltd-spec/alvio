@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import Sidebar from '@/components/Sidebar'
 import TopBar from '@/components/TopBar'
 import { usePeriod } from '@/hooks/usePeriod'
+import { useActiveCompany } from '@/hooks/useActiveCompany'
 import AlvioInsight from '@/components/AlvioInsight'
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -158,9 +159,9 @@ function SidePanel({ panel, onClose, onSelectCompte }: {
   )
 }
 
-function BilanRow({ label, value, indent, bold, color, prefixKey, annee, userId, onDrill }: {
+function BilanRow({ label, value, indent, bold, color, prefixKey, annee, companyId, onDrill }: {
   label: string; value: number; indent?: boolean; bold?: boolean; color?: string
-  prefixKey?: string; annee: number; userId: string
+  prefixKey?: string; annee: number; companyId: string | null
   onDrill: (label: string, prefixes: string[]) => void
 }) {
   if (Math.abs(value) < 0.5) return null
@@ -203,6 +204,7 @@ export default function BalanceSheetPage() {
   const [panel, setPanel] = useState<PanelData | null>(null)
   const [drillLoading, setDrillLoading] = useState(false)
   const { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1 } = usePeriod(new Date().getFullYear())
+  const { activeId } = useActiveCompany()
   const periodeParams = periodeTab === 'perso' && dateDebut && dateFin
     ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
 
@@ -211,26 +213,27 @@ export default function BalanceSheetPage() {
       const { data: { user } } = await sb.auth.getUser()
       if (!user) { window.location.href = '/login'; return }
       setUserId(user.id)
-      const { data } = await sb.from('fec_exercices').select('annee').eq('user_id', user.id).order('annee', { ascending: false })
+      if (!activeId) return  // attend la résolution du dossier actif (spinner maintenu)
+      const { data } = await sb.from('fec_exercices').select('annee').eq('company_id', activeId).order('annee', { ascending: false })
       if (data && data.length > 0) {
         const anneesDispos = data.map((r: any) => r.annee as number)
         setAnnees(anneesDispos)
         const annee = anneesDispos.includes(anneeActive) ? anneeActive : anneesDispos[0]
         if (annee !== anneeActive) setAnneeActive(annee)
-        const res = await fetch(`/api/etats?annee=${annee}&user_id=${user.id}${periodeParams}`)
+        const res = await fetch(`/api/etats?annee=${annee}&company_id=${activeId}${periodeParams}`)
         if (res.ok) setEtats(await res.json())
       }
       setLoading(false)
     }
     load()
-  }, [])
+  }, [activeId])
 
   // Relance le fetch quand la période change
   useEffect(() => {
-    if (!userId || !annees.length) return
+    if (!activeId || !annees.length) return
     const params = periodeTab === 'perso' && dateDebut && dateFin
       ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
-    fetch(`/api/etats?annee=${anneeActive}&user_id=${userId}${params}`)
+    fetch(`/api/etats?annee=${anneeActive}&company_id=${activeId}${params}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => d && setEtats(d))
   }, [periodeTab, dateDebut, dateFin])
@@ -240,26 +243,26 @@ export default function BalanceSheetPage() {
     setPanel(null)
     const params = periodeTab === 'perso' && dateDebut && dateFin
       ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
-    const res = await fetch(`/api/etats?annee=${annee}&user_id=${userId}${params}`)
+    const res = await fetch(`/api/etats?annee=${annee}&company_id=${activeId}${params}`)
     if (res.ok) setEtats(await res.json())
   }
 
   const handleDrill = useCallback(async (label: string, prefixes: string[]) => {
     setDrillLoading(true)
-    const res = await fetch(`/api/etats/detail?annee=${anneeActive}&user_id=${userId}&prefixes=${prefixes.join(',')}`)
+    const res = await fetch(`/api/etats/detail?annee=${anneeActive}&company_id=${activeId}&prefixes=${prefixes.join(',')}`)
     if (res.ok) {
       const data = await res.json()
       setPanel({ label, comptes: data.comptes, selectedCompte: null })
     }
     setDrillLoading(false)
-  }, [anneeActive, userId])
+  }, [anneeActive, activeId])
 
   const bilan = etats?.bilan
   const sig = etats?.sig
   const actif = bilan?.actif
   const passif = bilan?.passif
 
-  const rowProps = { annee: anneeActive, userId, onDrill: handleDrill }
+  const rowProps = { annee: anneeActive, companyId: activeId, onDrill: handleDrill }
 
   if (loading) return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#F2F3F5', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>

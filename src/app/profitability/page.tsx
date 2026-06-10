@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import Sidebar from '@/components/Sidebar'
 import TopBar from '@/components/TopBar'
 import { usePeriod } from '@/hooks/usePeriod'
+import { useActiveCompany } from '@/hooks/useActiveCompany'
 import AlvioInsight from '@/components/AlvioInsight'
 
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
@@ -74,6 +75,7 @@ export default function ProfitabilityPage() {
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string>('')
   const { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1 } = usePeriod(new Date().getFullYear())
+  const { activeId } = useActiveCompany()
   const periodeParams = periodeTab === 'perso' && dateDebut && dateFin
     ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
   const periodeParamsN1 = periodeTab === 'perso' && dateDebutN1 && dateFinN1
@@ -84,37 +86,38 @@ export default function ProfitabilityPage() {
       const { data: { user } } = await sb.auth.getUser()
       if (!user) { window.location.href = '/login'; return }
       setUserId(user.id)
-      const { data } = await sb.from('fec_exercices').select('annee').eq('user_id', user.id).order('annee', { ascending: false })
+      if (!activeId) return  // attend la résolution du dossier actif (spinner maintenu)
+      const { data } = await sb.from('fec_exercices').select('annee').eq('company_id', activeId).order('annee', { ascending: false })
       if (data && data.length > 0) {
         const anneesDispos = data.map((r: any) => r.annee as number)
         setAnnees(anneesDispos)
         const annee = anneesDispos.includes(anneeActive) ? anneeActive : anneesDispos[0]
         if (annee !== anneeActive) setAnneeActive(annee)
         const fetches: Promise<void>[] = [
-          fetch(`/api/etats?annee=${annee}&user_id=${user.id}${periodeParams}`).then(r => r.ok ? r.json() : null).then(d => d && setEtats(d)),
+          fetch(`/api/etats?annee=${annee}&company_id=${activeId}${periodeParams}`).then(r => r.ok ? r.json() : null).then(d => d && setEtats(d)),
         ]
         if (anneesDispos.includes(annee - 1)) {
-          fetches.push(fetch(`/api/etats?annee=${annee - 1}&user_id=${user.id}${periodeParamsN1}`).then(r => r.ok ? r.json() : null).then(d => d && setEtatsN1(d)))
+          fetches.push(fetch(`/api/etats?annee=${annee - 1}&company_id=${activeId}${periodeParamsN1}`).then(r => r.ok ? r.json() : null).then(d => d && setEtatsN1(d)))
         }
         await Promise.all(fetches)
       }
       setLoading(false)
     }
     load()
-  }, [])
+  }, [activeId])
 
   // Relance le fetch quand la période change
   useEffect(() => {
-    if (!userId || !annees.length) return
+    if (!activeId || !annees.length) return
     const params = periodeTab === 'perso' && dateDebut && dateFin
       ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
     const paramsN1 = periodeTab === 'perso' && dateDebutN1 && dateFinN1
       ? `&dateDebut=${dateDebutN1}&dateFin=${dateFinN1}` : ''
-    fetch(`/api/etats?annee=${anneeActive}&user_id=${userId}${params}`)
+    fetch(`/api/etats?annee=${anneeActive}&company_id=${activeId}${params}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => d && setEtats(d))
     if (annees.includes(anneeActive - 1)) {
-      fetch(`/api/etats?annee=${anneeActive - 1}&user_id=${userId}${paramsN1}`)
+      fetch(`/api/etats?annee=${anneeActive - 1}&company_id=${activeId}${paramsN1}`)
         .then(r => r.ok ? r.json() : null)
         .then(d => d && setEtatsN1(d))
     }
@@ -126,10 +129,10 @@ export default function ProfitabilityPage() {
       ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
     const paramsN1 = periodeTab === 'perso' && dateDebutN1 && dateFinN1
       ? `&dateDebut=${dateDebutN1}&dateFin=${dateFinN1}` : ''
-    const res = await fetch(`/api/etats?annee=${annee}&user_id=${userId}${params}`)
+    const res = await fetch(`/api/etats?annee=${annee}&company_id=${activeId}${params}`)
     if (res.ok) setEtats(await res.json())
     if (annees.includes(annee - 1)) {
-      const resN1 = await fetch(`/api/etats?annee=${annee - 1}&user_id=${userId}${paramsN1}`)
+      const resN1 = await fetch(`/api/etats?annee=${annee - 1}&company_id=${activeId}${paramsN1}`)
       if (resN1.ok) setEtatsN1(await resN1.json())
     } else {
       }

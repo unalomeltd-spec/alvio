@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import Sidebar from '@/components/Sidebar'
 import TopBar from '@/components/TopBar'
 import { usePeriod } from '@/hooks/usePeriod'
+import { useActiveCompany } from '@/hooks/useActiveCompany'
 import AlvioInsight from '@/components/AlvioInsight'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
@@ -51,6 +52,7 @@ export default function CashFlowPage() {
   const [loading, setLoading]         = useState(true)
   const [userId, setUserId]           = useState<string>('')
   const { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1 } = usePeriod(new Date().getFullYear())
+  const { activeId } = useActiveCompany()
   const periodeParams = periodeTab === 'perso' && dateDebut && dateFin
     ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
 
@@ -59,10 +61,11 @@ export default function CashFlowPage() {
       const { data: { user } } = await sb.auth.getUser()
       if (!user) { window.location.href = '/login'; return }
       setUserId(user.id)
+      if (!activeId) return  // attend la résolution du dossier actif (spinner maintenu)
       const { data } = await sb
         .from('fec_exercices')
         .select('annee')
-        .eq('user_id', user.id)
+        .eq('company_id', activeId)
         .order('annee', { ascending: false })
       if (data && data.length > 0) {
         const anneesDispos = data.map((r: any) => r.annee as number)
@@ -74,14 +77,14 @@ export default function CashFlowPage() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [activeId])
 
   // Relance le fetch quand la période change
   useEffect(() => {
-    if (!userId || !annees.length) return
+    if (!activeId || !annees.length) return
     const params = periodeTab === 'perso' && dateDebut && dateFin
       ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
-    fetch(`/api/etats?annee=${anneeActive}&user_id=${userId}${params}`)
+    fetch(`/api/etats?annee=${anneeActive}&company_id=${activeId}${params}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => d && setEtats(d))
   }, [periodeTab, dateDebut, dateFin])
@@ -89,12 +92,12 @@ export default function CashFlowPage() {
   const chargerDonnees = async (uid: string, annee: number) => {
     const params = periodeTab === 'perso' && dateDebut && dateFin
       ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
-    const res = await fetch(`/api/etats?annee=${annee}&user_id=${uid}${params}`)
+    const res = await fetch(`/api/etats?annee=${annee}&company_id=${activeId}${params}`)
     if (res.ok) setEtats(await res.json())
     const { data: fecData } = await sb
       .from('fec_exercices')
       .select('ecritures')
-      .eq('user_id', uid)
+      .eq('company_id', activeId)
       .eq('annee', annee)
       .single()
     if (fecData?.ecritures) setMonthly(getMonthlyCash(fecData.ecritures))

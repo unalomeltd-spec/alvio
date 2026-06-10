@@ -1,4 +1,4 @@
-// ALVIO — Moteur comptable v6.2
+// ALVIO — Moteur comptable v6.3
 // Source de vérité unique : @/lib/pcg-reference
 // v6 (10 juin 2026) — Refonte du SIGNE : lecture native du FEC, jamais d'absolutisation.
 //   • Corrige le CA/SIG faussés par les comptes à contre-sens (709 RRR, 603/713 variations).
@@ -81,11 +81,16 @@ function buildBalance(lignes: LigneFEC[], ecrituresCloture: Set<string>, anRepri
     // Régime après affectation : neutraliser les écritures de solde 6/7 pour reconstruire R1
     if ((classe === '6' || classe === '7') && ecrituresCloture.has(`${l.journal}#${l.ecritureNum}`)) { nbLignesCloture67++; continue }
     totalDebit += l.debit; totalCredit += l.credit
-    // Clé au grain TIERS (compte + auxiliaire) → permet le gross-up des comptes collectifs 401/411.
-    const key = `${l.compteNum}|${l.aux}`
+    // Clé au grain TIERS (40x/41x : CompteNum complet + aux pour le gross-up par tiers).
+    // 44x avec > 5 chiffres : tronqués aux 5 premiers (FIX D — suffixes analytiques Pennylane :
+    //   4456400009 = 44564 + code régime → même clé "44564" que le compte racine).
+    // Autres : CompteNum complet.
+    let canonical = l.compteNum
+    if (l.compteNum.startsWith('44') && l.compteNum.length > 5) canonical = l.compteNum.slice(0, 5)
+    const key = `${canonical}|${l.aux}`
     const ex = balance.get(key)
     if (ex) { ex.debit += l.debit; ex.credit += l.credit; ex.solde = ex.debit - ex.credit; if (!ex.compteLib && l.compteLib) ex.compteLib = l.compteLib }
-    else balance.set(key, { compteNum: l.compteNum, compteLib: l.compteLib, debit: l.debit, credit: l.credit, solde: l.debit - l.credit, aux: l.aux })
+    else balance.set(key, { compteNum: canonical, compteLib: l.compteLib, debit: l.debit, credit: l.credit, solde: l.debit - l.credit, aux: l.aux })
   }
   for (const s of balance.values()) { s.debit = r(s.debit); s.credit = r(s.credit); s.solde = r(s.solde) }
   return { balance, totalDebit: r(totalDebit), totalCredit: r(totalCredit), nbLignesAN67, nbLignes89, nbLignesCloture67 }
@@ -164,6 +169,7 @@ function buildStatements(balance: Balance) {
     const ano = detectAnomalie(compte.compteNum, compte.solde); if (ano) anomalies.push(ano)
     // CA (règles Valentin) : 708 « activités annexes » DANS le CA ; 709 « RRR accordés » EN MOINS.
     // Les deux portent leur signe natif → contribution = -solde (708 créditeur ↑ ; 709 débiteur ↓).
+    if (compte.compteNum.startsWith('627')) { agg['servicesExt'] += compte.solde; continue }
     if (compte.compteNum.startsWith('708') || compte.compteNum.startsWith('709')) { agg['productionVendue'] += -compte.solde; continue }
     // Gross-up des bivalents (tiers classe 4 + banques classe 5) — routage par signe réel.
     const gu = grossUpRoute(compte.compteNum, compte.solde)
