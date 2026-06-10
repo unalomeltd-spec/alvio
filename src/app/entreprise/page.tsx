@@ -104,7 +104,7 @@ export default function EntreprisePage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { window.location.href = '/'; return }
       setUserId(user.id)
-      if (!activeId) return  // attend la résolution du dossier actif
+      if (!activeId || !activeCompany) return  // attend le dossier actif complet (id + données)
       setChargement(true)
       try {
         // Fiche entreprise depuis le dossier actif (companies.entreprise / siren)
@@ -128,7 +128,7 @@ export default function EntreprisePage() {
       finally { setChargement(false) }
     }
     charger()
-  }, [activeId])
+  }, [activeId, activeCompany])
 
   const handleSirenLookup = async (v: string) => {
     const clean = v.replace(/\D/g, '').slice(0, 9)
