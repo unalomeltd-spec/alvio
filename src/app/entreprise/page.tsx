@@ -21,6 +21,10 @@ interface FecExercice {
   annee: number; nom_fichier: string; nb_ecritures: number
 }
 
+interface PennylaneConnection {
+  id: string; company_name: string; company_reg_no: string; created_at: string; updated_at: string
+}
+
 const fmtSiren = (s: string) => s.replace(/^(\d{3})(\d{3})(\d{3})$/, '$1 $2 $3')
 const fmtSiret = (s: string) => s.replace(/^(\d{3})(\d{3})(\d{3})(\d{5})$/, '$1 $2 $3 $4')
 
@@ -41,11 +45,56 @@ export default function EntreprisePage() {
   const [exKpis, setExKpis] = useState<Record<number,{ca:number;mb:number;tauxMb:number;ebe:number;tauxEbe:number;rnet:number;treso:number}>>({})
   const [userId, setUserId] = useState<string | null>(null)
 
-  // ── Pennylane sync ──
-  const [pennylaneToken, setPennylaneToken] = useState('')
-  const [pennylaneAnnee, setPennylaneAnnee] = useState<number>(new Date().getFullYear() - 1)
-  const [pennylaneSyncing, setPennylaneSyncing] = useState(false)
-  const [pennylaneMsg, setPennylaneMsg] = useState('')
+  // ── Pennylane ──
+  const [pnxConnections, setPnxConnections] = useState<PennylaneConnection[]>([])
+  const [pnxToken, setPnxToken] = useState('')
+  const [pnxConnecting, setPnxConnecting] = useState(false)
+  const [pnxMsg, setPnxMsg] = useState('')
+  const [pnxSyncingId, setPnxSyncingId] = useState<string | null>(null)
+  const [pnxSyncAnnee, setPnxSyncAnnee] = useState<Record<string, number>>({})
+  const [pnxDeletingId, setPnxDeletingId] = useState<string | null>(null)
+
+  const rechargerFec = async (uid: string) => {
+    const { data: fecData } = await supabase
+      .from('fec_exercices').select('annee, nom_fichier, ecritures')
+      .eq('user_id', uid).order('annee', { ascending: false })
+    if (fecData) {
+      const kpisMap: Record<number,any> = {}
+      await Promise.all(fecData.map(async (r) => {
+        try {
+          const res = await fetch(`/api/etats?annee=${r.annee}&user_id=${uid}`)
+          if (res.ok) {
+            const etats = await res.json()
+            const sig = etats?.sig
+            const bilan = etats?.bilan
+            if (sig) {
+              kpisMap[r.annee] = {
+                ca: sig.ca, mb: sig.margeCommerciale, tauxMb: sig.tauxMb,
+                ebe: sig.ebe, tauxEbe: sig.tauxEbe, rnet: sig.resultatNet,
+                treso: bilan?.actif?.tresorerie ?? 0,
+              }
+            }
+          }
+        } catch (e) { console.error(e) }
+      }))
+      setExKpis(kpisMap)
+      setFecExercices(fecData.map(r => ({
+        annee: r.annee,
+        nom_fichier: r.nom_fichier || `FEC_${r.annee}.txt`,
+        nb_ecritures: Array.isArray(r.ecritures) ? r.ecritures.length : 0
+      })))
+    }
+  }
+
+  const rechargerConnexions = async (uid: string) => {
+    try {
+      const res = await fetch(`/api/pennylane/connections?user_id=${uid}`)
+      if (res.ok) {
+        const data = await res.json()
+        setPnxConnections(data.connections || [])
+      }
+    } catch (e) { console.error(e) }
+  }
 
   useEffect(() => {
     const charger = async () => {
@@ -54,7 +103,6 @@ export default function EntreprisePage() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { window.location.href = '/'; return }
         setUserId(user.id)
-        // Lecture depuis user_profiles uniquement
         const { data: profile } = await supabase
           .from('user_profiles')
           .select('siren, entreprise')
@@ -71,40 +119,8 @@ export default function EntreprisePage() {
             if (profile.entreprise) { setEntreprise(profile.entreprise as EntrepriseInfo); setSiren(sirenVal) }
           }
         }
-        const { data: fecData } = await supabase
-          .from('fec_exercices').select('annee, nom_fichier, ecritures')
-          .eq('user_id', user.id).order('annee', { ascending: false })
-        if (fecData) {
-          // Appel moteur v4 pour chaque exercice
-          const kpisMap: Record<number,any> = {}
-          await Promise.all(fecData.map(async (r) => {
-            try {
-              const res = await fetch(`/api/etats?annee=${r.annee}&user_id=${user.id}`)
-              if (res.ok) {
-                const etats = await res.json()
-                const sig = etats?.sig
-                const bilan = etats?.bilan
-                if (sig) {
-                  kpisMap[r.annee] = {
-                    ca: sig.ca,
-                    mb: sig.margeCommerciale,
-                    tauxMb: sig.tauxMb,
-                    ebe: sig.ebe,
-                    tauxEbe: sig.tauxEbe,
-                    rnet: sig.resultatNet,
-                    treso: bilan?.actif?.tresorerie ?? 0,
-                  }
-                }
-              }
-            } catch (e) { console.error(e) }
-          }))
-          setExKpis(kpisMap)
-          setFecExercices(fecData.map(r => ({
-            annee: r.annee,
-            nom_fichier: r.nom_fichier || `FEC_${r.annee}.txt`,
-            nb_ecritures: Array.isArray(r.ecritures) ? r.ecritures.length : 0
-          })))
-        }
+        await rechargerFec(user.id)
+        await rechargerConnexions(user.id)
       } catch (e) { console.error(e) }
       finally { setChargement(false) }
     }
@@ -146,13 +162,9 @@ export default function EntreprisePage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       const text = await file.text()
-
-      // Parsing via module partagé (src/lib/fec-parser.ts)
       const { lignes, erreur } = parseFEC(text)
       if (erreur) { setUploadMsg(erreur); setUploading(false); return }
-
       const annee = detectAnnee(lignes, file.name)
-
       await supabase.from('fec_exercices').upsert(
         { user_id: user.id, annee, ecritures: lignes, nom_fichier: file.name },
         { onConflict: 'user_id,annee' }
@@ -171,39 +183,77 @@ export default function EntreprisePage() {
     }
   }
 
-  const handlePennylaneSync = async () => {
+  const handlePnxConnect = async () => {
     if (!userId) return
-    if (!pennylaneToken.trim()) { setPennylaneMsg('Erreur : token Pennylane requis'); return }
-    setPennylaneSyncing(true); setPennylaneMsg('')
+    if (!pnxToken.trim()) { setPnxMsg('Erreur : token Pennylane requis'); return }
+    setPnxConnecting(true); setPnxMsg('')
+    try {
+      const res = await fetch('/api/pennylane/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, token: pnxToken.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.ok) {
+        setPnxMsg('Erreur : ' + (data.erreur || 'connexion échouée'))
+        return
+      }
+      setPnxMsg(`Dossier ${data.company_name} connecté`)
+      setPnxToken('')
+      await rechargerConnexions(userId)
+    } catch (err) {
+      setPnxMsg('Erreur lors de la connexion Pennylane')
+      console.error(err)
+    } finally {
+      setPnxConnecting(false)
+    }
+  }
+
+  const handlePnxSync = async (connectionId: string) => {
+    if (!userId) return
+    const annee = pnxSyncAnnee[connectionId] ?? (new Date().getFullYear() - 1)
+    setPnxSyncingId(connectionId); setPnxMsg('')
     try {
       const res = await fetch('/api/pennylane/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: userId,
-          token: pennylaneToken.trim(),
-          period_start: `${pennylaneAnnee}-01-01`,
-          period_end: `${pennylaneAnnee}-12-31`,
+          connection_id: connectionId,
+          period_start: `${annee}-01-01`,
+          period_end: `${annee}-12-31`,
         }),
       })
       const data = await res.json()
       if (!res.ok || !data.ok) {
-        setPennylaneMsg('Erreur : ' + (data.erreur || 'synchronisation échouée'))
+        setPnxMsg('Erreur : ' + (data.erreur || 'synchronisation échouée'))
         return
       }
-      setPennylaneMsg(`FEC ${data.annee} \u2014 ${data.nb_ecritures.toLocaleString('fr-FR')} \u00e9critures synchronis\u00e9es depuis Pennylane`)
-      setFecExercices(prev => {
-        const filtered = prev.filter(f => f.annee !== data.annee)
-        return [{ annee: data.annee, nom_fichier: data.nom_fichier, nb_ecritures: data.nb_ecritures }, ...filtered].sort((a,b) => b.annee - a.annee)
-      })
+      setPnxMsg(`FEC ${data.annee} \u2014 ${data.nb_ecritures.toLocaleString('fr-FR')} \u00e9critures synchronis\u00e9es`)
+      await rechargerFec(userId)
     } catch (err) {
-      setPennylaneMsg("Erreur lors de la synchronisation Pennylane")
+      setPnxMsg('Erreur lors de la synchronisation Pennylane')
       console.error(err)
     } finally {
-      setPennylaneSyncing(false)
+      setPnxSyncingId(null)
     }
   }
 
+  const handlePnxDelete = async (connectionId: string) => {
+    if (!userId) return
+    setPnxDeletingId(connectionId)
+    try {
+      const res = await fetch('/api/pennylane/connections', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, connection_id: connectionId }),
+      })
+      if (res.ok) {
+        setPnxConnections(prev => prev.filter(c => c.id !== connectionId))
+      }
+    } catch (e) { console.error(e) }
+    finally { setPnxDeletingId(null) }
+  }
 
   const handleDelete = async (annee: number) => {
     setDeletingAnnee(annee)
@@ -226,9 +276,8 @@ export default function EntreprisePage() {
   const lbl = (t: string) => <div style={{ fontSize:10, fontWeight:500, color:'#8C9BAB', textTransform:'uppercase' as const, letterSpacing:'.06em', marginBottom:3 }}>{t}</div>
   const val = (t: string) => <div style={{ fontSize:13, color:'#1A1A1A', fontWeight:500 }}>{t || '—'}</div>
 
-  // Années proposées au sélecteur Pennylane (5 dernières).
   const anneeCourante = new Date().getFullYear()
-  const anneesPennylane = [anneeCourante, anneeCourante - 1, anneeCourante - 2, anneeCourante - 3, anneeCourante - 4]
+  const anneesPnx = [anneeCourante, anneeCourante - 1, anneeCourante - 2, anneeCourante - 3, anneeCourante - 4]
 
   return (
     <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
@@ -319,7 +368,6 @@ export default function EntreprisePage() {
                   </div>
                 </div>
 
-
                 {fecExercices.length > 0 && (
                   <>
                     <div style={{ fontSize:10, fontWeight:500, color:'#8C9BAB', textTransform:'uppercase' as const, letterSpacing:'.08em' }}>
@@ -361,58 +409,91 @@ export default function EntreprisePage() {
               {onglet === 'fec' && (
                 <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
 
-                  {/* ── Bloc synchronisation Pennylane ── */}
+                  {/* ── Bloc Pennylane ── */}
                   <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'18px 20px' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
                       <div style={{ width:28, height:28, borderRadius:7, background:'rgba(0,153,118,0.1)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#009976" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                       </div>
                       <div>
-                        <div style={{ fontSize:13, fontWeight:500, color:'#1A1A1A' }}>Synchroniser avec Pennylane</div>
-                        <div style={{ fontSize:11, color:'#8C9BAB' }}>Importez automatiquement le FEC d'un exercice via l'API Pennylane.</div>
+                        <div style={{ fontSize:13, fontWeight:500, color:'#1A1A1A' }}>Connexion Pennylane</div>
+                        <div style={{ fontSize:11, color:'#8C9BAB' }}>Connectez un dossier puis synchronisez ses exercices en un clic.</div>
                       </div>
                     </div>
 
-                    <div style={{ display:'flex', gap:10, alignItems:'flex-end', marginTop:16, flexWrap:'wrap' as const }}>
+                    {/* Liste des connexions existantes */}
+                    {pnxConnections.length > 0 && (
+                      <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:16 }}>
+                        {pnxConnections.map(conn => (
+                          <div key={conn.id} style={{ border:'0.5px solid rgba(0,0,0,0.08)', borderRadius:10, padding:'12px 14px', display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' as const }}>
+                            <div style={{ flex:'1 1 180px', minWidth:0 }}>
+                              <div style={{ fontSize:13, fontWeight:500, color:'#1A1A1A' }}>{conn.company_name}</div>
+                              <div style={{ fontSize:11, color:'#8C9BAB' }}>SIREN {conn.company_reg_no ? fmtSiren(conn.company_reg_no) : '—'}</div>
+                            </div>
+                            <select
+                              value={pnxSyncAnnee[conn.id] ?? (anneeCourante - 1)}
+                              onChange={e => setPnxSyncAnnee(prev => ({ ...prev, [conn.id]: parseInt(e.target.value) }))}
+                              disabled={pnxSyncingId === conn.id}
+                              style={{ flex:'0 0 100px', border:'1px solid rgba(0,0,0,0.12)', borderRadius:8, padding:'7px 10px', fontSize:13, fontFamily:'Plus Jakarta Sans,sans-serif', outline:'none', background:'#fff', cursor:'pointer' }}
+                            >
+                              {anneesPnx.map(a => <option key={a} value={a}>{a}</option>)}
+                            </select>
+                            <button
+                              onClick={() => handlePnxSync(conn.id)}
+                              disabled={pnxSyncingId === conn.id}
+                              style={{ flex:'0 0 auto', background: pnxSyncingId === conn.id ? 'rgba(0,153,118,0.4)' : '#009976', color:'#fff', border:'none', borderRadius:8, padding:'7px 16px', fontSize:12, fontWeight:500, cursor: pnxSyncingId === conn.id ? 'default' : 'pointer', display:'flex', alignItems:'center', gap:7, whiteSpace:'nowrap' as const }}
+                            >
+                              {pnxSyncingId === conn.id ? (
+                                <>
+                                  <div style={{ width:11, height:11, border:'1.5px solid rgba(255,255,255,0.3)', borderTop:'1.5px solid #fff', borderRadius:'50%', animation:'spin .7s linear infinite' }}/>
+                                  Sync...
+                                </>
+                              ) : 'Synchroniser'}
+                            </button>
+                            <button
+                              onClick={() => handlePnxDelete(conn.id)}
+                              disabled={pnxDeletingId === conn.id}
+                              style={{ flex:'0 0 auto', background:'transparent', border:'0.5px solid rgba(0,0,0,0.1)', borderRadius:8, padding:'7px 12px', fontSize:12, color: pnxDeletingId === conn.id ? '#B4B2A9' : '#D85A30', cursor:'pointer' }}
+                            >
+                              {pnxDeletingId === conn.id ? '...' : 'Déconnecter'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Ajout d'une connexion */}
+                    <div style={{ display:'flex', gap:10, alignItems:'flex-end', flexWrap:'wrap' as const }}>
                       <div style={{ flex:'1 1 280px', minWidth:0 }}>
-                        <label style={{ fontSize:10, fontWeight:500, color:'#8C9BAB', textTransform:'uppercase' as const, letterSpacing:'.06em', marginBottom:5, display:'block' }}>Token API Pennylane</label>
+                        <label style={{ fontSize:10, fontWeight:500, color:'#8C9BAB', textTransform:'uppercase' as const, letterSpacing:'.06em', marginBottom:5, display:'block' }}>
+                          {pnxConnections.length > 0 ? 'Connecter un autre dossier' : 'Token API Pennylane'}
+                        </label>
                         <input
                           type="password"
                           placeholder="Collez votre token Pennylane"
-                          value={pennylaneToken}
-                          onChange={e => setPennylaneToken(e.target.value)}
-                          disabled={pennylaneSyncing}
+                          value={pnxToken}
+                          onChange={e => setPnxToken(e.target.value)}
+                          disabled={pnxConnecting}
                           style={{ width:'100%', border:'1px solid rgba(0,0,0,0.12)', borderRadius:8, padding:'9px 12px', fontSize:13, fontFamily:'Plus Jakarta Sans,sans-serif', outline:'none', boxSizing:'border-box' as const }}
                         />
                       </div>
-                      <div style={{ flex:'0 0 110px' }}>
-                        <label style={{ fontSize:10, fontWeight:500, color:'#8C9BAB', textTransform:'uppercase' as const, letterSpacing:'.06em', marginBottom:5, display:'block' }}>Exercice</label>
-                        <select
-                          value={pennylaneAnnee}
-                          onChange={e => setPennylaneAnnee(parseInt(e.target.value))}
-                          disabled={pennylaneSyncing}
-                          style={{ width:'100%', border:'1px solid rgba(0,0,0,0.12)', borderRadius:8, padding:'9px 12px', fontSize:13, fontFamily:'Plus Jakarta Sans,sans-serif', outline:'none', boxSizing:'border-box' as const, background:'#fff', cursor:'pointer' }}
-                        >
-                          {anneesPennylane.map(a => <option key={a} value={a}>{a}</option>)}
-                        </select>
-                      </div>
                       <button
-                        onClick={handlePennylaneSync}
-                        disabled={pennylaneSyncing || !pennylaneToken.trim()}
-                        style={{ flex:'0 0 auto', background: pennylaneSyncing || !pennylaneToken.trim() ? 'rgba(0,153,118,0.4)' : '#009976', color:'#fff', border:'none', borderRadius:8, padding:'9px 18px', fontSize:13, fontWeight:500, cursor: pennylaneSyncing || !pennylaneToken.trim() ? 'default' : 'pointer', display:'flex', alignItems:'center', gap:8, whiteSpace:'nowrap' as const }}
+                        onClick={handlePnxConnect}
+                        disabled={pnxConnecting || !pnxToken.trim()}
+                        style={{ flex:'0 0 auto', background: pnxConnecting || !pnxToken.trim() ? 'rgba(26,26,26,0.4)' : '#1A1A1A', color:'#fff', border:'none', borderRadius:8, padding:'9px 18px', fontSize:13, fontWeight:500, cursor: pnxConnecting || !pnxToken.trim() ? 'default' : 'pointer', display:'flex', alignItems:'center', gap:8, whiteSpace:'nowrap' as const }}
                       >
-                        {pennylaneSyncing ? (
+                        {pnxConnecting ? (
                           <>
                             <div style={{ width:12, height:12, border:'1.5px solid rgba(255,255,255,0.3)', borderTop:'1.5px solid #fff', borderRadius:'50%', animation:'spin .7s linear infinite' }}/>
-                            Synchronisation...
+                            Connexion...
                           </>
-                        ) : 'Synchroniser'}
+                        ) : 'Connecter'}
                       </button>
                     </div>
 
-                    {pennylaneMsg && (
-                      <div style={{ marginTop:14, background: pennylaneMsg.includes('Erreur') ? 'rgba(216,90,48,0.06)' : 'rgba(29,158,117,0.06)', border: `0.5px solid ${pennylaneMsg.includes('Erreur') ? 'rgba(216,90,48,0.2)' : 'rgba(29,158,117,0.2)'}`, borderRadius:8, padding:'10px 14px', fontSize:12, color: pennylaneMsg.includes('Erreur') ? '#D85A30' : '#1D9E75' }}>
-                        {pennylaneMsg}
+                    {pnxMsg && (
+                      <div style={{ marginTop:14, background: pnxMsg.includes('Erreur') ? 'rgba(216,90,48,0.06)' : 'rgba(29,158,117,0.06)', border: `0.5px solid ${pnxMsg.includes('Erreur') ? 'rgba(216,90,48,0.2)' : 'rgba(29,158,117,0.2)'}`, borderRadius:8, padding:'10px 14px', fontSize:12, color: pnxMsg.includes('Erreur') ? '#D85A30' : '#1D9E75' }}>
+                        {pnxMsg}
                       </div>
                     )}
                   </div>
@@ -450,7 +531,7 @@ export default function EntreprisePage() {
                       <div style={{ textAlign:'center', padding:'32px 0', color:'#8C9BAB' }}>
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D0CEC8" strokeWidth="1.2" style={{ marginBottom:10, display:'block', margin:'0 auto 10px' }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                         <div style={{ fontSize:13, color:'#1A1A1A', marginBottom:4 }}>Aucun FEC importé</div>
-                        <div style={{ fontSize:12 }}>Importez votre premier fichier FEC ou synchronisez depuis Pennylane.</div>
+                        <div style={{ fontSize:12 }}>Importez un fichier FEC ou synchronisez depuis Pennylane.</div>
                       </div>
                     ) : (
                       <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
