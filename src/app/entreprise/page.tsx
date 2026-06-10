@@ -157,19 +157,37 @@ export default function EntreprisePage() {
   }
 
   const handleNewDossier = async () => {
-    if (!userId) return
+    if (!userId || creatingDossier) return
     setCreatingDossier(true)
     try {
       const { data, error } = await supabase.from('companies')
         .insert({ user_id: userId, nom: 'Nouveau dossier', is_default: false })
         .select('id').single()
       if (!error && data) {
-        // Bascule sur le nouveau dossier : la fiche entreprise sera vide → formulaire SIREN
-        setEntreprise(null); setSiren(''); setSirenInput('')
-        setActiveId(data.id)
+        // Bascule sur le nouveau dossier puis recharge : le hook reprend la liste
+        // complète (avec le nouveau dossier) et affiche le formulaire SIREN.
+        setActiveId(data.id)        // persiste le dossier actif (localStorage)
+        window.location.reload()
+      } else {
+        setCreatingDossier(false)
       }
+    } catch (e) { console.error(e); setCreatingDossier(false) }
+  }
+
+  const handleDeleteDossier = async (companyId: string, nom: string) => {
+    if (companies.length < 2) return  // on ne supprime jamais le dernier dossier
+    const target = companies.find(c => c.id === companyId)
+    if (target?.is_default) return    // ni le dossier par défaut
+    if (!window.confirm(`Supprimer le dossier « ${nom} » ? Ses FEC et sa connexion Pennylane seront définitivement supprimés.`)) return
+    try {
+      await supabase.from('companies').delete().eq('id', companyId)
+      // Si on supprimait le dossier actif, on bascule sur le dossier par défaut
+      if (companyId === activeId) {
+        const fallback = companies.find(c => c.is_default && c.id !== companyId) || companies.find(c => c.id !== companyId)
+        if (fallback) setActiveId(fallback.id)
+      }
+      window.location.reload()
     } catch (e) { console.error(e) }
-    finally { setCreatingDossier(false) }
   }
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -312,12 +330,24 @@ export default function EntreprisePage() {
           {/* Barre de dossiers — basculer entre dossiers + en créer un nouveau */}
           <div style={{ maxWidth:960, display:'flex', alignItems:'center', gap:8, marginBottom:16, flexWrap:'wrap' as const }}>
             <span style={{ fontSize:10, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase' as const, letterSpacing:'.08em', marginRight:4 }}>Dossiers</span>
-            {companies.map(c => (
-              <button key={c.id} onClick={() => setActiveId(c.id)}
-                style={{ fontSize:12, fontWeight:500, padding:'5px 12px', borderRadius:7, border:'0.5px solid rgba(0,0,0,0.12)', background: c.id === activeId ? '#1A1A1A' : '#fff', color: c.id === activeId ? '#fff' : '#1A1A1A', cursor:'pointer' }}>
-                {c.nom}
-              </button>
-            ))}
+            {companies.map(c => {
+              const actif = c.id === activeId
+              const supprimable = !c.is_default && companies.length > 1
+              return (
+                <div key={c.id} style={{ display:'flex', alignItems:'center', borderRadius:7, border:'0.5px solid rgba(0,0,0,0.12)', background: actif ? '#1A1A1A' : '#fff', overflow:'hidden' }}>
+                  <button onClick={() => setActiveId(c.id)}
+                    style={{ fontSize:12, fontWeight:500, padding:'5px 12px', border:'none', background:'transparent', color: actif ? '#fff' : '#1A1A1A', cursor:'pointer' }}>
+                    {c.nom}
+                  </button>
+                  {supprimable && (
+                    <button onClick={() => handleDeleteDossier(c.id, c.nom)} title="Supprimer ce dossier"
+                      style={{ display:'flex', alignItems:'center', padding:'5px 8px 5px 2px', border:'none', background:'transparent', color: actif ? 'rgba(255,255,255,0.6)' : '#8C9BAB', cursor:'pointer' }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+                    </button>
+                  )}
+                </div>
+              )
+            })}
             <button onClick={handleNewDossier} disabled={creatingDossier}
               style={{ fontSize:12, fontWeight:500, padding:'5px 12px', borderRadius:7, border:'0.5px dashed rgba(0,0,0,0.2)', background:'transparent', color:'#8C9BAB', cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
