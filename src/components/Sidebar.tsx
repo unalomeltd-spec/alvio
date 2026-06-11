@@ -1,165 +1,370 @@
 'use client'
+
 import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import {
+  LayoutDashboard, TrendingUp, FileText, Layers, Droplets,
+  Settings, CheckSquare, Building2, ChevronDown,
+  PanelLeftClose, PanelLeftOpen,
+} from 'lucide-react'
+import { useActiveCompany } from '@/hooks/useActiveCompany'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+/* ─────────────────────────────────────────────────────────────
+   Types
+───────────────────────────────────────────────────────────── */
 
-type PageId = 'dashboard' | 'profitability' | 'income-statement' | 'sante-financiere' | 'balance-sheet' | 'cash-flow' | 'company' | 'suivi'
+interface NavItemDef {
+  href: string
+  label: string
+  icon: React.ElementType
+}
 
-export default function Sidebar({ activePage }: { activePage: PageId }) {
-  const router = useRouter()
-  const [userEmail, setUserEmail] = useState('')
-  const [companyName, setCompanyName] = useState('')
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return localStorage.getItem('alvio-sidebar-collapsed') === 'true'
-  })
+/* ─────────────────────────────────────────────────────────────
+   Navigation
+───────────────────────────────────────────────────────────── */
 
+const MAIN_NAV: NavItemDef[] = [
+  { href: '/dashboard',        label: 'Synthèse',           icon: LayoutDashboard },
+  { href: '/profitability',    label: 'Rentabilité',         icon: TrendingUp },
+  { href: '/income-statement', label: 'Compte de résultat', icon: FileText },
+  { href: '/balance-sheet',    label: 'Bilan',               icon: Layers },
+  { href: '/cash-flow',        label: 'Trésorerie',          icon: Droplets },
+]
+
+const SECONDARY_NAV: NavItemDef[] = [
+  { href: '/entreprise', label: 'Paramétrages',   icon: Settings },
+  { href: '/suivi',      label: 'Suivi demandes', icon: CheckSquare },
+]
+
+/* ─────────────────────────────────────────────────────────────
+   Logo
+───────────────────────────────────────────────────────────── */
+
+function Logo({ collapsed }: { collapsed: boolean }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: collapsed ? 0 : 10,
+        padding: collapsed ? '16px 0' : '16px 16px 14px',
+        borderBottom: '1px solid var(--border-soft)',
+        justifyContent: collapsed ? 'center' : 'flex-start',
+        flexShrink: 0,
+      }}
+    >
+      {/* Mark */}
+      <div
+        style={{
+          width: 30, height: 30,
+          borderRadius: 8, flexShrink: 0,
+          background: 'var(--alvio-champagne-light)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <svg viewBox="0 0 24 24" width={13} height={13} fill="var(--alvio-champagne-dark)" aria-hidden="true">
+          {/* Silhouette origami hummingbird simplifiée */}
+          <polygon points="12,2 15.5,8.5 22,6.5 17,13.5 19.5,21 12,17 4.5,21 7,13.5 2,6.5 8.5,8.5" />
+        </svg>
+      </div>
+
+      {/* Wordmark */}
+      {!collapsed && (
+        <div style={{ overflow: 'hidden', lineHeight: 1 }}>
+          <div
+            style={{
+              fontWeight: 700, fontSize: 13,
+              letterSpacing: '0.07em',
+              color: 'var(--text-primary)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            ALVIO
+          </div>
+          <div
+            style={{
+              fontSize: 9,
+              color: 'var(--alvio-champagne)',
+              fontWeight: 500,
+              letterSpacing: '0.07em',
+              marginTop: 2,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            CFO DIGITAL
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────────
+   NavLink
+───────────────────────────────────────────────────────────── */
+
+function NavLink({
+  href, label, icon: Icon, active, collapsed,
+}: NavItemDef & { active: boolean; collapsed: boolean }) {
+  return (
+    <Link href={href} style={{ textDecoration: 'none', display: 'block' }}>
+      <div
+        title={collapsed ? label : undefined}
+        className={`alvio-nav-item${active ? ' alvio-nav-active' : ''}`}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: collapsed ? 0 : 9,
+          padding: collapsed ? '8px 0' : '8px 10px',
+          borderRadius: 8,
+          marginBottom: 2,
+          color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+          fontWeight: active ? 500 : 400,
+          fontSize: 12.5,
+          cursor: 'pointer',
+          justifyContent: collapsed ? 'center' : 'flex-start',
+        }}
+      >
+        <Icon
+          size={15}
+          strokeWidth={active ? 2 : 1.6}
+          color={active ? 'var(--alvio-champagne)' : 'var(--text-muted)'}
+          style={{ flexShrink: 0 }}
+        />
+        {!collapsed && label}
+      </div>
+    </Link>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Sidebar
+───────────────────────────────────────────────────────────── */
+
+export default function Sidebar() {
+  const pathname = usePathname()
+  const [collapsed, setCollapsed] = useState(false)
+  const [userEmail, setUserEmail]     = useState<string | null>(null)
+  const [userDisplay, setUserDisplay] = useState<string | null>(null)
+  const [userInitials, setUserInitials] = useState('AL')
+
+  const { activeCompany, companies } = useActiveCompany()
+
+  /* ── Récupère l'utilisateur connecté ── */
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        setUserEmail(user.email ?? '')
-        setCompanyName(user.user_metadata?.entreprise?.nom ?? '')
+    let mounted = true
+    ;(async () => {
+      try {
+        const { createBrowserClient } = await import('@supabase/ssr')
+        const supabase = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        )
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!mounted || !user?.email) return
+
+        setUserEmail(user.email)
+
+        type Meta = { full_name?: string; name?: string }
+        const meta = (user.user_metadata ?? {}) as Meta
+        const fullName = meta.full_name ?? meta.name
+
+        if (fullName) {
+          const parts = fullName.trim().split(/\s+/)
+          const initials = (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase()
+          const display  = parts.length > 1
+            ? `${parts[0][0]}. ${parts[parts.length - 1]}`
+            : parts[0]
+          setUserInitials(initials)
+          setUserDisplay(display)
+        } else {
+          const local = user.email.split('@')[0]
+          setUserInitials(local.slice(0, 2).toUpperCase())
+          setUserDisplay(local)
+        }
+      } catch {
+        /* pas de session ou module absent — silencieux */
       }
-    })
+    })()
+    return () => { mounted = false }
   }, [])
 
-  const toggle = () => {
-    const next = !collapsed
-    setCollapsed(next)
-    localStorage.setItem('alvio-sidebar-collapsed', String(next))
-  }
+  /* ── "Suivi demandes" masqué pour le compte admin ── */
+  const secondaryNav = SECONDARY_NAV.filter(
+    (item) => !(item.href === '/suivi' && userEmail === 'hello@alvio.finance'),
+  )
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-  }
-
-  const main = [
-    { id: 'dashboard',        href: '/dashboard',        label: 'Synthèse',           d: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z' },
-    { id: 'profitability',    href: '/profitability',    label: 'Rentabilité',         d: 'M3 3v18h18M7 16l4-4 4 4 5-5' },
-    { id: 'income-statement', href: '/income-statement', label: 'Compte de résultat',  d: 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 12h6m-6 4h4' },
-    { id: 'sante-financiere', href: '/sante-financiere', label: 'Santé financière',    d: 'M3 12h4l2 5 4-12 2 7h6' },
-  ]
-
-  const space = [
-    { id: 'company', href: '/company', label: 'Paramétrages',  d: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
-    ...(userEmail && userEmail !== 'hello@alvio.finance' ? [{ id: 'suivi', href: '/suivi', label: 'Suivi demandes', d: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11' }] : []) as typeof main,
-  ]
-
-  const w = collapsed ? 56 : 220
-
-  const navItem = (item: typeof main[0]) => {
-    const active = activePage === item.id
-    return (
-      <a key={item.id} href={item.href}
-        title={collapsed ? item.label : undefined}
-        style={{
-          display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 10,
-          justifyContent: collapsed ? 'center' : 'flex-start',
-          padding: collapsed ? '9px 0' : '8px 20px',
-          borderLeft: active ? '2px solid #B8A98A' : '2px solid transparent',
-          background: active ? 'rgba(184,169,138,0.1)' : 'transparent',
-          color: active ? '#B8A98A' : '#8C9BAB',
-          fontSize: 12, cursor: 'pointer', textDecoration: 'none',
-          transition: 'all 0.15s', borderRadius: collapsed ? 0 : undefined,
-        }}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-          <path d={item.d}/>
-        </svg>
-        {!collapsed && item.label}
-      </a>
-    )
-  }
+  const WIDTH = collapsed ? 60 : 220
 
   return (
-    <div style={{
-      width: w, minWidth: w, background: '#1A1A1A', display: 'flex', flexDirection: 'column',
-      fontFamily: "'Plus Jakarta Sans', sans-serif", transition: 'width 0.2s ease, min-width 0.2s ease',
-      position: 'relative', overflow: 'visible',
-    }}>
-
+    <aside
+      aria-label="Navigation principale"
+      style={{
+        width: WIDTH,
+        minWidth: WIDTH,
+        background: 'var(--bg-card)',
+        borderRight: '1px solid var(--border-light)',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        transition: 'width 0.2s ease, min-width 0.2s ease',
+        overflow: 'hidden',
+        flexShrink: 0,
+      }}
+    >
       {/* Logo */}
-      <div style={{ padding: collapsed ? '18px 0 14px' : '18px 20px 14px', borderBottom: '0.5px solid rgba(184,169,138,0.18)', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between' }}>
-        {!collapsed && (
-          <a href="/dashboard" style={{ textDecoration: 'none' }}>
-            <div style={{ color: '#B8A98A', fontSize: 15, fontWeight: 500, letterSpacing: '0.05em' }}>Alvio</div>
-            <div style={{ color: '#8C9BAB', fontSize: 9, marginTop: 3 }}>Intelligence financière</div>
-          </a>
-        )}
-        {collapsed && (
-          <a href="/dashboard" style={{ textDecoration: 'none' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B8A98A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-              <path d="M2 17l10 5 10-5"/>
-              <path d="M2 12l10 5 10-5"/>
-            </svg>
-          </a>
-        )}
-      </div>
+      <Logo collapsed={collapsed} />
 
-      {/* Nav */}
-      <div style={{ flex: 1, padding: '10px 0', overflowY: 'auto', overflowX: 'hidden' }}>
-        {!collapsed && <div style={{ padding: '10px 20px 4px', color: 'rgba(140,155,171,0.5)', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Analyse</div>}
-        {collapsed && <div style={{ height: 14 }} />}
-        {main.map(navItem)}
+      {/* Navigation principale */}
+      <nav style={{ flex: 1, padding: collapsed ? '10px 6px' : '10px 8px', overflowY: 'auto' }}>
+        {MAIN_NAV.map((item) => (
+          <NavLink
+            key={item.href}
+            {...item}
+            active={pathname === item.href || pathname.startsWith(item.href + '/')}
+            collapsed={collapsed}
+          />
+        ))}
 
-        {!collapsed && <div style={{ padding: '10px 20px 4px', color: 'rgba(140,155,171,0.5)', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 8 }}>Mon espace</div>}
-        {collapsed && <div style={{ height: 14 }} />}
-        {space.map(navItem)}
-      </div>
+        <div style={{ height: 1, background: 'var(--border-soft)', margin: '10px 4px' }} />
 
-      {/* User */}
-      {!collapsed && (
-        <div style={{ padding: '12px 20px', borderTop: '0.5px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(184,169,138,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#B8A98A', fontSize: 10, fontWeight: 500, flexShrink: 0 }}>
-              {userEmail.slice(0, 2).toUpperCase()}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: '#F2F3F5', fontSize: 11, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail}</div>
-              <div style={{ color: '#8C9BAB', fontSize: 9 }}>{companyName || 'Beta'}</div>
-            </div>
-            <button onClick={handleLogout} title="Déconnexion"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8C9BAB', padding: 0, display: 'flex', alignItems: 'center' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
-      {collapsed && (
-        <div style={{ padding: '12px 0', borderTop: '0.5px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'center' }}>
-          <div title={userEmail} style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(184,169,138,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#B8A98A', fontSize: 10, fontWeight: 500, cursor: 'default' }}>
-            {userEmail.slice(0, 2).toUpperCase()}
-          </div>
-        </div>
-      )}
+        {secondaryNav.map((item) => (
+          <NavLink
+            key={item.href}
+            {...item}
+            active={pathname === item.href || pathname.startsWith(item.href + '/')}
+            collapsed={collapsed}
+          />
+        ))}
+      </nav>
 
-      {/* Bouton toggle — flèche sur le bord droit */}
-      <button onClick={toggle}
+      {/* Bas : dossier actif + utilisateur + bouton collapse */}
+      <div
         style={{
-          position: 'absolute', right: -12, top: '50%', transform: 'translateY(-50%)',
-          width: 24, height: 24, borderRadius: '50%',
-          background: '#1A1A1A', border: '1px solid rgba(184,169,138,0.3)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer', zIndex: 10, transition: 'all 0.15s',
+          borderTop: '1px solid var(--border-soft)',
+          padding: collapsed ? '10px 6px' : '10px 8px',
+          flexShrink: 0,
         }}
-        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#2A2A2A'}
-        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = '#1A1A1A'}>
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round">
-          {collapsed
-            ? <path d="M3 2l4 3-4 3"/>
-            : <path d="M7 2L3 5l4 3"/>
-          }
-        </svg>
-      </button>
+      >
+        {/* Dossier actif → /entreprise */}
+        <Link href="/entreprise" style={{ textDecoration: 'none', display: 'block' }}>
+          <div
+            title={collapsed ? (activeCompany?.nom ?? 'Dossier') : undefined}
+            className="alvio-nav-item"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: collapsed ? 0 : 9,
+              padding: collapsed ? '8px 0' : '8px 10px',
+              borderRadius: 8,
+              marginBottom: 2,
+              color: 'var(--text-secondary)',
+              fontSize: 12.5,
+              cursor: 'pointer',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+            }}
+          >
+            <Building2 size={15} strokeWidth={1.6} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+            {!collapsed && (
+              <>
+                <span
+                  style={{
+                    flex: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    fontSize: 12.5,
+                  }}
+                >
+                  {activeCompany?.nom ?? '—'}
+                </span>
+                {(companies?.length ?? 0) > 1 && (
+                  <ChevronDown size={11} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+                )}
+              </>
+            )}
+          </div>
+        </Link>
 
-    </div>
+        {/* Utilisateur */}
+        <div
+          title={collapsed ? (userDisplay ?? '') : undefined}
+          className="alvio-nav-item"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: collapsed ? 0 : 9,
+            padding: collapsed ? '8px 0' : '8px 10px',
+            borderRadius: 8,
+            cursor: 'pointer',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+          }}
+        >
+          {/* Avatar initiales */}
+          <div
+            style={{
+              width: 22, height: 22,
+              borderRadius: '50%',
+              background: 'var(--alvio-champagne-light)',
+              flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 9, fontWeight: 600,
+              color: 'var(--alvio-champagne-dark)',
+              letterSpacing: '0.04em',
+            }}
+          >
+            {userInitials}
+          </div>
+          {!collapsed && (
+            <>
+              <span
+                style={{
+                  flex: 1,
+                  color: 'var(--text-secondary)',
+                  fontSize: 12.5,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {userDisplay ?? '…'}
+              </span>
+              <ChevronDown size={11} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+            </>
+          )}
+        </div>
+
+        {/* Bouton collapse */}
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          title={collapsed ? 'Développer le menu' : 'Réduire le menu'}
+          className="alvio-nav-item"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            gap: 6,
+            width: '100%',
+            marginTop: 6,
+            padding: collapsed ? '7px 0' : '7px 10px',
+            borderRadius: 8,
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            color: 'var(--text-muted)',
+          }}
+        >
+          {collapsed ? (
+            <PanelLeftOpen size={13} strokeWidth={1.6} color="var(--text-muted)" />
+          ) : (
+            <>
+              <PanelLeftClose size={13} strokeWidth={1.6} color="var(--text-muted)" />
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Réduire</span>
+            </>
+          )}
+        </button>
+      </div>
+    </aside>
   )
 }
