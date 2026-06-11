@@ -8,7 +8,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-type PageId = 'dashboard' | 'profitability' | 'income-statement' | 'balance-sheet' | 'cash-flow' | 'company' | 'suivi'
+type PageId = 'dashboard' | 'profitability' | 'income-statement' | 'sante-financiere' | 'balance-sheet' | 'cash-flow' | 'company' | 'suivi'
 
 export default function Sidebar({ activePage }: { activePage: PageId }) {
   const router = useRouter()
@@ -43,8 +43,7 @@ export default function Sidebar({ activePage }: { activePage: PageId }) {
     { id: 'dashboard',        href: '/dashboard',        label: 'Synthèse',           d: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z' },
     { id: 'profitability',    href: '/profitability',    label: 'Rentabilité',         d: 'M3 3v18h18M7 16l4-4 4 4 5-5' },
     { id: 'income-statement', href: '/income-statement', label: 'Compte de résultat',  d: 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 12h6m-6 4h4' },
-    { id: 'balance-sheet',    href: '/balance-sheet',    label: 'Bilan',               d: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' },
-    { id: 'cash-flow',        href: '/cash-flow',        label: 'Trésorerie',          d: 'M3 3v18h18M7 12l4-4 4 4 4-4' },
+    { id: 'sante-financiere', href: '/sante-financiere', label: 'Santé financière',    d: 'M3 12h4l2 5 4-12 2 7h6' },
   ]
 
   const space = [
