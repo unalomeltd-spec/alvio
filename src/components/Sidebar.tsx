@@ -31,34 +31,37 @@ const SECONDARY_NAV: NavItemDef[] = [
 
 function Logo({ collapsed }: { collapsed: boolean }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center',
-      gap: collapsed ? 0 : 10,
-      padding: collapsed ? '16px 0' : '16px 16px 14px',
-      borderBottom: '1px solid var(--border-soft)',
-      justifyContent: collapsed ? 'center' : 'flex-start',
-      flexShrink: 0,
-    }}>
+    <Link href="/dashboard" style={{ textDecoration: 'none', display: 'block' }}>
       <div style={{
-        width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-        background: 'var(--alvio-champagne-light)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        display: 'flex', alignItems: 'center',
+        gap: collapsed ? 0 : 10,
+        padding: collapsed ? '16px 0' : '16px 16px 14px',
+        borderBottom: '1px solid var(--border-soft)',
+        justifyContent: collapsed ? 'center' : 'flex-start',
+        flexShrink: 0,
+        cursor: 'pointer',
       }}>
-        <svg viewBox="0 0 24 24" width={13} height={13} fill="var(--alvio-champagne-dark)" aria-hidden="true">
-          <polygon points="12,2 15.5,8.5 22,6.5 17,13.5 19.5,21 12,17 4.5,21 7,13.5 2,6.5 8.5,8.5" />
-        </svg>
-      </div>
-      {!collapsed && (
-        <div style={{ overflow: 'hidden', lineHeight: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, letterSpacing: '0.07em', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-            ALVIO
-          </div>
-          <div style={{ fontSize: 9, color: 'var(--alvio-champagne)', fontWeight: 500, letterSpacing: '0.07em', marginTop: 2, whiteSpace: 'nowrap' }}>
-            CFO DIGITAL
-          </div>
+        <div style={{
+          width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+          background: 'var(--alvio-champagne-light)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <svg viewBox="0 0 24 24" width={13} height={13} fill="var(--alvio-champagne-dark)" aria-hidden="true">
+            <polygon points="12,2 15.5,8.5 22,6.5 17,13.5 19.5,21 12,17 4.5,21 7,13.5 2,6.5 8.5,8.5" />
+          </svg>
         </div>
-      )}
-    </div>
+        {!collapsed && (
+          <div style={{ overflow: 'hidden', lineHeight: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, letterSpacing: '0.07em', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              ALVIO
+            </div>
+            <div style={{ fontSize: 9, color: 'var(--alvio-champagne)', fontWeight: 500, letterSpacing: '0.07em', marginTop: 2, whiteSpace: 'nowrap' }}>
+              CFO DIGITAL
+            </div>
+          </div>
+        )}
+      </div>
+    </Link>
   )
 }
 
