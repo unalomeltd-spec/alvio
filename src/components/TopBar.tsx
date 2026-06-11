@@ -223,7 +223,7 @@ export default function TopBar({
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Chargement…</span>
       )}
 
-      <EntityLabel />
+
     </div>
   )
 }
