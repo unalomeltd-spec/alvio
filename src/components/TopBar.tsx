@@ -223,6 +223,34 @@ export default function TopBar({
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Chargement…</span>
       )}
 
+      {/* Bouton musique */}
+      <button
+        onClick={() => window.open('https://www.youtube.com/watch?v=jYmlBFzBzP4&list=RDjYmlBFzBzP4&start_radio=1', '_blank')}
+        title="Jouer de la musique"
+        style={{
+          marginLeft: 'auto',
+          width: 30, height: 30, borderRadius: 7,
+          border: '1px solid var(--border-light)',
+          background: 'var(--bg-card)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', flexShrink: 0,
+          transition: 'border-color 0.12s, background 0.12s',
+        }}
+        onMouseEnter={e => {
+          (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--alvio-champagne)'
+          ;(e.currentTarget as HTMLButtonElement).style.background = 'var(--alvio-champagne-subtle)'
+        }}
+        onMouseLeave={e => {
+          (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-light)'
+          ;(e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-card)'
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--alvio-champagne)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 18V5l12-2v13"/>
+          <circle cx="6" cy="18" r="3"/>
+          <circle cx="18" cy="16" r="3"/>
+        </svg>
+      </button>
 
     </div>
   )

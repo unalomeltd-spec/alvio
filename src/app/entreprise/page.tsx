@@ -317,7 +317,7 @@ export default function EntreprisePage() {
   }
 
   if (chargement) return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg-main)', , alignItems:'center', justifyContent:'center' }}>
+    <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg-main)', alignItems:'center', justifyContent:'center' }}>
       <div style={{ width:36, height:36, border:'2px solid var(--bg-main)', borderTop:'2px solid #B8A98A', borderRadius:'50%', animation:'spin .8s linear infinite' }}/>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
