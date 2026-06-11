@@ -5,20 +5,15 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, TrendingUp, FileText, Activity,
-  Settings, CheckSquare, Building2,
-  ChevronDown, ChevronLeft, LogOut,
+  Settings, CheckSquare, LogOut, ChevronLeft,
 } from 'lucide-react'
 import { useActiveCompany } from '@/hooks/useActiveCompany'
-
-/* ─── types ──────────────────────────────────────────── */
 
 interface NavItemDef {
   href: string
   label: string
   icon: React.ElementType
 }
-
-/* ─── navigation ─────────────────────────────────────── */
 
 const MAIN_NAV: NavItemDef[] = [
   { href: '/dashboard',        label: 'Synthèse',           icon: LayoutDashboard },
@@ -55,14 +50,12 @@ function Logo({ collapsed }: { collapsed: boolean }) {
       </div>
       {!collapsed && (
         <div style={{ overflow: 'hidden', lineHeight: 1 }}>
-          <div style={{
-            fontWeight: 700, fontSize: 13, letterSpacing: '0.07em',
-            color: 'var(--text-primary)', whiteSpace: 'nowrap',
-          }}>ALVIO</div>
-          <div style={{
-            fontSize: 9, color: 'var(--alvio-champagne)', fontWeight: 500,
-            letterSpacing: '0.07em', marginTop: 2, whiteSpace: 'nowrap',
-          }}>CFO DIGITAL</div>
+          <div style={{ fontWeight: 700, fontSize: 13, letterSpacing: '0.07em', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+            ALVIO
+          </div>
+          <div style={{ fontSize: 9, color: 'var(--alvio-champagne)', fontWeight: 500, letterSpacing: '0.07em', marginTop: 2, whiteSpace: 'nowrap' }}>
+            CFO DIGITAL
+          </div>
         </div>
       )}
     </div>
@@ -71,9 +64,7 @@ function Logo({ collapsed }: { collapsed: boolean }) {
 
 /* ─── NavLink ────────────────────────────────────────── */
 
-function NavLink({
-  href, label, icon: Icon, active, collapsed,
-}: NavItemDef & { active: boolean; collapsed: boolean }) {
+function NavLink({ href, label, icon: Icon, active, collapsed }: NavItemDef & { active: boolean; collapsed: boolean }) {
   return (
     <Link href={href} style={{ textDecoration: 'none', display: 'block' }}>
       <div
@@ -90,11 +81,7 @@ function NavLink({
           justifyContent: collapsed ? 'center' : 'flex-start',
         }}
       >
-        <Icon
-          size={15} strokeWidth={active ? 2 : 1.6}
-          color={active ? 'var(--alvio-champagne)' : 'var(--text-muted)'}
-          style={{ flexShrink: 0 }}
-        />
+        <Icon size={15} strokeWidth={active ? 2 : 1.6} color={active ? 'var(--alvio-champagne)' : 'var(--text-muted)'} style={{ flexShrink: 0 }} />
         {!collapsed && label}
       </div>
     </Link>
@@ -106,12 +93,8 @@ function NavLink({
 export default function Sidebar({ activePage: _a }: { activePage?: string } = {}) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
-  const [userEmail, setUserEmail]     = useState<string | null>(null)
-  const [userDisplay, setUserDisplay] = useState<string | null>(null)
-  const [userInitials, setUserInitials] = useState('AL')
-  const { activeCompany, companies } = useActiveCompany()
+  const [userEmail, setUserEmail] = useState<string | null>(null)
 
-  /* ── Session utilisateur ── */
   useEffect(() => {
     let mounted = true
     ;(async () => {
@@ -121,38 +104,14 @@ export default function Sidebar({ activePage: _a }: { activePage?: string } = {}
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         )
-        /* getSession lit depuis les cookies sans appel réseau */
         const { data: { session } } = await supabase.auth.getSession()
-        if (!mounted || !session?.user) return
-
-        const user = session.user
-        setUserEmail(user.email ?? null)
-
-        type Meta = { full_name?: string; name?: string }
-        const meta = (user.user_metadata ?? {}) as Meta
-        const fullName = meta.full_name ?? meta.name
-
-        if (fullName) {
-          const parts = fullName.trim().split(/\s+/)
-          const initials = (
-            parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')
-          ).toUpperCase()
-          const display = parts.length > 1
-            ? `${parts[0][0]}. ${parts[parts.length - 1]}`
-            : parts[0]
-          setUserInitials(initials)
-          setUserDisplay(display)
-        } else if (user.email) {
-          const local = user.email.split('@')[0]
-          setUserInitials(local.slice(0, 2).toUpperCase())
-          setUserDisplay(local)
-        }
+        if (!mounted || !session?.user?.email) return
+        setUserEmail(session.user.email)
       } catch { /* silent */ }
     })()
     return () => { mounted = false }
   }, [])
 
-  /* ── Déconnexion ── */
   const handleLogout = async () => {
     try {
       const { createBrowserClient } = await import('@supabase/ssr')
@@ -165,7 +124,6 @@ export default function Sidebar({ activePage: _a }: { activePage?: string } = {}
     window.location.href = '/login'
   }
 
-  /* ── Masquage Suivi demandes pour le compte admin ── */
   const secondaryNav = SECONDARY_NAV.filter(
     item => !(item.href === '/suivi' && userEmail === 'hello@alvio.finance'),
   )
@@ -173,143 +131,102 @@ export default function Sidebar({ activePage: _a }: { activePage?: string } = {}
   const WIDTH = collapsed ? 60 : 220
 
   return (
+    /*
+     * position: relative + overflow: visible → permet au bouton collapse
+     * de dépasser légèrement sur le bord droit.
+     * Le contenu interne est clippé par son propre wrapper overflow: hidden.
+     */
     <aside
       aria-label="Navigation principale"
       style={{
         width: WIDTH, minWidth: WIDTH,
+        position: 'relative',
+        flexShrink: 0,
+        transition: 'width 0.2s ease, min-width 0.2s ease',
+      }}
+    >
+      {/* Contenu clippé pendant l'animation */}
+      <div style={{
+        width: '100%', height: '100vh',
+        overflow: 'hidden',
         background: 'var(--bg-card)',
         borderRight: '1px solid var(--border-light)',
         display: 'flex', flexDirection: 'column',
-        height: '100vh',
-        transition: 'width 0.2s ease, min-width 0.2s ease',
-        overflow: 'hidden',
-        flexShrink: 0,
-      }}
-    >
-      <Logo collapsed={collapsed} />
-
-      {/* Navigation */}
-      <nav style={{ flex: 1, padding: collapsed ? '10px 6px' : '10px 8px', overflowY: 'auto' }}>
-        {MAIN_NAV.map(item => (
-          <NavLink
-            key={item.href} {...item}
-            active={pathname === item.href || pathname.startsWith(item.href + '/')}
-            collapsed={collapsed}
-          />
-        ))}
-
-        <div style={{ height: 1, background: 'var(--border-soft)', margin: '10px 4px' }} />
-
-        {secondaryNav.map(item => (
-          <NavLink
-            key={item.href} {...item}
-            active={pathname === item.href || pathname.startsWith(item.href + '/')}
-            collapsed={collapsed}
-          />
-        ))}
-      </nav>
-
-      {/* Bas */}
-      <div style={{
-        borderTop: '1px solid var(--border-soft)',
-        padding: collapsed ? '10px 6px' : '10px 8px',
-        flexShrink: 0,
       }}>
+        <Logo collapsed={collapsed} />
 
-        {/* Dossier actif — affichage seul, sans lien */}
-        <div
-          title={collapsed ? (activeCompany?.nom ?? 'Dossier') : undefined}
-          style={{
-            display: 'flex', alignItems: 'center',
-            gap: collapsed ? 0 : 9,
-            padding: collapsed ? '8px 0' : '8px 10px',
-            borderRadius: 8, marginBottom: 2,
-            color: 'var(--text-secondary)', fontSize: 12.5,
-            justifyContent: collapsed ? 'center' : 'flex-start',
-          }}
-        >
-          <Building2 size={15} strokeWidth={1.6} color="var(--text-muted)" style={{ flexShrink: 0 }} />
-          {!collapsed && (
-            <>
-              <span style={{
-                flex: 1, overflow: 'hidden', textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap', fontSize: 12.5,
-              }}>
-                {activeCompany?.nom ?? '—'}
-              </span>
-              {(companies?.length ?? 0) > 1 && (
-                <ChevronDown size={11} color="var(--text-muted)" style={{ flexShrink: 0 }} />
-              )}
-            </>
-          )}
-        </div>
+        <nav style={{ flex: 1, padding: collapsed ? '10px 6px' : '10px 8px', overflowY: 'auto' }}>
+          {MAIN_NAV.map(item => (
+            <NavLink key={item.href} {...item}
+              active={pathname === item.href || pathname.startsWith(item.href + '/')}
+              collapsed={collapsed}
+            />
+          ))}
+          <div style={{ height: 1, background: 'var(--border-soft)', margin: '10px 4px' }} />
+          {secondaryNav.map(item => (
+            <NavLink key={item.href} {...item}
+              active={pathname === item.href || pathname.startsWith(item.href + '/')}
+              collapsed={collapsed}
+            />
+          ))}
+        </nav>
 
-        {/* Utilisateur + bouton logout */}
-        <div style={{
-          display: 'flex', alignItems: 'center',
-          gap: collapsed ? 0 : 9,
-          padding: collapsed ? '8px 0' : '8px 10px',
-          borderRadius: 8, marginBottom: 2,
-          justifyContent: collapsed ? 'center' : 'flex-start',
-        }}>
-          {/* Avatar */}
-          <div style={{
-            width: 22, height: 22, borderRadius: '50%',
-            background: 'var(--alvio-champagne-light)', flexShrink: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 9, fontWeight: 600, color: 'var(--alvio-champagne-dark)',
-            letterSpacing: '0.04em',
-          }}>
-            {userInitials}
-          </div>
-          {!collapsed && (
-            <>
-              <span style={{
-                flex: 1, color: 'var(--text-secondary)', fontSize: 12.5,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {userDisplay ?? '…'}
-              </span>
-              {/* Logout */}
-              <button
-                onClick={handleLogout}
-                title="Déconnexion"
-                className="alvio-nav-item"
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  width: 24, height: 24, borderRadius: 6,
-                  border: 'none', background: 'transparent',
-                  cursor: 'pointer', flexShrink: 0,
-                }}
-              >
-                <LogOut size={13} strokeWidth={1.6} color="var(--text-muted)" />
-              </button>
-            </>
-          )}
-        </div>
-
-        {/* Collapse — chevron seul */}
-        <button
-          onClick={() => setCollapsed(c => !c)}
-          title={collapsed ? 'Développer' : 'Réduire'}
-          className="alvio-nav-item"
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 28, height: 28, borderRadius: 7,
-            border: '1px solid var(--border-light)',
-            background: 'transparent', cursor: 'pointer',
-            margin: '6px auto 0',
-          }}
-        >
-          <ChevronLeft
-            size={13} strokeWidth={1.8} color="var(--text-muted)"
+        {/* Bas — déconnexion uniquement */}
+        <div style={{ borderTop: '1px solid var(--border-soft)', padding: collapsed ? '12px 6px' : '12px 8px', flexShrink: 0 }}>
+          <button
+            onClick={handleLogout}
+            title={collapsed ? 'Se déconnecter' : undefined}
+            className="alvio-nav-item"
             style={{
-              transform: collapsed ? 'rotate(180deg)' : 'none',
-              transition: 'transform 0.2s ease',
+              display: 'flex', alignItems: 'center',
+              gap: collapsed ? 0 : 9,
+              padding: collapsed ? '8px 0' : '8px 10px',
+              width: '100%', borderRadius: 8,
+              border: 'none', background: 'transparent',
+              cursor: 'pointer', color: 'var(--text-secondary)',
+              fontSize: 12.5, justifyContent: collapsed ? 'center' : 'flex-start',
+              fontFamily: 'inherit',
             }}
-          />
-        </button>
+          >
+            <LogOut size={15} strokeWidth={1.6} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+            {!collapsed && 'Se déconnecter'}
+          </button>
+        </div>
       </div>
+
+      {/* ── Bouton collapse — bord droit, centre vertical ── */}
+      <button
+        onClick={() => setCollapsed(c => !c)}
+        title={collapsed ? 'Développer' : 'Réduire'}
+        style={{
+          position: 'absolute',
+          right: -10,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: 20, height: 20,
+          borderRadius: '50%',
+          border: '1px solid var(--border-light)',
+          background: 'var(--bg-card)',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer',
+          zIndex: 20,
+          transition: 'background 0.12s, box-shadow 0.12s',
+        }}
+        onMouseEnter={e => {
+          (e.currentTarget as HTMLButtonElement).style.background = 'var(--alvio-champagne-light)'
+          ;(e.currentTarget as HTMLButtonElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)'
+        }}
+        onMouseLeave={e => {
+          (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-card)'
+          ;(e.currentTarget as HTMLButtonElement).style.boxShadow = '0 1px 4px rgba(0,0,0,0.08)'
+        }}
+      >
+        <ChevronLeft
+          size={10} strokeWidth={2.2} color="var(--text-muted)"
+          style={{ transform: collapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }}
+        />
+      </button>
     </aside>
   )
 }
