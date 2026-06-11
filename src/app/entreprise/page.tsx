@@ -383,11 +383,11 @@ export default function EntreprisePage() {
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B8A98A" strokeWidth="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                 </div>
                 <div style={{ flex:1 }}>
-                  <div style={{ color:'var(--bg-main)', fontSize:16, fontWeight:500, marginBottom:3 }}>{entreprise.nom}</div>
+                  <div style={{ color:'var(--text-primary)', fontSize:16, fontWeight:500, marginBottom:3 }}>{entreprise.nom}</div>
                   <div style={{ color:'var(--text-secondary)', fontSize:11 }}>{entreprise.forme_juridique} · SIREN {fmtSiren(siren)} · {entreprise.ville}</div>
                 </div>
                 <button onClick={() => { setEntreprise(null); setSirenInput('') }}
-                  style={{ background:'transparent', border:'0.5px solid rgba(255,255,255,0.15)', borderRadius:6, padding:'6px 14px', fontSize:11, color:'#8C9BAB', cursor:'pointer' }}>
+                  style={{ background:'transparent', border:'1px solid var(--border-light)', borderRadius:6, padding:'6px 14px', fontSize:11, color:'var(--text-secondary)', cursor:'pointer' }}>
                   Modifier
                 </button>
               </div>
