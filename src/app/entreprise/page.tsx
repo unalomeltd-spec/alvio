@@ -47,6 +47,7 @@ export default function EntreprisePage() {
   const [userId, setUserId] = useState<string | null>(null)
   const { companies, activeId, activeCompany, setActiveId } = useActiveCompany()
   const [creatingDossier, setCreatingDossier] = useState(false)
+  const [dragging, setDragging] = useState(false)
 
   // ── Pennylane ──
   const [pnxConnections, setPnxConnections] = useState<PennylaneConnection[]>([])
@@ -194,6 +195,17 @@ export default function EntreprisePage() {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    await processFile(file)
+  }
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault(); setDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (!file) return
+    await processFile(file)
+  }
+
+  const processFile = async (file: File) => {
     setUploading(true); setUploadMsg('')
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -305,14 +317,14 @@ export default function EntreprisePage() {
   }
 
   if (chargement) return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg-main)', alignItems:'center', justifyContent:'center' }}>
+    <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg-main)', , alignItems:'center', justifyContent:'center' }}>
       <div style={{ width:36, height:36, border:'2px solid var(--bg-main)', borderTop:'2px solid #B8A98A', borderRadius:'50%', animation:'spin .8s linear infinite' }}/>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 
   const lbl = (t: string) => <div style={{ fontSize:10, fontWeight:500, color:'#8C9BAB', textTransform:'uppercase' as const, letterSpacing:'.06em', marginBottom:3 }}>{t}</div>
-  const val = (t: string) => <div style={{ fontSize:13, color:'#1A1A1A', fontWeight:500 }}>{t || '—'}</div>
+  const val = (t: string) => <div style={{ fontSize:13, color:'var(--text-primary)', fontWeight:500 }}>{t || '—'}</div>
 
   const anneeCourante = new Date().getFullYear()
   const anneesPnx = [anneeCourante, anneeCourante - 1, anneeCourante - 2, anneeCourante - 3, anneeCourante - 4]
@@ -322,9 +334,8 @@ export default function EntreprisePage() {
       <Sidebar activePage="company"/>
       <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
 
-        <div style={{ background:'#fff', borderBottom:'0.5px solid rgba(0,0,0,0.07)', padding:'0 24px', height:52, display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0, position:'sticky' as const, top:0, zIndex:10 }}>
-          <span style={{ fontSize:14, fontWeight:500, color:'#1A1A1A' }}>Paramétrages</span>
-          {entreprise && <div style={{ fontSize:11, color:'#8C9BAB' }}>SIREN <strong style={{ color:'#1A1A1A' }}>{fmtSiren(siren)}</strong></div>}
+        <div style={{ background:'#fff', borderBottom:'1px solid var(--border-light)', padding:'0 24px', height:52, display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0, position:'sticky' as const, top:0, zIndex:10 }}>
+          <span style={{ fontSize:14, fontWeight:500, color:'var(--text-primary)' }}>Paramétrages</span>
         </div>
 
         <div style={{ flex:1, padding:24, overflowY:'auto' }}>
@@ -335,9 +346,9 @@ export default function EntreprisePage() {
               const actif = c.id === activeId
               const supprimable = !c.is_default && companies.length > 1
               return (
-                <div key={c.id} style={{ display:'flex', alignItems:'center', borderRadius:7, border:'0.5px solid rgba(0,0,0,0.12)', background: actif ? '#1A1A1A' : '#fff', overflow:'hidden' }}>
+                <div key={c.id} style={{ display:'flex', alignItems:'center', borderRadius:7, border:'1px solid var(--border-light)', background: actif ? 'var(--alvio-champagne-subtle)' : 'var(--bg-card)', overflow:'hidden' }}>
                   <button onClick={() => setActiveId(c.id)}
-                    style={{ fontSize:12, fontWeight:500, padding:'5px 12px', border:'none', background:'transparent', color: actif ? '#fff' : '#1A1A1A', cursor:'pointer' }}>
+                    style={{ fontSize:12, fontWeight:500, padding:'5px 12px', border:'none', background:'transparent', color: actif ? 'var(--text-primary)' : 'var(--text-secondary)', cursor:'pointer' }}>
                     {c.nom}
                   </button>
                   {supprimable && (
@@ -357,7 +368,7 @@ export default function EntreprisePage() {
           </div>
           {!entreprise ? (
             <div style={{ maxWidth:480, margin:'40px auto', background:'#fff', borderRadius:12, border:'1px solid var(--border-light)', padding:'18px 20px' }}>
-              <div style={{ fontSize:14, fontWeight:500, color:'#1A1A1A', marginBottom:6 }}>Associer votre entreprise</div>
+              <div style={{ fontSize:14, fontWeight:500, color:'var(--text-primary)', marginBottom:6 }}>Associer votre entreprise</div>
               <div style={{ fontSize:12, color:'#8C9BAB', marginBottom:20 }}>Saisissez votre SIREN pour afficher la fiche légale.</div>
               <label style={{ fontSize:11, fontWeight:600, color:'#5C6670', letterSpacing:'.04em', textTransform:'uppercase' as const, marginBottom:6, display:'block' }}>SIREN</label>
               <input style={{ width:'100%', border:'1px solid rgba(0,0,0,0.12)', borderRadius:8, padding:'10px 12px', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' as const }}
@@ -368,13 +379,13 @@ export default function EntreprisePage() {
           ) : (
             <div style={{ maxWidth:960, display:'flex', flexDirection:'column', gap:16 }}>
 
-              <div style={{ background:'#1A1A1A', borderRadius:12, padding:'18px 24px', display:'flex', alignItems:'center', gap:20 }}>
+              <div style={{ background:'var(--alvio-champagne-subtle)', border:'1px solid var(--alvio-champagne-light)', borderRadius:12, padding:'18px 24px', display:'flex', alignItems:'center', gap:20 }}>
                 <div style={{ width:48, height:48, borderRadius:10, background:'rgba(184,169,138,0.15)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B8A98A" strokeWidth="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                 </div>
                 <div style={{ flex:1 }}>
                   <div style={{ color:'var(--bg-main)', fontSize:16, fontWeight:500, marginBottom:3 }}>{entreprise.nom}</div>
-                  <div style={{ color:'#8C9BAB', fontSize:11 }}>{entreprise.forme_juridique} · SIREN {fmtSiren(siren)} · {entreprise.ville}</div>
+                  <div style={{ color:'var(--text-secondary)', fontSize:11 }}>{entreprise.forme_juridique} · SIREN {fmtSiren(siren)} · {entreprise.ville}</div>
                 </div>
                 <button onClick={() => { setEntreprise(null); setSirenInput('') }}
                   style={{ background:'transparent', border:'0.5px solid rgba(255,255,255,0.15)', borderRadius:6, padding:'6px 14px', fontSize:11, color:'#8C9BAB', cursor:'pointer' }}>
@@ -385,7 +396,7 @@ export default function EntreprisePage() {
               <div style={{ display:'flex', gap:0, borderBottom:'0.5px solid rgba(0,0,0,0.08)' }}>
                 {([['general','Général'], ['fec','Exercices & FEC']] as const).map(([id, label]) => (
                   <button key={id} onClick={() => setOnglet(id)}
-                    style={{ background:'transparent', border:'none', borderBottom: onglet===id ? '2px solid #B8A98A' : '2px solid transparent', padding:'10px 20px', fontSize:13, fontWeight: onglet===id ? 500 : 400, color: onglet===id ? '#1A1A1A' : '#8C9BAB', cursor:'pointer', transition:'all .15s' }}>
+                    style={{ background:'transparent', border:'none', borderBottom: onglet===id ? '2px solid #B8A98A' : '2px solid transparent', padding:'10px 20px', fontSize:13, fontWeight: onglet===id ? 500 : 400, color: onglet===id ? 'var(--text-primary)' : 'var(--text-muted)', cursor:'pointer', transition:'all .15s' }}>
                     {label}
                   </button>
                 ))}
@@ -395,7 +406,7 @@ export default function EntreprisePage() {
                 <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
                   <div style={{ background:'#fff', borderRadius:12, border:'1px solid var(--border-light)', padding:'18px 20px' }}>
-                    <div style={{ fontSize:13, fontWeight:500, color:'#1A1A1A', marginBottom:16 }}>Informations légales</div>
+                    <div style={{ fontSize:13, fontWeight:500, color:'var(--text-primary)', marginBottom:16 }}>Informations légales</div>
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
                       {[
                         ['SIREN', fmtSiren(siren)],
@@ -412,7 +423,7 @@ export default function EntreprisePage() {
                   </div>
 
                   <div style={{ background:'#fff', borderRadius:12, border:'1px solid var(--border-light)', padding:'18px 20px' }}>
-                    <div style={{ fontSize:13, fontWeight:500, color:'#1A1A1A', marginBottom:16 }}>Dirigeants</div>
+                    <div style={{ fontSize:13, fontWeight:500, color:'var(--text-primary)', marginBottom:16 }}>Dirigeants</div>
                     {entreprise.dirigeants.length === 0 ? (
                       <div style={{ fontSize:12, color:'#8C9BAB', fontStyle:'italic' }}>Aucun dirigeant renseigné</div>
                     ) : (
@@ -423,7 +434,7 @@ export default function EntreprisePage() {
                               {d.nom.split(' ').map((p:string) => p[0]).join('').slice(0,2).toUpperCase()}
                             </div>
                             <div>
-                              <div style={{ fontSize:13, fontWeight:500, color:'#1A1A1A' }}>{d.nom}</div>
+                              <div style={{ fontSize:13, fontWeight:500, color:'var(--text-primary)' }}>{d.nom}</div>
                               <div style={{ fontSize:11, color:'#8C9BAB' }}>{d.fonction || 'Dirigeant'}</div>
                             </div>
                           </div>
@@ -481,7 +492,7 @@ export default function EntreprisePage() {
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#009976" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                       </div>
                       <div>
-                        <div style={{ fontSize:13, fontWeight:500, color:'#1A1A1A' }}>Connexion Pennylane</div>
+                        <div style={{ fontSize:13, fontWeight:500, color:'var(--text-primary)' }}>Connexion Pennylane</div>
                         <div style={{ fontSize:11, color:'#8C9BAB' }}>Connectez un dossier puis synchronisez ses exercices en un clic.</div>
                       </div>
                     </div>
@@ -492,7 +503,7 @@ export default function EntreprisePage() {
                         {pnxConnections.map(conn => (
                           <div key={conn.id} style={{ border:'0.5px solid rgba(0,0,0,0.08)', borderRadius:10, padding:'12px 14px', display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' as const }}>
                             <div style={{ flex:'1 1 180px', minWidth:0 }}>
-                              <div style={{ fontSize:13, fontWeight:500, color:'#1A1A1A' }}>{conn.company_name}</div>
+                              <div style={{ fontSize:13, fontWeight:500, color:'var(--text-primary)' }}>{conn.company_name}</div>
                               <div style={{ fontSize:11, color:'#8C9BAB' }}>SIREN {conn.company_reg_no ? fmtSiren(conn.company_reg_no) : '—'}</div>
                             </div>
                             <select
@@ -510,7 +521,7 @@ export default function EntreprisePage() {
                             >
                               {pnxSyncingId === conn.id ? (
                                 <>
-                                  <div style={{ width:11, height:11, border:'1.5px solid rgba(255,255,255,0.3)', borderTop:'1.5px solid #fff', borderRadius:'50%', animation:'spin .7s linear infinite' }}/>
+                                  <div style={{ width:11, height:11, border:'1.5px solid rgba(42,42,42,0.3)', borderTop:'1.5px solid var(--brand-dark)', borderRadius:'50%', animation:'spin .7s linear infinite' }}/>
                                   Sync...
                                 </>
                               ) : 'Synchroniser'}
@@ -545,11 +556,11 @@ export default function EntreprisePage() {
                       <button
                         onClick={handlePnxConnect}
                         disabled={pnxConnecting || !pnxToken.trim()}
-                        style={{ flex:'0 0 auto', background: pnxConnecting || !pnxToken.trim() ? 'rgba(26,26,26,0.4)' : '#1A1A1A', color:'#fff', border:'none', borderRadius:8, padding:'9px 18px', fontSize:13, fontWeight:500, cursor: pnxConnecting || !pnxToken.trim() ? 'default' : 'pointer', display:'flex', alignItems:'center', gap:8, whiteSpace:'nowrap' as const }}
+                        style={{ flex:'0 0 auto', background: pnxConnecting || !pnxToken.trim() ? 'rgba(184,169,138,0.4)' : 'var(--alvio-champagne)', color:'var(--brand-dark)', border:'none', borderRadius:8, padding:'9px 18px', fontSize:13, fontWeight:500, cursor: pnxConnecting || !pnxToken.trim() ? 'default' : 'pointer', display:'flex', alignItems:'center', gap:8, whiteSpace:'nowrap' as const }}
                       >
                         {pnxConnecting ? (
                           <>
-                            <div style={{ width:12, height:12, border:'1.5px solid rgba(255,255,255,0.3)', borderTop:'1.5px solid #fff', borderRadius:'50%', animation:'spin .7s linear infinite' }}/>
+                            <div style={{ width:12, height:12, border:'1.5px solid rgba(42,42,42,0.3)', borderTop:'1.5px solid var(--brand-dark)', borderRadius:'50%', animation:'spin .7s linear infinite' }}/>
                             Connexion...
                           </>
                         ) : 'Connecter'}
@@ -565,25 +576,36 @@ export default function EntreprisePage() {
 
                   {/* ── Bloc import manuel + liste des exercices ── */}
                   <div style={{ background:'#fff', borderRadius:12, border:'1px solid var(--border-light)', padding:'18px 20px' }}>
-                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
                       <div>
-                        <div style={{ fontSize:13, fontWeight:500, color:'#1A1A1A', marginBottom:2 }}>Fichiers FEC importés</div>
-                        <div style={{ fontSize:11, color:'#8C9BAB' }}>{fecExercices.length} exercice{fecExercices.length > 1 ? 's' : ''} disponible{fecExercices.length > 1 ? 's' : ''}</div>
+                        <div style={{ fontSize:13, fontWeight:500, color:'var(--text-primary)', marginBottom:2 }}>Fichiers FEC importés</div>
+                        <div style={{ fontSize:11, color:'var(--text-muted)' }}>{fecExercices.length} exercice{fecExercices.length > 1 ? 's' : ''} disponible{fecExercices.length > 1 ? 's' : ''}</div>
                       </div>
-                      <label style={{ background:'#1A1A1A', color:'var(--bg-main)', borderRadius:8, padding:'8px 16px', fontSize:12, fontWeight:500, cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
+                      <label style={{ background:'var(--alvio-champagne)', color:'var(--brand-dark)', borderRadius:8, padding:'8px 16px', fontSize:12, fontWeight:500, cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
                         {uploading ? (
                           <>
-                            <div style={{ width:12, height:12, border:'1.5px solid rgba(255,255,255,0.3)', borderTop:'1.5px solid #fff', borderRadius:'50%', animation:'spin .7s linear infinite' }}/>
+                            <div style={{ width:12, height:12, border:'1.5px solid rgba(42,42,42,0.3)', borderTop:'1.5px solid var(--brand-dark)', borderRadius:'50%', animation:'spin .7s linear infinite' }}/>
                             Import en cours...
                           </>
                         ) : (
                           <>
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                            Importer un FEC
+                            Choisir un fichier
                           </>
                         )}
                         <input type="file" accept=".txt,.csv" onChange={handleUpload} style={{ display:'none' }} disabled={uploading} />
                       </label>
+                    </div>
+                    {/* Zone glisser-déposer */}
+                    <div
+                      onDragOver={e => { e.preventDefault(); setDragging(true) }}
+                      onDragLeave={() => setDragging(false)}
+                      onDrop={handleDrop}
+                      style={{ border: `2px dashed ${dragging ? 'var(--alvio-champagne)' : 'var(--border-light)'}`, borderRadius:10, padding:'18px', textAlign:'center' as const, marginBottom:14, background: dragging ? 'var(--alvio-champagne-subtle)' : 'transparent', transition:'all .15s', cursor:'default' }}
+                    >
+                      <div style={{ fontSize:12, color: dragging ? 'var(--alvio-champagne-dark)' : 'var(--text-muted)' }}>
+                        {dragging ? 'Relâchez pour importer' : 'Glissez votre fichier FEC ici'}
+                      </div>
                     </div>
 
                     {uploadMsg && (
@@ -595,7 +617,7 @@ export default function EntreprisePage() {
                     {fecExercices.length === 0 ? (
                       <div style={{ textAlign:'center', padding:'32px 0', color:'#8C9BAB' }}>
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D0CEC8" strokeWidth="1.2" style={{ marginBottom:10, display:'block', margin:'0 auto 10px' }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                        <div style={{ fontSize:13, color:'#1A1A1A', marginBottom:4 }}>Aucun FEC importé</div>
+                        <div style={{ fontSize:13, color:'var(--text-primary)', marginBottom:4 }}>Aucun FEC importé</div>
                         <div style={{ fontSize:12 }}>Importez un fichier FEC ou synchronisez depuis Pennylane.</div>
                       </div>
                     ) : (
@@ -607,7 +629,7 @@ export default function EntreprisePage() {
                         </div>
                         {fecExercices.map(f => (
                           <div key={f.annee} style={{ display:'grid', gridTemplateColumns:'80px 1fr 140px 100px', padding:'11px 12px', borderBottom:'0.5px solid rgba(0,0,0,0.04)', alignItems:'center' }}>
-                            <div style={{ fontSize:13, fontWeight:500, color:'#1A1A1A' }}>{f.annee}</div>
+                            <div style={{ fontSize:13, fontWeight:500, color:'var(--text-primary)' }}>{f.annee}</div>
                             <div style={{ fontSize:12, color:'#8C9BAB', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' as const }}>{f.nom_fichier}</div>
                             <div style={{ fontSize:12, color:'#8C9BAB' }}>{f.nb_ecritures.toLocaleString('fr-FR')} lignes</div>
                             <div style={{ display:'flex', justifyContent:'flex-end' }}>
@@ -626,7 +648,7 @@ export default function EntreprisePage() {
 
               {sirenInput !== siren && entreprise && (
                 <button onClick={handleSave} disabled={saving}
-                  style={{ background: saved ? '#1D9E75' : '#1A1A1A', color:'#fff', border:'none', borderRadius:8, padding:11, fontSize:13, fontWeight:500, cursor:'pointer' }}>
+                  style={{ background: saved ? 'var(--success)' : 'var(--alvio-champagne)', color: saved ? '#fff' : 'var(--brand-dark)', border:'none', borderRadius:8, padding:11, fontSize:13, fontWeight:500, cursor:'pointer' }}>
                   {saving ? 'Enregistrement...' : saved ? 'Enregistré ✓' : 'Enregistrer les modifications'}
                 </button>
               )}
