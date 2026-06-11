@@ -48,6 +48,12 @@ export default function EntreprisePage() {
   const { companies, activeId, activeCompany, setActiveId } = useActiveCompany()
   const [creatingDossier, setCreatingDossier] = useState(false)
   const [dragging, setDragging] = useState(false)
+  const [userEmail, setUserEmail] = useState('')
+  const [newPw, setNewPw] = useState('')
+  const [confirmPw, setConfirmPw] = useState('')
+  const [pwLoading, setPwLoading] = useState(false)
+  const [pwMsg, setPwMsg] = useState('')
+  const [showPwForm, setShowPwForm] = useState(false)
 
   // ── Pennylane ──
   const [pnxConnections, setPnxConnections] = useState<PennylaneConnection[]>([])
@@ -105,6 +111,7 @@ export default function EntreprisePage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { window.location.href = '/'; return }
       setUserId(user.id)
+      setUserEmail(user.email || '')
       if (!activeId || !activeCompany) return  // attend le dossier actif complet (id + données)
       setChargement(true)
       try {
@@ -230,6 +237,18 @@ export default function EntreprisePage() {
     } finally {
       setUploading(false)
     }
+  }
+
+  const handleChangePw = async () => {
+    if (!newPw || newPw.length < 8) { setPwMsg('Erreur : 8 caractères minimum'); return }
+    if (newPw !== confirmPw) { setPwMsg('Erreur : les mots de passe ne correspondent pas'); return }
+    setPwLoading(true); setPwMsg('')
+    const { error } = await supabase.auth.updateUser({ password: newPw })
+    setPwLoading(false)
+    if (error) { setPwMsg('Erreur : ' + error.message); return }
+    setPwMsg('Mot de passe mis à jour ✓')
+    setNewPw(''); setConfirmPw(''); setShowPwForm(false)
+    setTimeout(() => setPwMsg(''), 4000)
   }
 
   const handlePnxConnect = async () => {
@@ -654,6 +673,56 @@ export default function EntreprisePage() {
             </div>
           )}
         </div>
+
+        {/* ── Section Sécurité ── */}
+        <div style={{ maxWidth:960, marginTop:32 }}>
+          <div style={{ fontSize:10, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase' as const, letterSpacing:'.08em', marginBottom:12 }}>Compte &amp; sécurité</div>
+          <div style={{ background:'var(--bg-card)', borderRadius:12, border:'1px solid var(--border-light)', padding:'18px 20px' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: showPwForm ? 16 : 0 }}>
+              <div>
+                <div style={{ fontSize:13, fontWeight:500, color:'var(--text-primary)', marginBottom:2 }}>Mot de passe</div>
+                {userEmail && <div style={{ fontSize:11, color:'var(--text-muted)' }}>{userEmail}</div>}
+              </div>
+              <button onClick={() => { setShowPwForm(v => !v); setPwMsg('') }}
+                style={{ background:'transparent', border:'1px solid var(--border-light)', borderRadius:7, padding:'6px 14px', fontSize:12, color:'var(--text-secondary)', cursor:'pointer', transition:'border-color .12s' }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--alvio-champagne)')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-light)')}>
+                {showPwForm ? 'Annuler' : 'Changer le mot de passe'}
+              </button>
+            </div>
+
+            {showPwForm && (
+              <div style={{ display:'flex', flexDirection:'column' as const, gap:10 }}>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                  <div>
+                    <label style={{ fontSize:11, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase' as const, letterSpacing:'.04em', display:'block', marginBottom:5 }}>Nouveau mot de passe</label>
+                    <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)}
+                      placeholder="8 caractères minimum"
+                      style={{ width:'100%', border:'1px solid var(--border-light)', borderRadius:8, padding:'9px 12px', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' as const, background:'var(--bg-main)' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize:11, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase' as const, letterSpacing:'.04em', display:'block', marginBottom:5 }}>Confirmer</label>
+                    <input type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
+                      placeholder="Répétez le mot de passe"
+                      style={{ width:'100%', border:'1px solid var(--border-light)', borderRadius:8, padding:'9px 12px', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' as const, background:'var(--bg-main)' }} />
+                  </div>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                  <button onClick={handleChangePw} disabled={pwLoading}
+                    style={{ background:'var(--alvio-champagne)', color:'var(--brand-dark)', border:'none', borderRadius:8, padding:'9px 20px', fontSize:13, fontWeight:500, cursor: pwLoading ? 'default' : 'pointer', opacity: pwLoading ? 0.7 : 1 }}>
+                    {pwLoading ? 'Mise à jour...' : 'Mettre à jour'}
+                  </button>
+                  {pwMsg && (
+                    <div style={{ fontSize:12, color: pwMsg.startsWith('Erreur') ? 'var(--danger)' : 'var(--success)', fontWeight:500 }}>
+                      {pwMsg}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
