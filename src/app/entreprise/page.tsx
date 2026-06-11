@@ -229,7 +229,6 @@ export default function EntreprisePage() {
       console.error(err)
     } finally {
       setUploading(false)
-      e.target.value = ''
     }
   }
 
