@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { classifyCompte, getDestinationEffective, type Destination } from '@/lib/pcg-reference'
+import { computeHealthMetrics, type FecLine } from '@/lib/health-metrics'
 
 interface LigneFEC {
   CompteNum: string; CompteLib?: string; Debit: number | string; Credit: number | string
@@ -255,7 +256,16 @@ function calculer(lignes: LigneFEC[], annee: number, dateDebut?: string, dateFin
     anomaliesPlan, anomaliesPlanTotal: anomaliesPlan.length,
   }
   const periode = (dateDebut && dateFin) ? { type: 'perso' as const, dateDebut, dateFin } : { type: 'exercice' as const, dateDebut: `${annee}-01-01`, dateFin: `${annee}-12-31` }
-  return { annee, periode, regime, gate, controles, sig, cr, bilan }
+
+  // Santé financière — calculée sur les écritures brutes (détail ligne par ligne),
+  // pas sur la balance agrégée : l'aging par tiers a besoin de CompAuxNum + EcritureDate.
+  // Fonction pure, dégradation gracieuse (jamais de NaN). N'altère aucun calcul existant.
+  const sante = computeHealthMetrics(lignesFiltrees as unknown as FecLine[], {
+    exerciceDebut: periode.dateDebut,
+    dateReference: periode.type === 'perso' ? periode.dateFin : undefined,
+  })
+
+  return { annee, periode, regime, gate, controles, sig, cr, bilan, sante }
 }
 
 export async function GET(request: NextRequest) {
