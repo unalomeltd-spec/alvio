@@ -39,7 +39,7 @@ export default function EntreprisePage() {
   const [sirenError, setSirenError] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [onglet, setOnglet] = useState<'general' | 'fec'>('general')
+  const [onglet, setOnglet] = useState<'general' | 'fec' | 'securite'>('general')
   const [uploading, setUploading] = useState(false)
   const [uploadMsg, setUploadMsg] = useState('')
   const [deletingAnnee, setDeletingAnnee] = useState<number | null>(null)
@@ -412,7 +412,7 @@ export default function EntreprisePage() {
               </div>
 
               <div style={{ display:'flex', gap:0, borderBottom:'0.5px solid rgba(0,0,0,0.08)' }}>
-                {([['general','Général'], ['fec','Exercices & FEC']] as const).map(([id, label]) => (
+                {([['general','Général'], ['fec','Exercices & FEC'], ['securite','Sécurité']] as const).map(([id, label]) => (
                   <button key={id} onClick={() => setOnglet(id)}
                     style={{ background:'transparent', border:'none', borderBottom: onglet===id ? '2px solid #B8A98A' : '2px solid transparent', padding:'10px 20px', fontSize:13, fontWeight: onglet===id ? 500 : 400, color: onglet===id ? 'var(--text-primary)' : 'var(--text-muted)', cursor:'pointer', transition:'all .15s' }}>
                     {label}
@@ -664,6 +664,56 @@ export default function EntreprisePage() {
                 </div>
               )}
 
+              {onglet === 'securite' && (
+                <div style={{ display:'flex', flexDirection:'column' as const, gap:16, paddingTop:8 }}>
+
+                  {/* Email */}
+                  <div style={{ background:'var(--bg-card)', borderRadius:12, border:'1px solid var(--border-light)', padding:'18px 20px' }}>
+                    <div style={{ fontSize:11, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase' as const, letterSpacing:'.06em', marginBottom:10 }}>Compte</div>
+                    <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                      <div style={{ width:36, height:36, borderRadius:9, background:'var(--alvio-champagne-subtle)', border:'1px solid var(--alvio-champagne-light)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:13, fontWeight:600, color:'var(--alvio-champagne)' }}>
+                        {userEmail ? userEmail[0].toUpperCase() : '?'}
+                      </div>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:500, color:'var(--text-primary)' }}>{userEmail || '—'}</div>
+                        <div style={{ fontSize:11, color:'var(--text-muted)' }}>Adresse email de connexion</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mot de passe */}
+                  <div style={{ background:'var(--bg-card)', borderRadius:12, border:'1px solid var(--border-light)', padding:'18px 20px' }}>
+                    <div style={{ fontSize:11, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase' as const, letterSpacing:'.06em', marginBottom:14 }}>Mot de passe</div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+                      <div>
+                        <label style={{ fontSize:11, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase' as const, letterSpacing:'.04em', display:'block', marginBottom:6 }}>Nouveau mot de passe</label>
+                        <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)}
+                          placeholder="8 caractères minimum"
+                          style={{ width:'100%', border:'1px solid var(--border-light)', borderRadius:8, padding:'9px 12px', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' as const, background:'var(--bg-main)' }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize:11, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase' as const, letterSpacing:'.04em', display:'block', marginBottom:6 }}>Confirmer</label>
+                        <input type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
+                          placeholder="Répétez le mot de passe"
+                          style={{ width:'100%', border:'1px solid var(--border-light)', borderRadius:8, padding:'9px 12px', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' as const, background:'var(--bg-main)' }} />
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                      <button onClick={handleChangePw} disabled={pwLoading}
+                        style={{ background:'var(--alvio-champagne)', color:'var(--brand-dark)', border:'none', borderRadius:8, padding:'9px 20px', fontSize:13, fontWeight:500, cursor: pwLoading ? 'default' : 'pointer', opacity: pwLoading ? 0.7 : 1 }}>
+                        {pwLoading ? 'Mise à jour...' : 'Mettre à jour le mot de passe'}
+                      </button>
+                      {pwMsg && (
+                        <span style={{ fontSize:12, fontWeight:500, color: pwMsg.startsWith('Erreur') ? 'var(--danger)' : 'var(--success)' }}>
+                          {pwMsg}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              )}
+
               {sirenInput !== siren && entreprise && (
                 <button onClick={handleSave} disabled={saving}
                   style={{ background: saved ? 'var(--success)' : 'var(--alvio-champagne)', color: saved ? '#fff' : 'var(--brand-dark)', border:'none', borderRadius:8, padding:11, fontSize:13, fontWeight:500, cursor:'pointer' }}>
@@ -674,54 +724,6 @@ export default function EntreprisePage() {
           )}
         </div>
 
-        {/* ── Section Sécurité ── */}
-        <div style={{ maxWidth:960, marginTop:32 }}>
-          <div style={{ fontSize:10, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase' as const, letterSpacing:'.08em', marginBottom:12 }}>Compte &amp; sécurité</div>
-          <div style={{ background:'var(--bg-card)', borderRadius:12, border:'1px solid var(--border-light)', padding:'18px 20px' }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: showPwForm ? 16 : 0 }}>
-              <div>
-                <div style={{ fontSize:13, fontWeight:500, color:'var(--text-primary)', marginBottom:2 }}>Mot de passe</div>
-                {userEmail && <div style={{ fontSize:11, color:'var(--text-muted)' }}>{userEmail}</div>}
-              </div>
-              <button onClick={() => { setShowPwForm(v => !v); setPwMsg('') }}
-                style={{ background:'transparent', border:'1px solid var(--border-light)', borderRadius:7, padding:'6px 14px', fontSize:12, color:'var(--text-secondary)', cursor:'pointer', transition:'border-color .12s' }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--alvio-champagne)')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-light)')}>
-                {showPwForm ? 'Annuler' : 'Changer le mot de passe'}
-              </button>
-            </div>
-
-            {showPwForm && (
-              <div style={{ display:'flex', flexDirection:'column' as const, gap:10 }}>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-                  <div>
-                    <label style={{ fontSize:11, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase' as const, letterSpacing:'.04em', display:'block', marginBottom:5 }}>Nouveau mot de passe</label>
-                    <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)}
-                      placeholder="8 caractères minimum"
-                      style={{ width:'100%', border:'1px solid var(--border-light)', borderRadius:8, padding:'9px 12px', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' as const, background:'var(--bg-main)' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize:11, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase' as const, letterSpacing:'.04em', display:'block', marginBottom:5 }}>Confirmer</label>
-                    <input type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
-                      placeholder="Répétez le mot de passe"
-                      style={{ width:'100%', border:'1px solid var(--border-light)', borderRadius:8, padding:'9px 12px', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' as const, background:'var(--bg-main)' }} />
-                  </div>
-                </div>
-                <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                  <button onClick={handleChangePw} disabled={pwLoading}
-                    style={{ background:'var(--alvio-champagne)', color:'var(--brand-dark)', border:'none', borderRadius:8, padding:'9px 20px', fontSize:13, fontWeight:500, cursor: pwLoading ? 'default' : 'pointer', opacity: pwLoading ? 0.7 : 1 }}>
-                    {pwLoading ? 'Mise à jour...' : 'Mettre à jour'}
-                  </button>
-                  {pwMsg && (
-                    <div style={{ fontSize:12, color: pwMsg.startsWith('Erreur') ? 'var(--danger)' : 'var(--success)', fontWeight:500 }}>
-                      {pwMsg}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
 
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
