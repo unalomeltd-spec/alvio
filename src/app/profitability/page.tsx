@@ -28,12 +28,12 @@ function SigRow({ label, value, ca, color, highlight, deductions, valueN1, caN1,
   const cols = hasN1 ? '1fr 120px 120px' : '1fr 120px'
   return (
     <>
-      <div style={{ display:'grid', gridTemplateColumns:cols, alignItems:'center', background:bg, border:`1px solid ${borderCol}`, borderLeft:`3px solid ${accentCol}`, borderRadius:'0 10px 10px 0', padding:'8px 14px', marginBottom: hasDeductions ? 0 : 2, position:'relative', overflow:'hidden' }}>
+      <div style={{ display:'grid', gridTemplateColumns:cols, alignItems:'center', background:bg, border:`1px solid ${borderCol}`, borderLeft:`3px solid ${accentCol}`, borderRadius:'0 10px 10px 0', padding:'5px 14px', marginBottom: hasDeductions ? 0 : 1, position:'relative', overflow:'hidden' }}>
         {/* Barre inline % du CA */}
         {!highlight && pct > 0 && (
           <div style={{ position:'absolute', left:3, top:0, bottom:0, width:`${pct}%`, background:'var(--alvio-champagne-subtle)', opacity:0.7, zIndex:0, pointerEvents:'none' }} />
         )}
-        <div style={{ fontSize:11, fontWeight: highlight ? 600 : 500, color:labelColor, textTransform:'uppercase', letterSpacing:'0.05em', position:'relative', zIndex:1 }}>{label}</div>
+        <div style={{ fontSize:11, fontWeight: highlight ? 600 : 400, color:labelColor, textTransform:'uppercase', letterSpacing:'0.05em', position:'relative', zIndex:1 }}>{label}</div>
         <div style={{ textAlign:'right', position:'relative', zIndex:1 }}>
           <div style={{ fontSize:13, fontWeight:600, color:valColor }}>{fmt(value)}</div>
           <div style={{ fontSize:10, color:mutedColor, marginTop:1 }}>{fmtP(pct)}</div>
@@ -52,7 +52,7 @@ function SigRow({ label, value, ca, color, highlight, deductions, valueN1, caN1,
         )}
       </div>
       {deductions?.map((d, i) => (
-        <div key={i} style={{ display:'grid', gridTemplateColumns:cols, alignItems:'center', padding:'4px 14px 4px 28px', borderTop:'1px solid var(--border-soft)', background:'var(--bg-main)', marginBottom: i === (deductions.length - 1) ? 2 : 0 }}>
+        <div key={i} style={{ display:'grid', gridTemplateColumns:cols, alignItems:'center', padding:'3px 14px 3px 28px', borderTop:'1px solid var(--border-soft)', background:'var(--bg-main)', marginBottom: i === (deductions.length - 1) ? 2 : 0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
             <span style={{ fontSize:11, color:'var(--alvio-champagne)' }}>↳</span>
             <span style={{ fontSize:11, color:'var(--text-muted)' }}>{d.value < 0 ? '+' : '−'} {d.label}</span>
@@ -181,7 +181,7 @@ export default function ProfitabilityPage() {
               <AlvioInsight payload={{ page:'profitability', annee:anneeActive, indicateurs:{ ca:sig.ca, mb:sig.margeCommerciale, ebe:sig.ebe, rex:sig.rex, rnet:sig.resultatNet, tauxMb:sig.tauxMb, tauxEbe:sig.tauxEbe, tauxRex:sig.tauxRex, tauxRnet:sig.tauxRnet, tauxPers:sig.tauxPers, pers64:sig.chargesPersonnel } }} />
               <div style={{ fontSize:10, fontWeight:500, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>Soldes intermédiaires de gestion</div>
 
-              <div style={{ display:'grid', gridTemplateColumns: hasN1 ? '1fr 120px 120px' : '1fr 120px 80px', padding:'0 14px 8px 14px', marginBottom:4 }}>
+              <div style={{ display:'grid', gridTemplateColumns: hasN1 ? '1fr 120px 120px' : '1fr 120px 80px', padding:'0 14px 6px 14px', marginBottom:2 }}>
                 <div style={{ fontSize:9, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.09em' }}>Indicateur</div>
                 <div style={{ fontSize:9, fontWeight:600, color:'var(--text-primary)', textTransform:'uppercase', letterSpacing:'0.09em', textAlign:'right' }}>Exercice {anneeActive}</div>
                 {hasN1 && <div style={{ fontSize:9, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.09em', textAlign:'right' }}>{anneeActive - 1}</div>}

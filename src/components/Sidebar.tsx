@@ -143,8 +143,10 @@ export default function Sidebar({ activePage: _a }: { activePage?: string } = {}
       aria-label="Navigation principale"
       style={{
         width: WIDTH, minWidth: WIDTH,
-        position: 'relative',
+        position: 'sticky',
+        top: 0,
         flexShrink: 0,
+        alignSelf: 'flex-start',
         transition: 'width 0.2s ease, min-width 0.2s ease',
       }}
     >
