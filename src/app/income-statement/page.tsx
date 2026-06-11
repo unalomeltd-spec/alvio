@@ -78,16 +78,16 @@ function SidePanel({ panel, onClose, onSelectCompte }: {
         position: 'fixed', top: 12, right: 12, bottom: 12, width: 380, zIndex: 200,
         background: '#fff',
         borderRadius: 16,
-        border: '1px solid rgba(0,0,0,0.08)',
+        border: '1px solid var(--border-light)',
         display: 'flex', flexDirection: 'column',
-        boxShadow: '-4px 8px 40px rgba(0,0,0,0.12)',
+        boxShadow: '-2px 0 24px rgba(0,0,0,0.07)',
         overflow: 'hidden',
         animation: 'slideIn 0.22s cubic-bezier(0.22,1,0.36,1)'
       }}>
         <style>{`@keyframes slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
 
         {/* Header */}
-        <div style={{ background: '#1A1A1A', padding: '16px 18px 14px', flexShrink: 0 }}>
+        <div style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border-light)', padding: '16px 18px 14px', flexShrink: 0 }}>
           {/* Breadcrumb */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
             {panel.selectedCompte ? (
@@ -96,32 +96,32 @@ function SidePanel({ panel, onClose, onSelectCompte }: {
                 <span style={{ fontSize: 10, color: '#B8A98A', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>{panel.label}</span>
               </button>
             ) : (
-              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>Détail</span>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>Détail</span>
             )}
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', marginLeft: 'auto' }}>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto' }}>
               {nbEcritures} écriture{nbEcritures > 1 ? 's' : ''}
             </span>
-            <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 6, color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 16, width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
+            <button onClick={onClose} style={{ background: 'var(--bg-main)', border: '1px solid var(--border-light)', borderRadius: 6, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 16, width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
           </div>
 
           {/* Titre principal */}
           {panel.selectedCompte ? (
             <div>
               <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#B8A98A', marginBottom: 3, letterSpacing: '0.05em' }}>{panel.selectedCompte.num}</div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#fff', lineHeight: 1.3, marginBottom: 4 }}>{panel.selectedCompte.lib}</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, marginBottom: 4 }}>{panel.selectedCompte.lib}</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: '#B8A98A' }}>{fmt(Math.abs(panel.selectedCompte.solde))}</div>
             </div>
           ) : (
             <div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#fff', lineHeight: 1.3, marginBottom: 4 }}>{panel.label}</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, marginBottom: 4 }}>{panel.label}</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: '#B8A98A' }}>{fmt(Math.abs(totalSolde))}</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 3 }}>{panel.comptes.length} compte{panel.comptes.length > 1 ? 's' : ''}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{panel.comptes.length} compte{panel.comptes.length > 1 ? 's' : ''}</div>
             </div>
           )}
         </div>
 
         {/* Séparateur champagne */}
-        <div style={{ height: 2, background: 'linear-gradient(90deg, #B8A98A, rgba(184,169,138,0.2))', flexShrink: 0 }} />
+        <div style={{ height: 2, background: 'linear-gradient(90deg, var(--alvio-champagne), transparent)', flexShrink: 0 }} />
 
         {/* Liste des comptes */}
         {!panel.selectedCompte && (
@@ -131,15 +131,15 @@ function SidePanel({ panel, onClose, onSelectCompte }: {
                 style={{ display: 'flex', alignItems: 'center', padding: '11px 18px', borderBottom: '1px solid var(--border-soft)', cursor: 'pointer', transition: 'background 0.12s', gap: 12 }}
                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-card-soft)'}
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(184,169,138,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--alvio-champagne-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <span style={{ fontSize: 10, fontWeight: 700, color: '#B8A98A', fontFamily: 'monospace' }}>{c.num.slice(0, 3)}</span>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#1A1A1A', marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.lib}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.lib}</div>
                   <div style={{ fontSize: 10, color: '#8C9BAB' }}>{c.num} · {c.ecritures.length} écriture{c.ecritures.length > 1 ? 's' : ''}</div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A' }}>{fmt(Math.abs(c.solde))}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{fmt(Math.abs(c.solde))}</div>
                 </div>
                 <span style={{ fontSize: 9, color: '#B8A98A' }}>▶</span>
               </div>
@@ -163,7 +163,7 @@ function SidePanel({ panel, onClose, onSelectCompte }: {
                   onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = 'var(--bg-card-soft)'}
                   onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = 'transparent'}>
                   <div style={{ fontSize: 10, color: '#8C9BAB', fontVariantNumeric: 'tabular-nums' }}>{fmtDate(e.date)}</div>
-                  <div style={{ fontSize: 11, color: '#1A1A1A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={e.lib || '—'}>{e.lib || '—'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={e.lib || '—'}>{e.lib || '—'}</div>
                   <div style={{ fontSize: 12, fontWeight: 600, color: montant > 0 ? '#D85A30' : '#1D9E75', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {montant > 0 ? '+' : ''}{fmt(montant)}
                   </div>
@@ -184,7 +184,7 @@ function CrRow({ label, value, indent, bold, color, prefixKey, annee, companyId,
   valueN1?: number; hasN1?: boolean
 }) {
   if (Math.abs(value) < 0.5) return null
-  const c = color || (value >= 0 ? '#1A1A1A' : '#D85A30')
+  const c = color || (value >= 0 ? 'var(--text-primary)' : 'var(--danger)')
   const drillable = !!prefixKey && !!PREFIXES[prefixKey]
   const variation = valueN1 != null && Math.abs(valueN1) > 0.5 ? ((value - valueN1) / Math.abs(valueN1)) * 100 : null
 
@@ -193,7 +193,7 @@ function CrRow({ label, value, indent, bold, color, prefixKey, annee, companyId,
       style={{ display: 'grid', gridTemplateColumns: hasN1 ? '1fr 110px 110px 80px' : '1fr 110px', alignItems: 'center', padding: '7px 16px', borderTop: '1px solid var(--border-soft)', cursor: drillable ? 'pointer' : 'default', transition: 'background 0.1s' }}
       onMouseEnter={e => { if (drillable) (e.currentTarget as HTMLElement).style.background = 'var(--bg-card-soft)' }}
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
-      <div style={{ fontSize: 12, fontWeight: bold ? 500 : 400, color: '#1A1A1A', paddingLeft: indent ? 20 : 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ fontSize: 12, fontWeight: bold ? 500 : 400, color: 'var(--text-primary)', paddingLeft: indent ? 20 : 0, display: 'flex', alignItems: 'center', gap: 6 }}>
         {drillable && <span style={{ fontSize: 9, color: '#B8A98A' }}>▶</span>}
         {label}
       </div>
@@ -221,7 +221,7 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
   return (
     <div>
       <div onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', padding: '9px 16px', background: 'var(--alvio-champagne-subtle)', cursor: 'pointer', borderTop: '1px solid var(--border-soft)' }}>
-        <div style={{ flex: 1, fontSize: 12, fontWeight: 500, color: '#1A1A1A', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ flex: 1, fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 9, color: '#B8A98A', display: 'inline-block', transition: 'transform 0.2s', transform: open ? 'rotate(90deg)' : 'none' }}>▶</span>
           {title}
         </div>
@@ -367,7 +367,7 @@ export default function IncomeStatementPage() {
         <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
           {!cr ? (
             <div style={{ maxWidth: 480, margin: '60px auto', textAlign: 'center', background: '#fff', borderRadius: 10, border: '1px solid var(--border-light)', padding: 24 }}>
-              <div style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A', marginBottom: 8 }}>Aucune donnée disponible</div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 8 }}>Aucune donnée disponible</div>
               <a href="/dashboard" style={{ background: 'var(--alvio-champagne)', color: 'var(--brand-dark)', borderRadius: 8, padding: '10px 20px', fontSize: 13, textDecoration: 'none' }}>Aller à la Synthèse</a>
             </div>
           ) : (
@@ -410,7 +410,7 @@ export default function IncomeStatementPage() {
                 </Section>
 
                 <div style={{ display: 'grid', gridTemplateColumns: hasN1 ? '1fr 110px 110px 80px' : '1fr 110px', alignItems: 'center', padding: '10px 16px', background: 'var(--alvio-champagne-subtle)', borderTop: '1px solid var(--alvio-champagne-light)' }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: '#1A1A1A' }}>Résultat d'exploitation</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Résultat d'exploitation</div>
                   <div style={{ fontSize: 14, fontWeight: 500, color: cr.resultatExploitation >= 0 ? '#1D9E75' : '#D85A30', textAlign: 'right' }}>{fmt(cr.resultatExploitation)}</div>
                   {hasN1 && <div style={{ fontSize: 13, color: '#8C9BAB', textAlign: 'right' }}>{crN1?.resultatExploitation != null ? fmt(crN1.resultatExploitation) : '—'}</div>}
                   {hasN1 && (() => { const v = crN1?.resultatExploitation; const variation = v != null && Math.abs(v) > 0.5 ? ((cr.resultatExploitation - v) / Math.abs(v)) * 100 : null; return <div style={{ textAlign: 'right' }}>{variation != null ? <span style={{ fontSize:11, fontWeight:500, color: variation >= 0 ? '#1D9E75' : '#D85A30' }}>{variation >= 0 ? '+' : ''}{Math.round(variation)}%</span> : <span style={{ fontSize:10, color:'#8C9BAB' }}>—</span>}</div> })()}
