@@ -168,29 +168,32 @@ export default function DashboardPage() {
                 {[
                   {
                     href:'/profitability', label:'Rentabilité',
-                    icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="2,14 7,8 11,11 18,4" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><polyline points="14,4 18,4 18,8" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+                    icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><polyline points="2,14 7,8 11,11 18,4" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><polyline points="14,4 18,4 18,8" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
                     desc:`MB ${fmtP(sig.tauxMb)} · EBITDA ${fmtP(sig.tauxEbe)}`, color:'#B8A98A'
                   },
                   {
                     href:'/income-statement', label:'Compte de résultat',
-                    icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="2" width="14" height="16" rx="2" stroke="#1A1A1A" strokeWidth="1.5"/><line x1="6" y1="7" x2="14" y2="7" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round"/><line x1="6" y1="10.5" x2="14" y2="10.5" stroke="#8C9BAB" strokeWidth="1.2" strokeLinecap="round"/><line x1="6" y1="14" x2="10" y2="14" stroke="#8C9BAB" strokeWidth="1.2" strokeLinecap="round"/></svg>,
-                    desc:`Résultat net ${fmt(sig.resultatNet)}`, color: sig.resultatNet >= 0 ? '#1D9E75' : '#D85A30'
+                    icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="2" width="14" height="16" rx="2" stroke="#B8A98A" strokeWidth="1.5"/><line x1="6" y1="7" x2="14" y2="7" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round"/><line x1="6" y1="10.5" x2="14" y2="10.5" stroke="#A99672" strokeWidth="1.2" strokeLinecap="round"/><line x1="6" y1="14" x2="10" y2="14" stroke="#A99672" strokeWidth="1.2" strokeLinecap="round"/></svg>,
+                    desc:`Résultat net ${fmt(sig.resultatNet)}`, color: sig.resultatNet >= 0 ? '#0F8A5F' : '#B42318'
                   },
                   {
-                    href:'/balance-sheet', label:'Bilan',
-                    icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="10" y1="2" x2="10" y2="18" stroke="#1A1A1A" strokeWidth="1.5" strokeLinecap="round"/><line x1="3" y1="5" x2="17" y2="5" stroke="#1A1A1A" strokeWidth="1.5" strokeLinecap="round"/><path d="M3 5 Q3 11 6.5 13" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round" fill="none"/><path d="M17 5 Q17 11 13.5 13" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round" fill="none"/><line x1="4.5" y1="13" x2="8.5" y2="13" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round"/><line x1="11.5" y1="13" x2="15.5" y2="13" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round"/></svg>,
-                    desc:`Tréso ${fmt(bilan?.actif?.tresorerie ?? 0)}`, color: (bilan?.actif?.tresorerie ?? 0) >= 0 ? '#1D9E75' : '#D85A30'
+                    href:'/sante-financiere', label:'Santé financière',
+                    icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 10h3.5l2-5 3 10 2-6 1.5 1H18" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+                    desc:`Tréso ${fmt(bilan?.actif?.tresorerie ?? 0)}`, color: (bilan?.actif?.tresorerie ?? 0) >= 0 ? '#0F8A5F' : '#B42318'
                   },
                   {
-                    href:'/cash-flow', label:'Trésorerie',
-                    icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="5" width="16" height="11" rx="2" stroke="#1A1A1A" strokeWidth="1.5"/><line x1="2" y1="9" x2="18" y2="9" stroke="#1A1A1A" strokeWidth="1.5"/><circle cx="6" cy="13" r="1.2" fill="#B8A98A"/><rect x="9" y="12" width="5" height="2" rx="1" fill="#8C9BAB"/></svg>,
-                    desc:`Actif ${fmt(bilan?.actif?.totalActif ?? 0)}`, color:'#8C9BAB'
+                    href:'/entreprise', label:'Paramétrages',
+                    icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.5" stroke="#B8A98A" strokeWidth="1.5"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.4 4.4l1.4 1.4M14.2 14.2l1.4 1.4M4.4 15.6l1.4-1.4M14.2 5.8l1.4-1.4" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+                    desc:`Dossiers · FEC · Pennylane`, color:'#9CA3AF'
                   },
                 ].map(n => (
-                  <a key={n.href} href={n.href} style={{ background:'#fff', borderRadius:12, border:'1px solid var(--border-light)', padding:'16px 18px', textDecoration:'none', display:'block' }}>
-                    <div style={{ width:36, height:36, borderRadius:8, background:'var(--bg-main)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:12 }}>{n.icon}</div>
+                  <a key={n.href} href={n.href} style={{ background:'var(--bg-card)', borderRadius:14, border:'1px solid var(--border-light)', padding:'16px 18px', textDecoration:'none', display:'block', transition:'border-color 0.15s' }}>
+                    <div style={{ width:36, height:36, borderRadius:10, background:'var(--alvio-champagne-subtle)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:12 }}>{n.icon}</div>
                     <div style={{ fontSize:12, fontWeight:500, color:'var(--text-primary)', marginBottom:4 }}>{n.label}</div>
                     <div style={{ fontSize:11, color: n.color, fontWeight:500 }}>{n.desc}</div>
+                    <div style={{ marginTop:10, display:'flex', justifyContent:'flex-end' }}>
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </div>
                   </a>
                 ))}
               </div>
