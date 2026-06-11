@@ -263,6 +263,7 @@ function calculer(lignes: LigneFEC[], annee: number, dateDebut?: string, dateFin
   const sante = computeHealthMetrics(lignesFiltrees as unknown as FecLine[], {
     exerciceDebut: periode.dateDebut,
     dateReference: periode.type === 'perso' ? periode.dateFin : undefined,
+    tresorerieFinExercice: bilan.actif.tresorerie,
   })
 
   return { annee, periode, regime, gate, controles, sig, cr, bilan, sante }

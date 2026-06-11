@@ -48,6 +48,10 @@ export interface HealthOptions {
   /** Date « aujourd'hui » comptable. Si absent, prend la date max des
    *  écritures courantes (hors à-nouveaux). */
   dateReference?: string
+  /** Solde de trésorerie certifié par le moteur (bilan.actif.tresorerie).
+   *  SOURCE DE VÉRITÉ : si fourni, le cash et l'ancrage de la courbe
+   *  mensuelle en découlent — jamais de recalcul divergent. */
+  tresorerieFinExercice?: number
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -141,7 +145,12 @@ export interface HealthMetrics {
 // Constantes PCG
 // ────────────────────────────────────────────────────────────────────────────
 
-const TRESORERIE_PREFIXES = ['512', '514', '517', '53', '54', '511']
+// Disponibilités + VMP (classe 5 actif). On exclut les concours bancaires
+// courants (519, passif), les virements internes (58) et les actions propres
+// (509). Cette liste sert à reconstruire la FORME de la courbe ; le NIVEAU
+// est ancré sur le total certifié par le moteur (cf. tresorerieFinExercice).
+const TRESORERIE_PREFIXES = ['50', '511', '512', '513', '514', '515', '516', '517', '518', '53', '54']
+const TRESORERIE_EXCLU = ['509', '519', '58']
 const CLIENTS_PREFIX = '411'
 const FOURNISSEURS_PREFIX = '401'
 const PRODUITS_EXPLOIT_PREFIX = '70' // ventes pour le délai clients
@@ -174,6 +183,11 @@ function parseDate(d?: string): Date | null {
 
 function daysBetween(from: Date, to: Date): number {
   return Math.round((to.getTime() - from.getTime()) / 86_400_000)
+}
+
+/** Arrondi 2 décimales — neutralise les artefacts de calcul flottant. */
+function r2(n: number): number {
+  return Math.round(n * 100) / 100
 }
 
 function monthKey(d: Date): string {
@@ -362,21 +376,32 @@ function computeAging(
 // ────────────────────────────────────────────────────────────────────────────
 
 function isTresorerie(compteNum: string): boolean {
+  if (TRESORERIE_EXCLU.some((p) => compteNum.startsWith(p))) return false
   return TRESORERIE_PREFIXES.some((p) => compteNum.startsWith(p))
 }
 
-function computeCash(lines: FecLine[]): Metric<number> {
+function computeCash(
+  lines: FecLine[],
+  tresorerieFinExercice?: number
+): Metric<number> {
+  // Source de vérité : le solde certifié par le moteur. On ne recalcule
+  // jamais le total indépendamment (sinon divergence avec le bilan).
+  if (typeof tresorerieFinExercice === 'number') {
+    return { ok: true, value: r2(tresorerieFinExercice) }
+  }
+  // Repli (module utilisé hors moteur) : somme directe.
   const tres = lines.filter((l) => isTresorerie(l.CompteNum))
   if (tres.length === 0) {
-    return { ok: false, reason: 'Aucun compte de trésorerie (512/53…) trouvé.' }
+    return { ok: false, reason: 'Aucun compte de trésorerie (50/51/53/54) trouvé.' }
   }
   const solde = tres.reduce((s, l) => s + (l.Debit - l.Credit), 0)
-  return { ok: true, value: solde }
+  return { ok: true, value: r2(solde) }
 }
 
 function computeCashMonthly(
   lines: FecLine[],
-  refDate: Date
+  refDate: Date,
+  tresorerieFinExercice?: number
 ): Metric<MonthlyCashPoint[]> {
   const tres = lines
     .filter((l) => isTresorerie(l.CompteNum))
@@ -388,28 +413,50 @@ function computeCashMonthly(
     return { ok: false, reason: 'Mouvements de trésorerie indisponibles.' }
   }
 
-  // Solde cumulé en fin de chaque mois jusqu'à la date de référence.
-  const perMonth = new Map<string, number>()
-  let running = 0
+  // Mouvement net par mois (inclut l'à-nouveau d'ouverture s'il est daté).
+  const netByMonth = new Map<string, number>()
   for (const { date, mvt } of tres) {
-    if (date > refDate) break
-    running += mvt
-    perMonth.set(monthKey(date), running)
+    if (date > refDate) continue
+    const k = monthKey(date)
+    netByMonth.set(k, (netByMonth.get(k) ?? 0) + mvt)
   }
 
-  // Comble les mois sans mouvement avec le dernier solde connu.
-  const first = tres[0].date
-  const points: MonthlyCashPoint[] = []
-  let cursor = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), 1))
-  let last = 0
-  while (cursor <= refDate) {
-    const key = monthKey(cursor)
-    if (perMonth.has(key)) last = perMonth.get(key)!
-    points.push({ month: key, closing: last })
+  // Séquence de mois du premier mouvement jusqu'à la date de référence.
+  const months: string[] = []
+  let cursor = new Date(Date.UTC(tres[0].date.getUTCFullYear(), tres[0].date.getUTCMonth(), 1))
+  const end = new Date(Date.UTC(refDate.getUTCFullYear(), refDate.getUTCMonth(), 1))
+  while (cursor <= end) {
+    months.push(monthKey(cursor))
     cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 1))
   }
+  if (months.length === 0) {
+    return { ok: false, reason: 'Période de trésorerie vide.' }
+  }
 
-  return { ok: true, value: points }
+  const closings = new Array<number>(months.length)
+
+  if (typeof tresorerieFinExercice === 'number') {
+    // Ancrage sur le total certifié : le dernier mois = solde moteur, puis
+    // on remonte avec les mouvements nets. Le NIVEAU de la courbe est ainsi
+    // garanti cohérent avec le bilan, indépendamment de la reprise d'AN.
+    closings[months.length - 1] = r2(tresorerieFinExercice)
+    for (let i = months.length - 2; i >= 0; i--) {
+      const moisSuivant = months[i + 1]
+      closings[i] = r2(closings[i + 1] - (netByMonth.get(moisSuivant) ?? 0))
+    }
+  } else {
+    // Repli : cumul direct vers l'avant.
+    let running = 0
+    for (let i = 0; i < months.length; i++) {
+      running += netByMonth.get(months[i]) ?? 0
+      closings[i] = r2(running)
+    }
+  }
+
+  return {
+    ok: true,
+    value: months.map((m, i) => ({ month: m, closing: closings[i] })),
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -570,8 +617,8 @@ export function computeHealthMetrics(
     referenceDate: toIso(refDate.toISOString()),
     exerciceDebut: toIso(exerciceDebut.toISOString()),
 
-    cash: computeCash(ecritures),
-    cashMonthly: computeCashMonthly(ecritures, refDate),
+    cash: computeCash(ecritures, options.tresorerieFinExercice),
+    cashMonthly: computeCashMonthly(ecritures, refDate, options.tresorerieFinExercice),
 
     agingClients: computeAging(ecritures, CLIENTS_PREFIX, 'debit', refDate),
     agingFournisseurs: computeAging(ecritures, FOURNISSEURS_PREFIX, 'credit', refDate),
