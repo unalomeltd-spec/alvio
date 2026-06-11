@@ -46,9 +46,9 @@ interface Etats {
 
 // ─── Couleurs charte ────────────────────────────────────────────────
 const C = {
-  carbone: '#1A1A1A', champagne: '#B8A98A', argent: '#8C9BAB',
-  vert: '#1D9E75', orange: '#BA7517', rouge: '#A32D2D', rougeFonce: '#791F1F',
-  fond: '#F2F3F5', bordure: 'rgba(0,0,0,0.06)',
+  carbone: 'var(--text-primary)', champagne: 'var(--alvio-champagne)', argent: 'var(--text-muted)',
+  vert: 'var(--success)', orange: 'var(--warning)', rouge: 'var(--danger)', rougeFonce: '#791F1F',
+  fond: 'var(--bg-main)', bordure: 'var(--border-light)',
 }
 
 const BUCKET_LABEL: Record<AgeBucket, string> = {
@@ -109,17 +109,17 @@ export default function SanteFinancierePage() {
   const exerciceClos = sante?.freshness.ok ? sante.freshness.value.coverageRatio >= 0.99 : false
 
   if (loading) return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: C.fond, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
       <AppSidebar activePage="sante-financiere" />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 36, height: 36, border: `2px solid ${C.fond}`, borderTop: `2px solid ${C.champagne}`, borderRadius: '50%', animation: 'spin .8s linear infinite' }} />
+        <div style={{ width: 36, height: 36, border: '2px solid var(--bg-main)', borderTop: '2px solid var(--alvio-champagne)', borderRadius: '50%', animation: 'spin .8s linear infinite' }} />
         <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
       </div>
     </div>
   )
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: C.fond, fontFamily: "'Plus Jakarta Sans', sans-serif", position: 'relative' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)', position: 'relative' }}>
       <AppSidebar activePage="sante-financiere" />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <TopBar title="Santé financière" annees={annees} anneeActive={anneeActive} onChangerAnnee={changerAnnee}
@@ -138,14 +138,14 @@ export default function SanteFinancierePage() {
 
               {/* Indice de fraîcheur */}
               {sante.freshness.ok && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fff', border: `0.5px solid ${C.bordure}`, borderRadius: 8, marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fff', border: '1px solid var(--border-light)', borderRadius: 8, marginBottom: 12 }}>
                   <div style={{ width: 7, height: 7, borderRadius: '50%', background: sante.freshness.value.coverageRatio >= 0.8 ? C.vert : C.orange, flexShrink: 0 }} />
                   <div style={{ fontSize: 11, color: C.argent }}>
                     Dernière écriture : <strong style={{ color: C.carbone, fontWeight: 500 }}>{formatDateFR(sante.freshness.value.lastEntryDate)}</strong>
                     {' · '}{sante.freshness.value.monthsCovered}/{sante.freshness.value.monthsElapsed} mois couverts
                   </div>
                   <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 80, height: 3, background: '#E8E6DF', borderRadius: 2 }}>
+                    <div style={{ width: 80, height: 3, background: 'var(--border-light)', borderRadius: 2 }}>
                       <div style={{ width: `${Math.round(sante.freshness.value.coverageRatio * 100)}%`, height: 3, background: C.vert, borderRadius: 2 }} />
                     </div>
                     <span style={{ fontSize: 10, color: C.argent }}>{Math.round(sante.freshness.value.coverageRatio * 100)} %</span>
@@ -155,7 +155,7 @@ export default function SanteFinancierePage() {
 
               {/* À rattacher */}
               {etats.controles.comptesNonReconnusTotal > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: '#FAEEDA', border: '0.5px solid rgba(239,159,39,0.4)', borderRadius: 8, marginBottom: 12, fontSize: 11, color: '#633806' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: '#FEF3E2', border: '1px solid rgba(217,119,6,0.3)', borderRadius: 8, marginBottom: 12, fontSize: 11, color: '#633806' }}>
                   <span style={{ fontWeight: 500 }}>À rattacher : {etats.controles.comptesNonReconnusTotal} compte(s) sans poste cible</span>
                   <span style={{ color: C.argent }}>— {etats.controles.comptesNonReconnus.slice(0, 3).join(' · ')}</span>
                 </div>
@@ -183,7 +183,7 @@ export default function SanteFinancierePage() {
               )}
 
               {/* Créances & dettes par ancienneté */}
-              <div style={{ fontSize: 11, fontWeight: 500, color: C.argent, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>
                 Créances & dettes — par ancienneté
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
@@ -197,7 +197,7 @@ export default function SanteFinancierePage() {
 
               {/* Bas de page : structure + courbe cash */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div style={{ background: '#fff', border: `0.5px solid ${C.bordure}`, borderRadius: 12, padding: '14px 16px' }}>
+                <div style={{ background: '#fff', border: '1px solid var(--border-light)', borderRadius: 12, padding: '14px 16px' }}>
                   <div style={{ fontSize: 12, fontWeight: 500, color: C.carbone, marginBottom: 8 }}>Structure financière</div>
                   <Ratio label="Autonomie financière" value={fmtPct(bilan.passif.capitauxPropres, bilan.passif.totalPassif)}
                     color={ratioColor(bilan.passif.capitauxPropres / (bilan.passif.totalPassif || 1), 0.5, 0.3)} />
@@ -205,7 +205,7 @@ export default function SanteFinancierePage() {
                   <Ratio label="Dettes long terme" value={fmtK(bilan.passif.dettesLT)} />
                   <Ratio label="Dettes court terme" value={fmtK(bilan.passif.dettesCT)} />
                 </div>
-                <div style={{ background: '#fff', border: `0.5px solid ${C.bordure}`, borderRadius: 12, padding: '14px 16px' }}>
+                <div style={{ background: '#fff', border: '1px solid var(--border-light)', borderRadius: 12, padding: '14px 16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <span style={{ fontSize: 12, fontWeight: 500, color: C.carbone }}>Trésorerie — par mois</span>
                   </div>
@@ -258,7 +258,7 @@ function ratioColor(v: number, bon: number, moyen: number): string {
 
 function KpiCard({ label, value, sub, valueColor, fallback }: { label: string; value: string; sub: string; valueColor: string; fallback?: string }) {
   return (
-    <div style={{ background: '#fff', border: `0.5px solid ${C.bordure}`, borderRadius: 12, padding: '14px 16px' }}>
+    <div style={{ background: '#fff', border: '1px solid var(--border-light)', borderRadius: 12, padding: '14px 16px' }}>
       <div style={{ fontSize: 11, color: C.argent, marginBottom: 6 }}>{label}</div>
       {fallback ? (
         <div style={{ fontSize: 12, color: C.argent, fontStyle: 'italic', lineHeight: 1.4 }}>{fallback}</div>
@@ -281,7 +281,7 @@ function DelaiCard({ label, data, sens }: { label: string; sens: 'bas' | 'haut';
   const affichage = plafonne ? '> 90 j' : `${jours} j`
   const couleur = !representatif ? C.argent : plafonne ? C.orange : C.carbone
   return (
-    <div style={{ background: '#fff', border: `0.5px solid ${C.bordure}`, borderRadius: 12, padding: '14px 16px' }}>
+    <div style={{ background: '#fff', border: '1px solid var(--border-light)', borderRadius: 12, padding: '14px 16px' }}>
       <div style={{ fontSize: 11, color: C.argent, marginBottom: 6 }}>{label}</div>
       <div style={{ fontSize: 19, fontWeight: 500, color: couleur }}>{affichage}</div>
       <div style={{ fontSize: 10, color: '#B4B2A9', marginTop: 2 }}>
@@ -293,7 +293,7 @@ function DelaiCard({ label, data, sens }: { label: string; sens: 'bas' | 'haut';
 
 function Ratio({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '5px 0', borderBottom: '0.5px solid rgba(0,0,0,0.04)' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '5px 0', borderBottom: '1px solid var(--border-soft)' }}>
       <span style={{ color: C.argent }}>{label}</span>
       <span style={{ fontWeight: 500, color: color || C.carbone }}>{value}</span>
     </div>
@@ -308,7 +308,7 @@ function AgingCard({ titre, compte, metric, urgentLabel, urgentColor, onOpen }: 
 }) {
   if (!metric.ok) {
     return (
-      <div style={{ background: '#fff', border: `0.5px solid ${C.bordure}`, borderRadius: 12, padding: '14px 16px' }}>
+      <div style={{ background: '#fff', border: '1px solid var(--border-light)', borderRadius: 12, padding: '14px 16px' }}>
         <div style={{ fontSize: 12, fontWeight: 500, color: C.carbone, marginBottom: 8 }}>{titre} <span style={{ fontSize: 10, color: C.argent }}>({compte})</span></div>
         <div style={{ fontSize: 11, color: C.argent, fontStyle: 'italic', padding: '12px 0' }}>{metric.reason}</div>
       </div>
@@ -318,7 +318,7 @@ function AgingCard({ titre, compte, metric, urgentLabel, urgentColor, onOpen }: 
   const buckets: AgeBucket[] = ['0-30', '31-60', '61-90', '90+']
   const maxVal = Math.max(...buckets.map(b => a.byBucket[b]), 1)
   return (
-    <div style={{ background: '#fff', border: `0.5px solid ${C.bordure}`, borderRadius: 12, padding: '14px 16px' }}>
+    <div style={{ background: '#fff', border: '1px solid var(--border-light)', borderRadius: 12, padding: '14px 16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <div style={{ fontSize: 12, fontWeight: 500, color: C.carbone }}>{titre} <span style={{ fontSize: 10, color: C.argent }}>({compte})</span></div>
         <div style={{ fontSize: 10, color: C.argent }}>{fmt(a.total)}</div>
@@ -327,9 +327,9 @@ function AgingCard({ titre, compte, metric, urgentLabel, urgentColor, onOpen }: 
         const danger = b === '61-90' || b === '90+'
         return (
           <div key={b} onClick={() => onOpen(b)}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, cursor: 'pointer', background: danger && a.byBucket[b] > 0 ? 'rgba(162,45,45,0.04)' : 'transparent' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, cursor: 'pointer', background: danger && a.byBucket[b] > 0 ? 'rgba(180,35,24,0.04)' : 'transparent' }}>
             <div style={{ fontSize: 11, color: danger && a.byBucket[b] > 0 ? C.rouge : '#5F5E5A', flex: 1, fontWeight: danger && a.byBucket[b] > 0 ? 500 : 400 }}>{BUCKET_LABEL[b]}</div>
-            <div style={{ width: 60, height: 3, background: '#F1EFE8', borderRadius: 2, flexShrink: 0 }}>
+            <div style={{ width: 60, height: 3, background: 'var(--border-light)', borderRadius: 2, flexShrink: 0 }}>
               <div style={{ width: `${Math.round((a.byBucket[b] / maxVal) * 100)}%`, height: 3, background: BUCKET_COLOR[b], borderRadius: 2 }} />
             </div>
             <div style={{ fontSize: 11, fontWeight: 500, color: BUCKET_COLOR[b], minWidth: 60, textAlign: 'right' }}>{a.byBucket[b] > 0 ? fmt(a.byBucket[b]) : '—'}</div>
@@ -373,7 +373,7 @@ function CashChart({ points }: { points: { month: string; closing: number }[] })
         const mm = parseInt(p.month.slice(5, 7)) - 1
         return (
           <div key={p.month} title={`${p.month} : ${fmt(p.closing)}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-            <div style={{ height: h, width: '100%', background: last ? C.champagne : C.carbone, opacity: last ? 1 : 0.15, borderRadius: '2px 2px 0 0' }} />
+            <div style={{ height: h, width: '100%', background: last ? 'var(--alvio-champagne)' : 'var(--alvio-champagne)', opacity: last ? 1 : 0.12, borderRadius: '2px 2px 0 0' }} />
             <div style={{ fontSize: 8, color: '#B4B2A9', marginTop: 3 }}>{MOIS_COURT[mm]}</div>
           </div>
         )
@@ -401,10 +401,10 @@ function SidePanel({ type, bucket, aging, onBucket, onClose }: {
   const over60 = aging.ok ? aging.value.over60 : 0
 
   return (
-    <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 360, background: '#fff', borderLeft: `0.5px solid rgba(0,0,0,0.1)`, display: 'flex', flexDirection: 'column', zIndex: 50, animation: 'slideIn 0.25s ease', boxShadow: '-8px 0 24px rgba(0,0,0,0.06)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: `0.5px solid ${C.bordure}` }}>
+    <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 360, background: 'var(--bg-card)', borderLeft: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', zIndex: 50, animation: 'slideIn 0.25s ease', boxShadow: '-8px 0 24px rgba(0,0,0,0.06)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--border-soft)' }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: C.carbone, flex: 1 }}>{titre}</div>
-        <button onClick={onClose} style={{ width: 26, height: 26, borderRadius: 6, border: `0.5px solid rgba(0,0,0,0.1)`, background: '#F8F8F6', cursor: 'pointer', color: C.argent, fontSize: 14, lineHeight: 1 }}>×</button>
+        <button onClick={onClose} style={{ width: 26, height: 26, borderRadius: 6, border: `0.5px solid rgba(0,0,0,0.1)`, background: 'var(--bg-main)', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14, lineHeight: 1 }}>×</button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px' }}>
         <div style={{ display: 'flex', gap: 4, marginBottom: 14, flexWrap: 'wrap' }}>
@@ -435,8 +435,8 @@ function SidePanel({ type, bucket, aging, onBucket, onClose }: {
             const ageCol = t.bucket === '90+' || t.bucket === '61-90' ? C.rouge : t.bucket === '31-60' ? C.orange : C.vert
             const ageBg = t.bucket === '90+' || t.bucket === '61-90' ? 'rgba(162,45,45,0.08)' : t.bucket === '31-60' ? 'rgba(186,117,23,0.08)' : 'rgba(29,158,117,0.08)'
             return (
-              <div key={t.tiersId} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 0', borderBottom: '0.5px solid rgba(0,0,0,0.04)' }}>
-                <div style={{ width: 30, height: 30, borderRadius: 8, background: C.fond, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 500, color: C.argent, flexShrink: 0 }}>
+              <div key={t.tiersId} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--border-soft)' }}>
+                <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--alvio-champagne-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 500, color: C.argent, flexShrink: 0 }}>
                   {initiales(t.tiersLabel)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -460,7 +460,7 @@ function SidePanel({ type, bucket, aging, onBucket, onClose }: {
 
 function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div style={{ flex: 1, background: '#F8F8F6', borderRadius: 8, padding: '10px 12px' }}>
+    <div style={{ flex: 1, background: 'var(--bg-main)', borderRadius: 8, padding: '10px 12px' }}>
       <div style={{ fontSize: 10, color: C.argent, marginBottom: 3 }}>{label}</div>
       <div style={{ fontSize: 14, fontWeight: 500, color: color || C.carbone }}>{value}</div>
     </div>

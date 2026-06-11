@@ -113,17 +113,17 @@ export default function DashboardPage() {
   const bilan = etats?.bilan
 
   if (loading) return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans', sans-serif" }}>
+    <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg-main)', fontFamily:"inherit" }}>
       <AppSidebar activePage="dashboard"/>
       <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
-        <div style={{ width:36, height:36, border:'2px solid #F2F3F5', borderTop:'2px solid #B8A98A', borderRadius:'50%', animation:'spin .8s linear infinite' }}/>
+        <div style={{ width:36, height:36, border:'2px solid var(--bg-main)', borderTop:'2px solid #B8A98A', borderRadius:'50%', animation:'spin .8s linear infinite' }}/>
         <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
       </div>
     </div>
   )
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans', sans-serif" }}>
+    <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg-main)', fontFamily:"inherit" }}>
       <AppSidebar activePage="dashboard"/>
       <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
         <TopBar title="Synthèse" annees={annees} anneeActive={anneeActive} onChangerAnnee={changerAnnee}
@@ -134,13 +134,13 @@ export default function DashboardPage() {
           dateDebutN1={dateDebutN1} setDateDebutN1={setDateDebutN1}
           dateFinN1={dateFinN1} setDateFinN1={setDateFinN1} showN1={false} />
         <div style={{ flex:1, padding:24, overflowY:'auto' }}>
-          {erreur && <div style={{ background:'rgba(216,90,48,0.08)', border:'0.5px solid rgba(216,90,48,0.3)', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#D85A30' }}>{erreur}</div>}
+          {erreur && <div style={{ background:'rgba(180,35,24,0.06)', border:'1px solid rgba(180,35,24,0.2)', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#D85A30' }}>{erreur}</div>}
           {!sig ? (
             <div style={{ maxWidth:520, margin:'80px auto', textAlign:'center' }}>
               <div style={{ width:64, height:64, borderRadius:16, background:'rgba(184,169,138,0.1)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 20px', fontSize:28 }}>📂</div>
               <div style={{ fontSize:16, fontWeight:500, color:'#1A1A1A', marginBottom:8 }}>Aucun fichier FEC importé</div>
               <div style={{ fontSize:13, color:'#8C9BAB', marginBottom:28, lineHeight:1.6 }}>Importez votre fichier FEC pour accéder à l'analyse financière complète.</div>
-              <label style={{ display:'inline-flex', alignItems:'center', gap:8, background:'#1A1A1A', color:'#fff', borderRadius:10, padding:'12px 24px', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+              <label style={{ display:'inline-flex', alignItems:'center', gap:8, background:'var(--alvio-champagne)', color:'var(--brand-dark)', borderRadius:10, padding:'12px 24px', fontSize:13, fontWeight:500, cursor:'pointer' }}>
                 {uploading ? 'Traitement en cours...' : 'Importer mon FEC'}
                 <input type="file" accept=".txt,.csv,.tsv" style={{ display:'none' }} onChange={e => e.target.files?.[0] && handleFEC(e.target.files[0])} />
               </label>
@@ -187,9 +187,9 @@ export default function DashboardPage() {
                     desc:`Actif ${fmt(bilan?.actif?.totalActif ?? 0)}`, color:'#8C9BAB'
                   },
                 ].map(n => (
-                  <a key={n.href} href={n.href} style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'16px 18px', textDecoration:'none', display:'block' }}>
-                    <div style={{ width:36, height:36, borderRadius:8, background:'#F2F3F5', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:12 }}>{n.icon}</div>
-                    <div style={{ fontSize:12, fontWeight:500, color:'#1A1A1A', marginBottom:4 }}>{n.label}</div>
+                  <a key={n.href} href={n.href} style={{ background:'#fff', borderRadius:12, border:'1px solid var(--border-light)', padding:'16px 18px', textDecoration:'none', display:'block' }}>
+                    <div style={{ width:36, height:36, borderRadius:8, background:'var(--bg-main)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:12 }}>{n.icon}</div>
+                    <div style={{ fontSize:12, fontWeight:500, color:'var(--text-primary)', marginBottom:4 }}>{n.label}</div>
                     <div style={{ fontSize:11, color: n.color, fontWeight:500 }}>{n.desc}</div>
                   </a>
                 ))}

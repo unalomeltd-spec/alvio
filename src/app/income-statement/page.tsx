@@ -128,8 +128,8 @@ function SidePanel({ panel, onClose, onSelectCompte }: {
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {panel.comptes.map((c, i) => (
               <div key={i} onClick={() => onSelectCompte(c)}
-                style={{ display: 'flex', alignItems: 'center', padding: '11px 18px', borderBottom: '0.5px solid rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'background 0.12s', gap: 12 }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F7F8FA'}
+                style={{ display: 'flex', alignItems: 'center', padding: '11px 18px', borderBottom: '1px solid var(--border-soft)', cursor: 'pointer', transition: 'background 0.12s', gap: 12 }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg-card-soft)'}
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
                 <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(184,169,138,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <span style={{ fontSize: 10, fontWeight: 700, color: '#B8A98A', fontFamily: 'monospace' }}>{c.num.slice(0, 3)}</span>
@@ -151,7 +151,7 @@ function SidePanel({ panel, onClose, onSelectCompte }: {
         {panel.selectedCompte && (
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {/* En-tête colonnes */}
-            <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 80px', gap: 8, padding: '8px 18px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', background: '#F7F8FA' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 80px', gap: 8, padding: '8px 18px', borderBottom: '0.5px solid rgba(0,0,0,0.06)', background: 'var(--bg-card-soft)' }}>
               <span style={{ fontSize: 9, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Date</span>
               <span style={{ fontSize: 9, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Libellé</span>
               <span style={{ fontSize: 9, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.07em', textAlign: 'right' }}>Montant</span>
@@ -160,7 +160,7 @@ function SidePanel({ panel, onClose, onSelectCompte }: {
               const montant = e.debit - e.credit
               return (
                 <div key={i} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 80px', gap: 8, padding: '9px 18px', borderBottom: '0.5px solid rgba(0,0,0,0.04)', alignItems: 'center', transition: 'background 0.1s' }}
-                  onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = '#F7F8FA'}
+                  onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = 'var(--bg-card-soft)'}
                   onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = 'transparent'}>
                   <div style={{ fontSize: 10, color: '#8C9BAB', fontVariantNumeric: 'tabular-nums' }}>{fmtDate(e.date)}</div>
                   <div style={{ fontSize: 11, color: '#1A1A1A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={e.lib || '—'}>{e.lib || '—'}</div>
@@ -190,8 +190,8 @@ function CrRow({ label, value, indent, bold, color, prefixKey, annee, companyId,
 
   return (
     <div onClick={() => drillable && onDrill(label, PREFIXES[prefixKey!])}
-      style={{ display: 'grid', gridTemplateColumns: hasN1 ? '1fr 110px 110px 80px' : '1fr 110px', alignItems: 'center', padding: '7px 16px', borderTop: '0.5px solid rgba(0,0,0,0.04)', cursor: drillable ? 'pointer' : 'default', transition: 'background 0.1s' }}
-      onMouseEnter={e => { if (drillable) (e.currentTarget as HTMLElement).style.background = '#F7F8FA' }}
+      style={{ display: 'grid', gridTemplateColumns: hasN1 ? '1fr 110px 110px 80px' : '1fr 110px', alignItems: 'center', padding: '7px 16px', borderTop: '1px solid var(--border-soft)', cursor: drillable ? 'pointer' : 'default', transition: 'background 0.1s' }}
+      onMouseEnter={e => { if (drillable) (e.currentTarget as HTMLElement).style.background = 'var(--bg-card-soft)' }}
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
       <div style={{ fontSize: 12, fontWeight: bold ? 500 : 400, color: '#1A1A1A', paddingLeft: indent ? 20 : 0, display: 'flex', alignItems: 'center', gap: 6 }}>
         {drillable && <span style={{ fontSize: 9, color: '#B8A98A' }}>▶</span>}
@@ -220,7 +220,7 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
   const [open, setOpen] = useState(defaultOpen)
   return (
     <div>
-      <div onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', padding: '9px 16px', background: 'rgba(184,169,138,0.06)', cursor: 'pointer', borderTop: '0.5px solid rgba(0,0,0,0.06)' }}>
+      <div onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', padding: '9px 16px', background: 'var(--alvio-champagne-subtle)', cursor: 'pointer', borderTop: '1px solid var(--border-soft)' }}>
         <div style={{ flex: 1, fontSize: 12, fontWeight: 500, color: '#1A1A1A', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 9, color: '#B8A98A', display: 'inline-block', transition: 'transform 0.2s', transform: open ? 'rotate(90deg)' : 'none' }}>▶</span>
           {title}
@@ -235,7 +235,7 @@ function SubTotal({ label, value, color, valueN1, hasN1 }: { label: string; valu
   const c = color || (value >= 0 ? '#1D9E75' : '#D85A30')
   const variation = valueN1 != null && Math.abs(valueN1) > 0.5 ? ((value - valueN1) / Math.abs(valueN1)) * 100 : null
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: hasN1 ? '1fr 110px 110px 80px' : '1fr 110px', alignItems: 'center', padding: '9px 16px', background: 'rgba(0,0,0,0.02)', borderTop: '0.5px solid rgba(0,0,0,0.06)' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: hasN1 ? '1fr 110px 110px 80px' : '1fr 110px', alignItems: 'center', padding: '9px 16px', background: 'var(--bg-main)', borderTop: '1px solid var(--border-soft)' }}>
       <div style={{ fontSize: 12, fontWeight: 500, color: c }}>{label}</div>
       <div style={{ fontSize: 13, fontWeight: 500, color: c, textAlign: 'right' }}>{fmt(value)}</div>
       {hasN1 && <div style={{ fontSize: 12, color: '#8C9BAB', textAlign: 'right' }}>{valueN1 != null && Math.abs(valueN1) > 0.5 ? fmt(valueN1) : '—'}</div>}
@@ -344,17 +344,17 @@ export default function IncomeStatementPage() {
   const rowProps = { annee: anneeActive, companyId: activeId, onDrill: handleDrill }
 
   if (loading) return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#F2F3F5', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)', fontFamily: 'inherit' }}>
       <Sidebar activePage="income-statement" />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 36, height: 36, border: '2px solid #F2F3F5', borderTop: '2px solid #B8A98A', borderRadius: '50%', animation: 'spin .8s linear infinite' }} />
+        <div style={{ width: 36, height: 36, border: '2px solid var(--bg-main)', borderTop: '2px solid #B8A98A', borderRadius: '50%', animation: 'spin .8s linear infinite' }} />
         <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
       </div>
     </div>
   )
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#F2F3F5', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)', fontFamily: 'inherit' }}>
       <Sidebar activePage="income-statement" />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <TopBar title="Compte de résultat" annees={annees} anneeActive={anneeActive} onChangerAnnee={changerAnnee} loading={drillLoading}
@@ -366,9 +366,9 @@ export default function IncomeStatementPage() {
           dateFinN1={dateFinN1} setDateFinN1={setDateFinN1} />
         <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
           {!cr ? (
-            <div style={{ maxWidth: 480, margin: '60px auto', textAlign: 'center', background: '#fff', borderRadius: 10, border: '0.5px solid rgba(0,0,0,0.06)', padding: 24 }}>
+            <div style={{ maxWidth: 480, margin: '60px auto', textAlign: 'center', background: '#fff', borderRadius: 10, border: '1px solid var(--border-light)', padding: 24 }}>
               <div style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A', marginBottom: 8 }}>Aucune donnée disponible</div>
-              <a href="/dashboard" style={{ background: '#1A1A1A', color: '#fff', borderRadius: 8, padding: '10px 20px', fontSize: 13, textDecoration: 'none' }}>Aller à la Synthèse</a>
+              <a href="/dashboard" style={{ background: 'var(--alvio-champagne)', color: 'var(--brand-dark)', borderRadius: 8, padding: '10px 20px', fontSize: 13, textDecoration: 'none' }}>Aller à la Synthèse</a>
             </div>
           ) : (
             <div style={{ maxWidth: 900 }}>
@@ -378,12 +378,12 @@ export default function IncomeStatementPage() {
                 Cliquez sur une ligne ▶ pour voir le détail des comptes et écritures
               </div>
 
-              <div style={{ background: '#fff', borderRadius: 10, border: '0.5px solid rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: hasN1 ? '1fr 110px 110px 80px' : '1fr 110px', background: '#1A1A1A', padding: '10px 16px', gap: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 500, color: '#F2F3F5', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Libellé</div>
-                  <div style={{ fontSize: 11, fontWeight: 500, color: '#F2F3F5', textAlign: 'right' }}>Exercice {anneeActive}</div>
-                  {hasN1 && <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.5)', textAlign: 'right' }}>{anneeActive - 1}</div>}
-                  {hasN1 && <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.5)', textAlign: 'right' }}>Var.</div>}
+              <div style={{ background: '#fff', borderRadius: 10, border: '1px solid var(--border-light)', overflow: 'hidden' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: hasN1 ? '1fr 110px 110px 80px' : '1fr 110px', background: 'var(--alvio-champagne-subtle)', padding: '10px 16px', gap: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Libellé</div>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', textAlign: 'right' }}>Exercice {anneeActive}</div>
+                  {hasN1 && <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', textAlign: 'right' }}>{anneeActive - 1}</div>}
+                  {hasN1 && <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', textAlign: 'right' }}>Var.</div>}
                 </div>
 
                 <Section title="Produits d'exploitation">
@@ -409,7 +409,7 @@ export default function IncomeStatementPage() {
                   <SubTotal label="Total charges d'exploitation" value={cr.chargesExploitation.total} color="#D85A30" hasN1={hasN1} valueN1={crN1?.chargesExploitation.total} />
                 </Section>
 
-                <div style={{ display: 'grid', gridTemplateColumns: hasN1 ? '1fr 110px 110px 80px' : '1fr 110px', alignItems: 'center', padding: '10px 16px', background: 'rgba(184,169,138,0.08)', borderTop: '0.5px solid rgba(184,169,138,0.2)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: hasN1 ? '1fr 110px 110px 80px' : '1fr 110px', alignItems: 'center', padding: '10px 16px', background: 'var(--alvio-champagne-subtle)', borderTop: '1px solid var(--alvio-champagne-light)' }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#1A1A1A' }}>Résultat d'exploitation</div>
                   <div style={{ fontSize: 14, fontWeight: 500, color: cr.resultatExploitation >= 0 ? '#1D9E75' : '#D85A30', textAlign: 'right' }}>{fmt(cr.resultatExploitation)}</div>
                   {hasN1 && <div style={{ fontSize: 13, color: '#8C9BAB', textAlign: 'right' }}>{crN1?.resultatExploitation != null ? fmt(crN1.resultatExploitation) : '—'}</div>}
@@ -439,10 +439,10 @@ export default function IncomeStatementPage() {
                   </Section>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: hasN1 ? '1fr 110px 110px 80px' : '1fr 110px', alignItems: 'center', padding: '12px 16px', background: '#1A1A1A', borderTop: '0.5px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: '#F2F3F5' }}>Résultat net</div>
+                <div style={{ display: 'grid', gridTemplateColumns: hasN1 ? '1fr 110px 110px 80px' : '1fr 110px', alignItems: 'center', padding: '12px 16px', background: 'var(--brand-dark)', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#F8F8F6' }}>Résultat net</div>
                   <div style={{ fontSize: 14, fontWeight: 500, color: cr.resultatNet >= 0 ? '#1D9E75' : '#D85A30', textAlign: 'right' }}>{fmt(cr.resultatNet)}</div>
-                  {hasN1 && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', textAlign: 'right' }}>{crN1?.resultatNet != null ? fmt(crN1.resultatNet) : '—'}</div>}
+                  {hasN1 && <div style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'right' }}>{crN1?.resultatNet != null ? fmt(crN1.resultatNet) : '—'}</div>}
                   {hasN1 && (() => { const v = crN1?.resultatNet; const variation = v != null && Math.abs(v) > 0.5 ? ((cr.resultatNet - v) / Math.abs(v)) * 100 : null; return <div style={{ textAlign: 'right' }}>{variation != null ? <span style={{ fontSize:11, fontWeight:500, color: variation >= 0 ? '#1D9E75' : '#D85A30' }}>{variation >= 0 ? '+' : ''}{Math.round(variation)}%</span> : <span style={{ fontSize:10, color:'rgba(255,255,255,0.3)' }}>—</span>}</div> })()}
                 </div>
               </div>

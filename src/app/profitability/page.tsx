@@ -16,49 +16,56 @@ function SigRow({ label, value, ca, color, highlight, deductions, valueN1, caN1,
   deductions?: { label: string; value: number; valueN1?: number }[]
   valueN1?: number; caN1?: number; hasN1?: boolean
 }) {
-  const pct = ca > 0 ? value / ca * 100 : 0
+  const pct = ca > 0 ? Math.max(0, Math.min(100, value / ca * 100)) : 0
   const pctN1 = (caN1 ?? 0) > 0 && valueN1 != null ? valueN1 / caN1! * 100 : 0
-  const bg = highlight ? '#1A1A1A' : '#fff'
-  const mutedColor = highlight ? 'rgba(255,255,255,0.45)' : '#8C9BAB'
-  const c = color || (highlight ? '#B8A98A' : '#8C9BAB')
+  const bg = highlight ? '#FBF9F5' : 'var(--bg-card)'
+  const borderCol = highlight ? 'var(--alvio-champagne-light)' : 'var(--border-light)'
+  const accentCol = color || (highlight ? 'var(--alvio-champagne)' : 'var(--alvio-champagne)')
+  const mutedColor = highlight ? 'var(--alvio-champagne-dark)' : 'var(--text-muted)'
+  const labelColor = 'var(--text-primary)'
+  const valColor = highlight ? (color || 'var(--alvio-champagne)') : (color || 'var(--text-primary)')
   const hasDeductions = deductions && deductions.length > 0
   const cols = hasN1 ? '1fr 120px 120px' : '1fr 120px'
   return (
     <>
-      <div style={{ display:'grid', gridTemplateColumns:cols, alignItems:'center', background:bg, border:`0.5px solid ${highlight ? '#1A1A1A' : 'rgba(0,0,0,0.06)'}`, borderLeft:`3px solid ${c}`, borderRadius:'0 10px 10px 0', padding:'8px 14px', marginBottom: hasDeductions ? 0 : 2 }}>
-        <div style={{ fontSize:11, fontWeight: highlight ? 600 : 500, color: highlight ? 'rgba(255,255,255,0.85)' : '#1A1A1A', textTransform:'uppercase', letterSpacing:'0.05em' }}>{label}</div>
-        <div style={{ textAlign:'right' }}>
-          <div style={{ fontSize:13, fontWeight:600, color: highlight ? (color || '#B8A98A') : (color || '#1A1A1A') }}>{fmt(value)}</div>
+      <div style={{ display:'grid', gridTemplateColumns:cols, alignItems:'center', background:bg, border:`1px solid ${borderCol}`, borderLeft:`3px solid ${accentCol}`, borderRadius:'0 10px 10px 0', padding:'8px 14px', marginBottom: hasDeductions ? 0 : 2, position:'relative', overflow:'hidden' }}>
+        {/* Barre inline % du CA */}
+        {!highlight && pct > 0 && (
+          <div style={{ position:'absolute', left:3, top:0, bottom:0, width:`${pct}%`, background:'var(--alvio-champagne-subtle)', opacity:0.7, zIndex:0, pointerEvents:'none' }} />
+        )}
+        <div style={{ fontSize:11, fontWeight: highlight ? 600 : 500, color:labelColor, textTransform:'uppercase', letterSpacing:'0.05em', position:'relative', zIndex:1 }}>{label}</div>
+        <div style={{ textAlign:'right', position:'relative', zIndex:1 }}>
+          <div style={{ fontSize:13, fontWeight:600, color:valColor }}>{fmt(value)}</div>
           <div style={{ fontSize:10, color:mutedColor, marginTop:1 }}>{fmtP(pct)}</div>
         </div>
         {hasN1 && (
-          <div style={{ textAlign:'right' }}>
+          <div style={{ textAlign:'right', position:'relative', zIndex:1 }}>
             {valueN1 != null ? (
               <>
-                <div style={{ fontSize:13, fontWeight:500, color:'#8C9BAB' }}>{fmt(valueN1)}</div>
-                <div style={{ fontSize:10, color:'#8C9BAB', marginTop:1 }}>{fmtP(pctN1)}</div>
+                <div style={{ fontSize:13, fontWeight:500, color:'var(--text-muted)' }}>{fmt(valueN1)}</div>
+                <div style={{ fontSize:10, color:'var(--text-muted)', marginTop:1 }}>{fmtP(pctN1)}</div>
               </>
             ) : (
-              <span style={{ fontSize:10, color: highlight ? 'rgba(255,255,255,0.3)' : '#8C9BAB' }}>—</span>
+              <span style={{ fontSize:10, color:'var(--text-muted)' }}>—</span>
             )}
           </div>
         )}
       </div>
       {deductions?.map((d, i) => (
-        <div key={i} style={{ display:'grid', gridTemplateColumns:cols, alignItems:'center', padding:'4px 14px 4px 28px', borderTop:'0.5px solid rgba(0,0,0,0.04)', background:'rgba(0,0,0,0.015)', marginBottom: i === (deductions.length - 1) ? 2 : 0 }}>
+        <div key={i} style={{ display:'grid', gridTemplateColumns:cols, alignItems:'center', padding:'4px 14px 4px 28px', borderTop:'1px solid var(--border-soft)', background:'var(--bg-main)', marginBottom: i === (deductions.length - 1) ? 2 : 0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-            <span style={{ fontSize:11, color:'#B8A98A' }}>↳</span>
-            <span style={{ fontSize:11, color:'#8C9BAB' }}>{d.value < 0 ? '+' : '−'} {d.label}</span>
+            <span style={{ fontSize:11, color:'var(--alvio-champagne)' }}>↳</span>
+            <span style={{ fontSize:11, color:'var(--text-muted)' }}>{d.value < 0 ? '+' : '−'} {d.label}</span>
           </div>
           <div style={{ textAlign:'right' }}>
-            <span style={{ fontSize:11, fontWeight:500, color:'#8C9BAB' }}>{fmt(Math.abs(d.value))}</span>
+            <span style={{ fontSize:11, fontWeight:500, color:'var(--text-secondary)' }}>{fmt(Math.abs(d.value))}</span>
           </div>
           {hasN1 && (
             <div style={{ textAlign:'right' }}>
               {d.valueN1 != null ? (
-                <span style={{ fontSize:11, color:'#8C9BAB' }}>{fmt(Math.abs(d.valueN1))}</span>
+                <span style={{ fontSize:11, color:'var(--text-muted)' }}>{fmt(Math.abs(d.valueN1))}</span>
               ) : (
-                <span style={{ fontSize:10, color:'#8C9BAB' }}>—</span>
+                <span style={{ fontSize:10, color:'var(--text-muted)' }}>—</span>
               )}
             </div>
           )}
@@ -143,17 +150,17 @@ export default function ProfitabilityPage() {
   const hasN1 = !!sigN1
 
   if (loading) return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
+    <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg-main)' }}>
       <Sidebar activePage="profitability"/>
       <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
-        <div style={{ width:36, height:36, border:'2px solid #F2F3F5', borderTop:'2px solid #B8A98A', borderRadius:'50%', animation:'spin .8s linear infinite' }}/>
+        <div style={{ width:36, height:36, border:'2px solid var(--bg-main)', borderTop:'2px solid var(--alvio-champagne)', borderRadius:'50%', animation:'spin .8s linear infinite' }}/>
         <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
       </div>
     </div>
   )
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
+    <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg-main)' }}>
       <Sidebar activePage="profitability"/>
       <div style={{ flex:1, display:'flex', flexDirection:'column' }}>
         <TopBar title="Rentabilité" annees={annees} anneeActive={anneeActive} onChangerAnnee={changerAnnee}
@@ -165,19 +172,19 @@ export default function ProfitabilityPage() {
           dateFinN1={dateFinN1} setDateFinN1={setDateFinN1} />
         <div style={{ flex:1, padding:24, overflowY:'auto' }}>
           {!sig ? (
-            <div style={{ maxWidth:480, margin:'60px auto', textAlign:'center', background:'#fff', borderRadius:10, border:'0.5px solid rgba(0,0,0,0.06)', padding:24 }}>
-              <div style={{ fontSize:14, fontWeight:500, color:'#1A1A1A', marginBottom:8 }}>Aucune donnée disponible</div>
-              <a href="/dashboard" style={{ background:'#1A1A1A', color:'#fff', borderRadius:8, padding:'10px 20px', fontSize:13, textDecoration:'none' }}>Aller à la Synthèse</a>
+            <div style={{ maxWidth:480, margin:'60px auto', textAlign:'center', background:'var(--bg-card)', borderRadius:12, border:'1px solid var(--border-light)', padding:24 }}>
+              <div style={{ fontSize:14, fontWeight:500, color:'var(--text-primary)', marginBottom:8 }}>Aucune donnée disponible</div>
+              <a href="/dashboard" style={{ background:'var(--alvio-champagne)', color:'var(--brand-dark)', borderRadius:8, padding:'10px 20px', fontSize:13, textDecoration:'none' }}>Aller à la Synthèse</a>
             </div>
           ) : (
             <div style={{ maxWidth:900 }}>
               <AlvioInsight payload={{ page:'profitability', annee:anneeActive, indicateurs:{ ca:sig.ca, mb:sig.margeCommerciale, ebe:sig.ebe, rex:sig.rex, rnet:sig.resultatNet, tauxMb:sig.tauxMb, tauxEbe:sig.tauxEbe, tauxRex:sig.tauxRex, tauxRnet:sig.tauxRnet, tauxPers:sig.tauxPers, pers64:sig.chargesPersonnel } }} />
-              <div style={{ fontSize:11, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>Soldes intermédiaires de gestion</div>
+              <div style={{ fontSize:10, fontWeight:500, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>Soldes intermédiaires de gestion</div>
 
               <div style={{ display:'grid', gridTemplateColumns: hasN1 ? '1fr 120px 120px' : '1fr 120px 80px', padding:'0 14px 8px 14px', marginBottom:4 }}>
-                <div style={{ fontSize:9, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.09em' }}>Indicateur</div>
-                <div style={{ fontSize:9, fontWeight:600, color:'#1A1A1A', textTransform:'uppercase', letterSpacing:'0.09em', textAlign:'right' }}>Exercice {anneeActive}</div>
-                {hasN1 && <div style={{ fontSize:9, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase', letterSpacing:'0.09em', textAlign:'right' }}>{anneeActive - 1}</div>}
+                <div style={{ fontSize:9, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.09em' }}>Indicateur</div>
+                <div style={{ fontSize:9, fontWeight:600, color:'var(--text-primary)', textTransform:'uppercase', letterSpacing:'0.09em', textAlign:'right' }}>Exercice {anneeActive}</div>
+                {hasN1 && <div style={{ fontSize:9, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.09em', textAlign:'right' }}>{anneeActive - 1}</div>}
               </div>
 
               <SigRow label="Chiffre d'affaires" value={sig.ca} ca={sig.ca} color="#B8A98A" hasN1={hasN1} valueN1={sigN1?.ca} caN1={sigN1?.ca} />

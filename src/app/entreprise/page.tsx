@@ -305,8 +305,8 @@ export default function EntreprisePage() {
   }
 
   if (chargement) return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif", alignItems:'center', justifyContent:'center' }}>
-      <div style={{ width:36, height:36, border:'2px solid #F2F3F5', borderTop:'2px solid #B8A98A', borderRadius:'50%', animation:'spin .8s linear infinite' }}/>
+    <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg-main)', , alignItems:'center', justifyContent:'center' }}>
+      <div style={{ width:36, height:36, border:'2px solid var(--bg-main)', borderTop:'2px solid #B8A98A', borderRadius:'50%', animation:'spin .8s linear infinite' }}/>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
@@ -318,7 +318,7 @@ export default function EntreprisePage() {
   const anneesPnx = [anneeCourante, anneeCourante - 1, anneeCourante - 2, anneeCourante - 3, anneeCourante - 4]
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'#F2F3F5', fontFamily:"'Plus Jakarta Sans',sans-serif" }}>
+    <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg-main)',  }}>
       <Sidebar activePage="company"/>
       <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
 
@@ -356,11 +356,11 @@ export default function EntreprisePage() {
             </button>
           </div>
           {!entreprise ? (
-            <div style={{ maxWidth:480, margin:'40px auto', background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'18px 20px' }}>
+            <div style={{ maxWidth:480, margin:'40px auto', background:'#fff', borderRadius:12, border:'1px solid var(--border-light)', padding:'18px 20px' }}>
               <div style={{ fontSize:14, fontWeight:500, color:'#1A1A1A', marginBottom:6 }}>Associer votre entreprise</div>
               <div style={{ fontSize:12, color:'#8C9BAB', marginBottom:20 }}>Saisissez votre SIREN pour afficher la fiche légale.</div>
               <label style={{ fontSize:11, fontWeight:600, color:'#5C6670', letterSpacing:'.04em', textTransform:'uppercase' as const, marginBottom:6, display:'block' }}>SIREN</label>
-              <input style={{ width:'100%', border:'1px solid rgba(0,0,0,0.12)', borderRadius:8, padding:'10px 12px', fontSize:13, fontFamily:'Plus Jakarta Sans,sans-serif', outline:'none', boxSizing:'border-box' as const }}
+              <input style={{ width:'100%', border:'1px solid rgba(0,0,0,0.12)', borderRadius:8, padding:'10px 12px', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' as const }}
                 type="text" placeholder="9 chiffres" value={sirenInput} onChange={e => handleSirenLookup(e.target.value)} maxLength={9} />
               {sirenLoading && <div style={{ fontSize:11, color:'#B8A98A', marginTop:6 }}>Recherche en cours...</div>}
               {sirenError && <div style={{ fontSize:11, color:'#D85A30', marginTop:6 }}>{sirenError}</div>}
@@ -373,7 +373,7 @@ export default function EntreprisePage() {
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B8A98A" strokeWidth="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                 </div>
                 <div style={{ flex:1 }}>
-                  <div style={{ color:'#F2F3F5', fontSize:16, fontWeight:500, marginBottom:3 }}>{entreprise.nom}</div>
+                  <div style={{ color:'var(--bg-main)', fontSize:16, fontWeight:500, marginBottom:3 }}>{entreprise.nom}</div>
                   <div style={{ color:'#8C9BAB', fontSize:11 }}>{entreprise.forme_juridique} · SIREN {fmtSiren(siren)} · {entreprise.ville}</div>
                 </div>
                 <button onClick={() => { setEntreprise(null); setSirenInput('') }}
@@ -394,7 +394,7 @@ export default function EntreprisePage() {
               {onglet === 'general' && (
                 <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-                  <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'18px 20px' }}>
+                  <div style={{ background:'#fff', borderRadius:12, border:'1px solid var(--border-light)', padding:'18px 20px' }}>
                     <div style={{ fontSize:13, fontWeight:500, color:'#1A1A1A', marginBottom:16 }}>Informations légales</div>
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
                       {[
@@ -411,7 +411,7 @@ export default function EntreprisePage() {
                     <div style={{ marginTop:14 }}>{lbl('Siège social')}{val(entreprise.adresse || `${entreprise.code_postal} ${entreprise.ville}`)}</div>
                   </div>
 
-                  <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'18px 20px' }}>
+                  <div style={{ background:'#fff', borderRadius:12, border:'1px solid var(--border-light)', padding:'18px 20px' }}>
                     <div style={{ fontSize:13, fontWeight:500, color:'#1A1A1A', marginBottom:16 }}>Dirigeants</div>
                     {entreprise.dirigeants.length === 0 ? (
                       <div style={{ fontSize:12, color:'#8C9BAB', fontStyle:'italic' }}>Aucun dirigeant renseigné</div>
@@ -443,7 +443,7 @@ export default function EntreprisePage() {
                         const kpis = exKpis[ex.annee]
                         if (!kpis) return null
                         return (
-                          <div key={ex.annee} style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', borderTop:'3px solid #B8A98A', padding:'18px 20px' }}>
+                          <div key={ex.annee} style={{ background:'#fff', borderRadius:12, border:'1px solid var(--border-light)', borderTop:'3px solid #B8A98A', padding:'18px 20px' }}>
                             <div style={{ fontSize:12, fontWeight:500, color:'#8C9BAB', marginBottom:14, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                               <span>Exercice {ex.annee}</span>
                               <span style={{ fontSize:10, background:'rgba(184,169,138,0.1)', color:'#B8A98A', padding:'2px 8px', borderRadius:4 }}>FEC importé</span>
@@ -475,7 +475,7 @@ export default function EntreprisePage() {
                 <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
 
                   {/* ── Bloc Pennylane ── */}
-                  <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'18px 20px' }}>
+                  <div style={{ background:'#fff', borderRadius:12, border:'1px solid var(--border-light)', padding:'18px 20px' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
                       <div style={{ width:28, height:28, borderRadius:7, background:'rgba(0,153,118,0.1)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#009976" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
@@ -499,7 +499,7 @@ export default function EntreprisePage() {
                               value={pnxSyncAnnee[conn.id] ?? (anneeCourante - 1)}
                               onChange={e => setPnxSyncAnnee(prev => ({ ...prev, [conn.id]: parseInt(e.target.value) }))}
                               disabled={pnxSyncingId === conn.id}
-                              style={{ flex:'0 0 100px', border:'1px solid rgba(0,0,0,0.12)', borderRadius:8, padding:'7px 10px', fontSize:13, fontFamily:'Plus Jakarta Sans,sans-serif', outline:'none', background:'#fff', cursor:'pointer' }}
+                              style={{ flex:'0 0 100px', border:'1px solid rgba(0,0,0,0.12)', borderRadius:8, padding:'7px 10px', fontSize:13, fontFamily:'inherit', outline:'none', background:'#fff', cursor:'pointer' }}
                             >
                               {anneesPnx.map(a => <option key={a} value={a}>{a}</option>)}
                             </select>
@@ -539,7 +539,7 @@ export default function EntreprisePage() {
                           value={pnxToken}
                           onChange={e => setPnxToken(e.target.value)}
                           disabled={pnxConnecting}
-                          style={{ width:'100%', border:'1px solid rgba(0,0,0,0.12)', borderRadius:8, padding:'9px 12px', fontSize:13, fontFamily:'Plus Jakarta Sans,sans-serif', outline:'none', boxSizing:'border-box' as const }}
+                          style={{ width:'100%', border:'1px solid rgba(0,0,0,0.12)', borderRadius:8, padding:'9px 12px', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' as const }}
                         />
                       </div>
                       <button
@@ -564,13 +564,13 @@ export default function EntreprisePage() {
                   </div>
 
                   {/* ── Bloc import manuel + liste des exercices ── */}
-                  <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid rgba(0,0,0,0.06)', padding:'18px 20px' }}>
+                  <div style={{ background:'#fff', borderRadius:12, border:'1px solid var(--border-light)', padding:'18px 20px' }}>
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
                       <div>
                         <div style={{ fontSize:13, fontWeight:500, color:'#1A1A1A', marginBottom:2 }}>Fichiers FEC importés</div>
                         <div style={{ fontSize:11, color:'#8C9BAB' }}>{fecExercices.length} exercice{fecExercices.length > 1 ? 's' : ''} disponible{fecExercices.length > 1 ? 's' : ''}</div>
                       </div>
-                      <label style={{ background:'#1A1A1A', color:'#F2F3F5', borderRadius:8, padding:'8px 16px', fontSize:12, fontWeight:500, cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
+                      <label style={{ background:'#1A1A1A', color:'var(--bg-main)', borderRadius:8, padding:'8px 16px', fontSize:12, fontWeight:500, cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
                         {uploading ? (
                           <>
                             <div style={{ width:12, height:12, border:'1.5px solid rgba(255,255,255,0.3)', borderTop:'1.5px solid #fff', borderRadius:'50%', animation:'spin .7s linear infinite' }}/>
