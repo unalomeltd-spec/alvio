@@ -54,6 +54,7 @@ export default function EntreprisePage() {
   const [pwLoading, setPwLoading] = useState(false)
   const [pwMsg, setPwMsg] = useState('')
   const [showPwForm, setShowPwForm] = useState(false)
+  const [dossierOpen, setDossierOpen] = useState(false)
 
   // ── Pennylane ──
   const [pnxConnections, setPnxConnections] = useState<PennylaneConnection[]>([])
@@ -375,6 +376,17 @@ export default function EntreprisePage() {
     </div>
   )
 
+  // Extrait la date de clôture depuis le nom_fichier Pennylane (ex. Pennylane_FEC_2024-10-01_2025-09-30.txt)
+  // ou renvoie l'année comme fallback pour les FEC manuels
+  const fmtDateCloture = (f: FecExercice): string => {
+    const match = f.nom_fichier.match(/_(\d{4}-\d{2}-\d{2})\.txt$/)
+    if (match) {
+      const [y, m, d] = match[1].split('-')
+      return `${d}/${m}/${y}`
+    }
+    return String(f.annee)
+  }
+
   const lbl = (t: string) => <div style={{ fontSize:10, fontWeight:500, color:'#8C9BAB', textTransform:'uppercase' as const, letterSpacing:'.06em', marginBottom:3 }}>{t}</div>
   const val = (t: string) => <div style={{ fontSize:13, color:'var(--text-primary)', fontWeight:500 }}>{t || '—'}</div>
 
@@ -388,32 +400,56 @@ export default function EntreprisePage() {
         </div>
 
         <div style={{ flex:1, padding:24, overflowY:'auto' }}>
-          {/* Barre de dossiers — basculer entre dossiers + en créer un nouveau */}
-          <div style={{ maxWidth:960, display:'flex', alignItems:'center', gap:8, marginBottom:16, flexWrap:'wrap' as const }}>
-            <span style={{ fontSize:10, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase' as const, letterSpacing:'.08em', marginRight:4 }}>Dossiers</span>
-            {companies.map(c => {
-              const actif = c.id === activeId
-              const supprimable = !c.is_default && companies.length > 1
-              return (
-                <div key={c.id} style={{ display:'flex', alignItems:'center', borderRadius:7, border:'1px solid var(--border-light)', background: actif ? 'var(--alvio-champagne-subtle)' : 'var(--bg-card)', overflow:'hidden' }}>
-                  <button onClick={() => setActiveId(c.id)}
-                    style={{ fontSize:12, fontWeight:500, padding:'5px 12px', border:'none', background:'transparent', color: actif ? 'var(--text-primary)' : 'var(--text-secondary)', cursor:'pointer' }}>
-                    {c.nom}
-                  </button>
-                  {supprimable && (
-                    <button onClick={() => handleDeleteDossier(c.id, c.nom)} title="Supprimer ce dossier"
-                      style={{ display:'flex', alignItems:'center', padding:'5px 8px 5px 2px', border:'none', background:'transparent', color: actif ? 'rgba(255,255,255,0.6)' : '#8C9BAB', cursor:'pointer' }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
-                    </button>
-                  )}
-                </div>
-              )
-            })}
-            <button onClick={handleNewDossier} disabled={creatingDossier}
-              style={{ fontSize:12, fontWeight:500, padding:'5px 12px', borderRadius:7, border:'0.5px dashed rgba(0,0,0,0.2)', background:'transparent', color:'#8C9BAB', cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              {creatingDossier ? '...' : 'Nouveau dossier'}
-            </button>
+          {/* Sélecteur de dossier — dropdown */}
+          <div style={{ maxWidth:960, display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
+            <span style={{ fontSize:10, fontWeight:600, color:'#8C9BAB', textTransform:'uppercase' as const, letterSpacing:'.08em' }}>Dossier</span>
+            <div style={{ position:'relative' }}>
+              <button
+                onClick={() => setDossierOpen(o => !o)}
+                style={{ display:'flex', alignItems:'center', gap:7, background:'var(--bg-card)', border:'1px solid var(--border-light)', borderRadius:7, padding:'5px 11px', fontSize:12, fontWeight:500, color:'var(--text-primary)', cursor:'pointer', whiteSpace:'nowrap' as const, maxWidth:280 }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--alvio-champagne)" strokeWidth="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' as const }}>
+                  {activeCompany?.nom || 'Dossier'}
+                </span>
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transition:'transform 0.2s', transform: dossierOpen ? 'rotate(180deg)' : 'none', flexShrink:0 }}>
+                  <path d="M2 3.5L5 6.5L8 3.5" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </button>
+              {dossierOpen && (
+                <>
+                  <div onClick={() => setDossierOpen(false)} style={{ position:'fixed', inset:0, zIndex:99 }} />
+                  <div style={{ position:'absolute', top:'100%', left:0, marginTop:6, background:'var(--bg-card)', border:'1px solid var(--border-light)', borderRadius:10, zIndex:100, minWidth:240, boxShadow:'0 8px 24px rgba(0,0,0,0.08)', overflow:'hidden' }}>
+                    <div style={{ padding:'10px 14px 6px', fontSize:10, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase' as const, letterSpacing:'.08em' }}>Dossiers</div>
+                    {companies.map(c => {
+                      const actif = c.id === activeId
+                      const supprimable = !c.is_default && companies.length > 1
+                      return (
+                        <div key={c.id} style={{ display:'flex', alignItems:'center', padding:'8px 14px', background: actif ? 'var(--alvio-champagne-subtle)' : 'transparent' }}>
+                          <div onClick={() => { setActiveId(c.id); setDossierOpen(false) }} style={{ flex:1, fontSize:12, cursor:'pointer', color: actif ? 'var(--alvio-champagne-dark)' : 'var(--text-primary)', fontWeight: actif ? 500 : 400 }}>
+                            <div>{c.nom}</div>
+                            {c.siren && <div style={{ fontSize:10, color:'var(--text-muted)' }}>{fmtSiren(c.siren)}</div>}
+                          </div>
+                          {supprimable && (
+                            <button onClick={() => { setDossierOpen(false); handleDeleteDossier(c.id, c.nom) }}
+                              title="Supprimer" style={{ background:'transparent', border:'none', cursor:'pointer', padding:'2px 4px', color:'#D85A30', display:'flex', alignItems:'center' }}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                    <div style={{ borderTop:'1px solid var(--border-light)', padding:'6px 8px' }}>
+                      <button onClick={() => { setDossierOpen(false); handleNewDossier() }} disabled={creatingDossier}
+                        style={{ width:'100%', fontSize:12, fontWeight:500, padding:'7px 10px', borderRadius:7, border:'0.5px dashed rgba(0,0,0,0.15)', background:'transparent', color:'#8C9BAB', cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        {creatingDossier ? '...' : 'Nouveau dossier'}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
           {!entreprise ? (
             <div style={{ maxWidth:480, margin:'40px auto', background:'#fff', borderRadius:12, border:'1px solid var(--border-light)', padding:'18px 20px' }}>
@@ -691,7 +727,7 @@ export default function EntreprisePage() {
                         </div>
                         {fecExercices.map(f => (
                           <div key={f.annee} style={{ display:'grid', gridTemplateColumns:'80px 1fr 140px 100px', padding:'11px 12px', borderBottom:'0.5px solid rgba(0,0,0,0.04)', alignItems:'center' }}>
-                            <div style={{ fontSize:13, fontWeight:500, color:'var(--text-primary)' }}>{f.annee}</div>
+                            <div style={{ fontSize:13, fontWeight:500, color:'var(--text-primary)' }}>{fmtDateCloture(f)}</div>
                             <div style={{ fontSize:12, color:'#8C9BAB', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' as const }}>{f.nom_fichier}</div>
                             <div style={{ fontSize:12, color:'#8C9BAB' }}>{f.nb_ecritures.toLocaleString('fr-FR')} lignes</div>
                             <div style={{ display:'flex', justifyContent:'flex-end' }}>
