@@ -36,7 +36,6 @@ export default function EntreprisePage() {
   )
   const [fecExercices, setFecExercices] = useState<FecExercice[]>([])
   const [siren, setSiren] = useState(() => activeCompany?.siren || '')
-  const [chargement, setChargement] = useState(false)
   const [sirenInput, setSirenInput] = useState(() => activeCompany?.siren || '')
   const [sirenLoading, setSirenLoading] = useState(false)
   const [sirenError, setSirenError] = useState('')
@@ -149,7 +148,8 @@ export default function EntreprisePage() {
       setUserEmail(user.email || '')
       if (loading) return  // attend la résolution du dossier actif
       if (!activeId || !activeCompany) return  // pas de dossier disponible
-      setChargement(true)
+      // La fiche est déjà affichée (lazy init depuis le contexte hydraté) :
+      // on charge FEC + connexions en arrière-plan SANS blanchir la page.
       try {
         // Fiche entreprise depuis le dossier actif (companies.entreprise / siren)
         const ent = (activeCompany?.entreprise as EntrepriseInfo | null) || null
@@ -169,7 +169,6 @@ export default function EntreprisePage() {
         await rechargerFec(activeId)
         await rechargerConnexions(activeId)
       } catch (e) { console.error(e) }
-      finally { setChargement(false) }
     }
     charger()
   }, [activeId, activeCompany, loading])
@@ -378,13 +377,6 @@ export default function EntreprisePage() {
     } catch (e) { console.error(e) }
     finally { setDeletingAnnee(null) }
   }
-
-  if (chargement || loading) return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg-main)', alignItems:'center', justifyContent:'center' }}>
-      <div style={{ width:36, height:36, border:'2px solid var(--bg-main)', borderTop:'2px solid #B8A98A', borderRadius:'50%', animation:'spin .8s linear infinite' }}/>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-    </div>
-  )
 
   // Extrait la date de clôture depuis le nom_fichier Pennylane (ex. Pennylane_FEC_2024-10-01_2025-09-30.txt)
   // ou renvoie l'année comme fallback pour les FEC manuels
