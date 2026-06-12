@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { createClient } from '@/lib/supabase/server'
+import { CompanyProvider, type Company } from '@/contexts/CompanyProvider'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -21,10 +23,34 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+// Charge les dossiers de l'utilisateur CÔTÉ SERVEUR (client authentifié, RLS).
+// Renvoie [] si pas de session (ex. page /login) — sans erreur.
+async function getInitialCompanies(): Promise<Company[]> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return []
+    const { data } = await supabase
+      .from('companies')
+      .select('id, nom, siren, entreprise, is_default')
+      .eq('user_id', user.id)
+      .order('is_default', { ascending: false })
+      .order('created_at', { ascending: true })
+    return (data || []) as Company[]
+  } catch {
+    return []
+  }
+}
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const initialCompanies = await getInitialCompanies()
   return (
     <html lang="fr" className={inter.className}>
-      <body>{children}</body>
+      <body>
+        <CompanyProvider initialCompanies={initialCompanies}>
+          {children}
+        </CompanyProvider>
+      </body>
     </html>
   )
 }

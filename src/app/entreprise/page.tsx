@@ -39,13 +39,14 @@ export default function EntreprisePage() {
   const [sirenError, setSirenError] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [erreurSave, setErreurSave] = useState('')
   const [onglet, setOnglet] = useState<'general' | 'fec' | 'securite'>('general')
   const [uploading, setUploading] = useState(false)
   const [uploadMsg, setUploadMsg] = useState('')
   const [deletingAnnee, setDeletingAnnee] = useState<number | null>(null)
   const [exKpis, setExKpis] = useState<Record<number,{ca:number;mb:number;tauxMb:number;ebe:number;tauxEbe:number;rnet:number;treso:number}>>({})
   const [userId, setUserId] = useState<string | null>(null)
-  const { companies, activeId, activeCompany, setActiveId, loading } = useActiveCompany()
+  const { companies, activeId, activeCompany, setActiveId, refresh, loading } = useActiveCompany()
   const [creatingDossier, setCreatingDossier] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [userEmail, setUserEmail] = useState('')
@@ -186,20 +187,19 @@ export default function EntreprisePage() {
 
   const handleSave = async () => {
     const cid = activeId || activeCompany?.id
-    if (!entreprise || !cid) {
-      alert('Impossible d\'enregistrer : aucun dossier actif (cid=' + cid + ')')
-      return
-    }
-    setSaving(true)
+    if (!entreprise || !cid) { setErreurSave('Aucun dossier actif'); return }
+    setSaving(true); setErreurSave('')
     try {
       const { error } = await supabase.from('companies').update(
         { siren: sirenInput, entreprise, nom: entreprise.nom || 'Mon entreprise', updated_at: new Date().toISOString() }
       ).eq('id', cid)
-      if (error) { alert('Erreur enregistrement : ' + error.message); setSaving(false); return }
+      if (error) { setErreurSave('Erreur : ' + error.message); setSaving(false); return }
       setSiren(sirenInput)
       setSaved(true)
+      // Met à jour la liste partagée (nom du dossier dans le sélecteur) sans recharger.
+      await refresh()
       setTimeout(() => setSaved(false), 3000)
-    } catch (e: any) { console.error(e); alert('Exception : ' + (e?.message || e)) }
+    } catch (e: any) { console.error(e); setErreurSave('Erreur inattendue') }
     finally { setSaving(false) }
   }
 
@@ -211,10 +211,10 @@ export default function EntreprisePage() {
         .insert({ user_id: userId, nom: 'Nouveau dossier', is_default: false })
         .select('id').single()
       if (!error && data) {
-        // Bascule sur le nouveau dossier puis recharge : le hook reprend la liste
-        // complète (avec le nouveau dossier) et affiche le formulaire SIREN.
-        setActiveId(data.id)        // persiste le dossier actif (localStorage)
-        window.location.reload()
+        // Recharge la liste partagée puis bascule sur le nouveau dossier — sans reload.
+        await refresh()
+        setActiveId(data.id)
+        setCreatingDossier(false)
       } else {
         setCreatingDossier(false)
       }
@@ -228,12 +228,12 @@ export default function EntreprisePage() {
     if (!window.confirm(`Supprimer le dossier « ${nom} » ? Ses FEC et sa connexion Pennylane seront définitivement supprimés.`)) return
     try {
       await supabase.from('companies').delete().eq('id', companyId)
-      // Si on supprimait le dossier actif, on bascule sur le dossier par défaut
+      // Si on supprimait le dossier actif, bascule sur un autre avant de rafraîchir.
       if (companyId === activeId) {
         const fallback = companies.find(c => c.is_default && c.id !== companyId) || companies.find(c => c.id !== companyId)
         if (fallback) setActiveId(fallback.id)
       }
-      window.location.reload()
+      await refresh()
     } catch (e) { console.error(e) }
   }
 
@@ -802,10 +802,17 @@ export default function EntreprisePage() {
               )}
 
               {entreprise && (
-                <button onClick={handleSave} disabled={saving || saved}
-                  style={{ background: saved ? 'var(--success)' : 'var(--alvio-champagne)', color: saved ? '#fff' : 'var(--brand-dark)', border:'none', borderRadius:8, padding:11, fontSize:13, fontWeight:500, cursor: saving || saved ? 'default' : 'pointer', transition:'background .2s' }}>
-                  {saving ? 'Enregistrement...' : saved ? 'Enregistré ✓' : 'Enregistrer les modifications'}
-                </button>
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  <button onClick={handleSave} disabled={saving || saved}
+                    style={{ background: saved ? 'var(--success)' : 'var(--alvio-champagne)', color: saved ? '#fff' : 'var(--brand-dark)', border:'none', borderRadius:8, padding:11, fontSize:13, fontWeight:500, cursor: saving || saved ? 'default' : 'pointer', transition:'background .2s' }}>
+                    {saving ? 'Enregistrement...' : saved ? 'Enregistré ✓' : 'Enregistrer les modifications'}
+                  </button>
+                  {erreurSave && (
+                    <div style={{ background:'rgba(180,35,24,0.06)', border:'1px solid rgba(180,35,24,0.2)', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#B42318' }}>
+                      {erreurSave}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}
