@@ -223,6 +223,53 @@ function filtrerParPeriode(lignes: LigneFEC[], dd: string, df: string){
   return lignes.filter(l => { if (!l.EcritureDate) return true; const d = normaliserDate(String(l.EcritureDate)); if (d.length !== 8) return true; return d >= a && d <= b })
 }
 
+// ─── Agrégats dashboard (vivant) ─────────────────────────────────
+// Mensuel : produits (classe 7) et charges (classe 6) par mois, signe natif
+// (produit = crédit − débit, charge = débit − crédit), cohérent avec le moteur v6.
+// On réutilise EXACTEMENT les exclusions de la balance (AN 6/7, 8/9, OD de clôture)
+// pour ne jamais double-compter le résultat.
+const MOIS_LABELS = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc']
+function buildMensuel(lignes: LigneFEC[], ecrituresCloture: Set<string>) {
+  const prod = new Array(12).fill(0)
+  const chg = new Array(12).fill(0)
+  for (const raw of lignes) {
+    const l = parseLigne(raw)
+    if (!l) continue
+    const classe = l.compteNum[0]
+    if (classe !== '6' && classe !== '7') continue
+    if (l.journal === 'AN') continue
+    if (ecrituresCloture.has(`${l.journal}#${l.ecritureNum}`)) continue
+    const d = normaliserDate(String(raw.EcritureDate || ''))
+    if (d.length !== 8) continue
+    const m = parseInt(d.slice(4, 6), 10) - 1
+    if (m < 0 || m > 11) continue
+    if (classe === '7') prod[m] += l.credit - l.debit
+    else chg[m] += l.debit - l.credit
+  }
+  return MOIS_LABELS.map((label, i) => ({ mois: i + 1, label, produits: r(prod[i]), charges: r(chg[i]) }))
+}
+
+// Ventilation des charges par nature — branchée sur les agrégats du moteur
+// (classification PCG via @/lib/pcg-reference). Aucun préfixe en dur.
+// Les variations de stocks sont nettées dans « Achats consommés ». Buckets négatifs
+// (ex. variation de stock favorable) ramenés à 0 pour le donut.
+function buildChargesParNature(a: Aggregats) {
+  const buckets = [
+    { key: 'achats',         label: 'Achats consommés',           montant: a.achatsMarchandises + a.variationStocksMarch + a.achatsMatieres + a.variationStocksMat + a.autresAchats },
+    { key: 'externes',       label: 'Charges externes',           montant: a.servicesExt },
+    { key: 'personnel',      label: 'Charges de personnel',       montant: a.chargesPersonnel },
+    { key: 'impots',         label: 'Impôts & taxes',             montant: a.impotsTaxes },
+    { key: 'dotations',      label: 'Dotations & amortissements', montant: a.dotationsExploit + a.dotationsFin + a.dotationsExcep },
+    { key: 'financieres',    label: 'Charges financières',        montant: a.chargesFinancieres },
+    { key: 'autres',         label: 'Autres charges',             montant: a.autresChargesExploit + a.chargesExcep + a.vncActifsCedes },
+    { key: 'impotBenefices', label: 'Impôt sur les bénéfices',    montant: a.participation + a.is },
+  ]
+  return buckets
+    .map(b => ({ key: b.key, label: b.label, montant: r(Math.max(0, b.montant)) }))
+    .filter(b => b.montant > 0)
+    .sort((x, y) => y.montant - x.montant)
+}
+
 // ─── Pipeline ────────────────────────────────────────────────────
 function calculer(lignes: LigneFEC[], annee: number, dateDebut?: string, dateFin?: string) {
   const lignesFiltrees = (dateDebut && dateFin) ? filtrerParPeriode(lignes, dateDebut, dateFin) : lignes
@@ -266,7 +313,10 @@ function calculer(lignes: LigneFEC[], annee: number, dateDebut?: string, dateFin
     tresorerieFinExercice: bilan.actif.tresorerie,
   })
 
-  return { annee, periode, regime, gate, controles, sig, cr, bilan, sante }
+  const mensuel = buildMensuel(lignesFiltrees, ecrituresClotureNum)
+  const chargesParNature = buildChargesParNature(aggregats)
+
+  return { annee, periode, regime, gate, controles, sig, cr, bilan, sante, mensuel, chargesParNature }
 }
 
 export async function GET(request: NextRequest) {

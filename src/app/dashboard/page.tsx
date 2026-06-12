@@ -22,6 +22,27 @@ export default function DashboardPage() {
   const { activeId } = useActiveCompany()
   const periodeParams = periodeTab === 'perso' && dateDebut && dateFin
     ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
+  const [deltas, setDeltas] = useState<{ deltaCA?: number; deltaMb?: number; deltaEbe?: number; deltaRnet?: number }>({})
+
+  const pctDelta = (n: number, p: number) => (!p ? undefined : Math.round(((n - p) / Math.abs(p)) * 1000) / 10)
+
+  const loadEtats = async (annee: number, params: string, withN1: boolean) => {
+    const res = await fetch(`/api/etats?annee=${annee}&company_id=${activeId}${params}`)
+    if (!res.ok) return
+    const dN = await res.json()
+    setEtats(dN)
+    if (withN1 && dN?.sig) {
+      const resN1 = await fetch(`/api/etats?annee=${annee - 1}&company_id=${activeId}`)
+      const dN1 = resN1.ok ? await resN1.json() : null
+      const s = dN.sig, p = dN1?.sig
+      setDeltas(p ? {
+        deltaCA: pctDelta(s.ca, p.ca),
+        deltaMb: pctDelta(s.margeCommerciale, p.margeCommerciale),
+        deltaEbe: pctDelta(s.ebe, p.ebe),
+        deltaRnet: pctDelta(s.resultatNet, p.resultatNet),
+      } : {})
+    } else setDeltas({})
+  }
 
   useEffect(() => {
     const load = async () => {
@@ -36,8 +57,7 @@ export default function DashboardPage() {
         setAnnees(anneesDispos)
         const annee = anneesDispos.includes(anneeActive) ? anneeActive : anneesDispos[0]
         if (annee !== anneeActive) setAnneeActive(annee)
-        const res = await fetch(`/api/etats?annee=${annee}&company_id=${activeId}${periodeParams}`)
-        if (res.ok) setEtats(await res.json())
+        await loadEtats(annee, periodeParams, periodeTab !== 'perso')
       }
       setLoading(false)
     }
@@ -48,17 +68,14 @@ export default function DashboardPage() {
     if (!activeId || !annees.length) return
     const params = periodeTab === 'perso' && dateDebut && dateFin
       ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
-    fetch(`/api/etats?annee=${anneeActive}&company_id=${activeId}${params}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => d && setEtats(d))
+    loadEtats(anneeActive, params, periodeTab !== 'perso')
   }, [periodeTab, dateDebut, dateFin])
 
   const changerAnnee = async (annee: number) => {
     setAnneeActive(annee)
     const params = periodeTab === 'perso' && dateDebut && dateFin
       ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
-    const res = await fetch(`/api/etats?annee=${annee}&company_id=${activeId}${params}`)
-    if (res.ok) setEtats(await res.json())
+    await loadEtats(annee, params, periodeTab !== 'perso')
   }
 
   function toIso(d: string): string {
@@ -100,8 +117,7 @@ export default function DashboardPage() {
       setAnnees(prev => [...new Set([annee, ...prev])].sort((a,b) => b-a))
       setAnneeActive(annee)
       setUserId(user.id)
-      const res = await fetch(`/api/etats?annee=${annee}&company_id=${activeId}${periodeParams}`)
-      if (res.ok) setEtats(await res.json())
+      await loadEtats(annee, periodeParams, periodeTab !== 'perso')
     } catch(e) { setErreur('Erreur lors du traitement du FEC') }
     finally { setUploading(false) }
   }
@@ -187,13 +203,18 @@ export default function DashboardPage() {
                     chiffreAffaires: sig.ca,
                     resultatNet: sig.resultatNet,
                     tresorerie: bilan?.actif?.tresorerie ?? 0,
-                    bfr: (bilan?.actif?.creancesClients ?? 0) - (bilan?.passif?.dettesFournisseurs ?? 0),
                     margebrute: sig.margeCommerciale,
                     tauxMb: sig.tauxMb,
                     ebitda: sig.ebe,
                     tauxEbe: sig.tauxEbe,
                     detteFournisseurs: bilan?.passif?.dettesFournisseurs ?? 0,
                     creancesClients: bilan?.actif?.creancesClients ?? 0,
+                    deltaCA: deltas.deltaCA,
+                    deltaMb: deltas.deltaMb,
+                    deltaEbe: deltas.deltaEbe,
+                    deltaRnet: deltas.deltaRnet,
+                    mensuel: etats?.mensuel,
+                    chargesParNature: etats?.chargesParNature,
                   }}
                 />
 
