@@ -1,15 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/client'
 import Sidebar from '@/components/Sidebar'
 import { parseFEC, detectAnnee } from '@/lib/fec-parser'
 import { useActiveCompany } from '@/hooks/useActiveCompany'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+// Client cookie partagé (même session que le reste de l'app).
+const supabase = createClient()
 
 interface EntrepriseInfo {
   siren: string; siret_siege: string; nom: string; forme_juridique: string
