@@ -165,11 +165,81 @@ function MockupAlvioBlock() {
   )
 }
 
+
+function MockupCR() {
+  const rows = [
+    { label: 'Production vendue',         v: '1 240 000 €', v1: '1 108 000 €', pct: '+12%', pos: true },
+    { label: 'Services extérieurs',       v: '   188 000 €', v1: '   162 000 €', pct: '+16%', pos: false },
+    { label: 'Charges de personnel',      v: '   310 000 €', v1: '   278 000 €', pct: '+12%', pos: false },
+    { label: 'Dotations amortissements',  v: '    62 000 €', v1: '    48 000 €', pct: '+29%', pos: false },
+  ]
+  return (
+    <div style={{ background: 'var(--bg-card)', borderRadius: 10, border: '1px solid var(--border-light)', overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 44px', background: 'var(--alvio-champagne-subtle)', padding: '6px 12px', gap: 0 }}>
+        {['Libellé', 'Exercice', 'N-1', 'Var.'].map(h => (
+          <div key={h} style={{ fontSize: 7, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', textAlign: h !== 'Libellé' ? 'right' as const : 'left' as const }}>{h}</div>
+        ))}
+      </div>
+      {rows.map((r, i) => (
+        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 44px', padding: '6px 12px', borderBottom: '0.5px solid var(--border-soft)', alignItems: 'center' }}>
+          <div style={{ fontSize: 9, color: 'var(--text-primary)' }}>{r.label}</div>
+          <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-primary)', textAlign: 'right' as const }}>{r.v.trim()}</div>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', textAlign: 'right' as const }}>{r.v1.trim()}</div>
+          <div style={{ fontSize: 9, fontWeight: 600, color: r.pos ? 'var(--success)' : 'var(--danger)', textAlign: 'right' as const }}>{r.pct}</div>
+        </div>
+      ))}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 44px', padding: '7px 12px', background: 'var(--brand-dark)', alignItems: 'center' }}>
+        <div style={{ fontSize: 9, fontWeight: 600, color: '#F8F8F6' }}>Résultat net</div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--success)', textAlign: 'right' as const }}>74 000 €</div>
+        <div style={{ fontSize: 9, color: 'var(--text-muted)', textAlign: 'right' as const }}>48 000 €</div>
+        <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--success)', textAlign: 'right' as const }}>+54%</div>
+      </div>
+    </div>
+  )
+}
+
+function MockupSante() {
+  const buckets = [
+    { label: '0 – 30 j',  v: '42 000 €', pct: 30, color: 'var(--success)' },
+    { label: '31 – 60 j', v: '18 000 €', pct: 13, color: 'var(--warning)' },
+    { label: '> 60 j',    v: '8 000 €',  pct: 6,  color: 'var(--danger)'  },
+  ]
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+        {[
+          { l: 'Trésorerie', v: '142 000 €', s: 'Situation saine', c: 'var(--success)' },
+          { l: 'Délai clients', v: '28 j', s: 'Comptes 411', c: 'var(--text-secondary)' },
+          { l: 'Délai fournisseurs', v: '45 j', s: 'Comptes 401', c: 'var(--warning)' },
+        ].map((k, i) => (
+          <div key={i} className="alvio-card" style={{ padding: '9px 10px' }}>
+            <div style={{ fontSize: 7, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 3 }}>{k.l}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{k.v}</div>
+            <div style={{ fontSize: 8, color: k.c, marginTop: 1 }}>{k.s}</div>
+          </div>
+        ))}
+      </div>
+      <div className="alvio-card" style={{ padding: '10px 12px' }}>
+        <div style={{ fontSize: 8, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>Créances clients — par ancienneté</div>
+        {buckets.map((b, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+            <div style={{ fontSize: 8, color: 'var(--text-secondary)', width: 44, flexShrink: 0 }}>{b.label}</div>
+            <div style={{ flex: 1, height: 4, background: 'var(--border-light)', borderRadius: 2 }}>
+              <div style={{ width: `${b.pct * 2}%`, height: 4, background: b.color, borderRadius: 2 }} />
+            </div>
+            <div style={{ fontSize: 8, fontWeight: 600, color: b.color, width: 54, textAlign: 'right' as const }}>{b.v}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Page principale ───────────────────────────────────────────────────────
 
 export default function LandingPage() {
   const [visible, setVisible] = useState(false)
-  const [activeTab, setActiveTab] = useState<'sig' | 'bilan' | 'cashflow'>('sig')
+  const [activeTab, setActiveTab] = useState<'rentabilite' | 'cr' | 'sante'>('rentabilite')
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 100)
@@ -177,7 +247,7 @@ export default function LandingPage() {
   }, [])
 
   useEffect(() => {
-    const tabs: ('sig' | 'bilan' | 'cashflow')[] = ['sig', 'bilan', 'cashflow']
+    const tabs: ('rentabilite' | 'cr' | 'sante')[] = ['rentabilite', 'cr', 'sante']
     let i = 0
     const id = setInterval(() => { i = (i + 1) % tabs.length; setActiveTab(tabs[i]) }, 3500)
     return () => clearInterval(id)
@@ -269,7 +339,7 @@ export default function LandingPage() {
           {/* Topbar simulée */}
           <div style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border-light)', padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>
-              {activeTab === 'sig' ? 'Rentabilité' : activeTab === 'bilan' ? 'Bilan' : 'Trésorerie'}
+              {activeTab === 'rentabilite' ? 'Rentabilité' : activeTab === 'cr' ? 'Compte de résultat' : 'Santé financière'}
             </span>
             <div className="alvio-pill alvio-pill--active" style={{ fontSize: 9, padding: '2px 8px' }}>
               <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--alvio-champagne)" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
@@ -281,7 +351,7 @@ export default function LandingPage() {
 
           {/* Tabs */}
           <div style={{ padding: '8px 14px 0', display: 'flex', gap: 2, borderBottom: '1px solid var(--border-light)' }}>
-            {([['sig','SIG'], ['bilan','Bilan'], ['cashflow','Trésorerie']] as const).map(([tab, label]) => (
+            {([['rentabilite','Rentabilité'], ['cr','Compte de résultat'], ['sante','Santé financière']] as const).map(([tab, label]) => (
               <button key={tab} className="land-tab-btn" onClick={() => setActiveTab(tab)} style={{
                 color: activeTab === tab ? 'var(--text-primary)' : 'var(--text-muted)',
                 borderBottom: activeTab === tab ? '2px solid var(--alvio-champagne)' : '2px solid transparent',
@@ -294,26 +364,9 @@ export default function LandingPage() {
           {/* Contenu */}
           <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10, minHeight: 340, background: 'var(--bg-page)' }}>
             <MockupAlvioBlock />
-            {activeTab === 'sig'      && <MockupSIG />}
-            {activeTab === 'bilan'    && <MockupBilan />}
-            {activeTab === 'cashflow' && (
-              <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                  {[
-                    { l: 'Trésorerie nette', v: '142 000 €', s: '18 j de CA',  c: 'var(--success)' },
-                    { l: 'Créances clients', v: '210 000 €', s: '61 j de CA',  c: 'var(--text-muted)' },
-                    { l: 'BFR',              v: '68 000 €',  s: 'À financer',  c: 'var(--warning)' },
-                  ].map((k, i) => (
-                    <div key={i} className="alvio-card" style={{ padding: '9px 10px', borderTop: `2px solid ${k.c}` }}>
-                      <div style={{ fontSize: 7, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 3 }}>{k.l}</div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{k.v}</div>
-                      <div style={{ fontSize: 8, color: k.c, marginTop: 1 }}>{k.s}</div>
-                    </div>
-                  ))}
-                </div>
-                <MockupCashflow />
-              </>
-            )}
+            {activeTab === 'rentabilite' && <MockupSIG />}
+            {activeTab === 'cr'          && <MockupCR />}
+            {activeTab === 'sante'       && <MockupSante />}
           </div>
         </div>
       </section>
