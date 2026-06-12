@@ -28,11 +28,16 @@ const fmtSiren = (s: string) => s.replace(/^(\d{3})(\d{3})(\d{3})$/, '$1 $2 $3')
 const fmtSiret = (s: string) => s.replace(/^(\d{3})(\d{3})(\d{3})(\d{5})$/, '$1 $2 $3 $4')
 
 export default function EntreprisePage() {
-  const [entreprise, setEntreprise] = useState<EntrepriseInfo | null>(null)
+  // Hook EN PREMIER : activeCompany est hydraté côté serveur, donc disponible
+  // dès le 1er rendu → on initialise la fiche directement, sans flash.
+  const { companies, activeId, activeCompany, setActiveId, refresh, loading } = useActiveCompany()
+  const [entreprise, setEntreprise] = useState<EntrepriseInfo | null>(
+    () => (activeCompany?.entreprise as EntrepriseInfo | null) || null
+  )
   const [fecExercices, setFecExercices] = useState<FecExercice[]>([])
-  const [siren, setSiren] = useState('')
+  const [siren, setSiren] = useState(() => activeCompany?.siren || '')
   const [chargement, setChargement] = useState(false)
-  const [sirenInput, setSirenInput] = useState('')
+  const [sirenInput, setSirenInput] = useState(() => activeCompany?.siren || '')
   const [sirenLoading, setSirenLoading] = useState(false)
   const [sirenError, setSirenError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -44,7 +49,7 @@ export default function EntreprisePage() {
   const [deletingAnnee, setDeletingAnnee] = useState<number | null>(null)
   const [exKpis, setExKpis] = useState<Record<number,{ca:number;mb:number;tauxMb:number;ebe:number;tauxEbe:number;rnet:number;treso:number}>>({})
   const [userId, setUserId] = useState<string | null>(null)
-  const { companies, activeId, activeCompany, setActiveId, refresh, loading } = useActiveCompany()
+
   const [creatingDossier, setCreatingDossier] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [userEmail, setUserEmail] = useState('')
@@ -374,7 +379,7 @@ export default function EntreprisePage() {
     finally { setDeletingAnnee(null) }
   }
 
-  if (chargement) return (
+  if (chargement || loading) return (
     <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg-main)', alignItems:'center', justifyContent:'center' }}>
       <div style={{ width:36, height:36, border:'2px solid var(--bg-main)', borderTop:'2px solid #B8A98A', borderRadius:'50%', animation:'spin .8s linear infinite' }}/>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
