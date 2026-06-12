@@ -33,7 +33,7 @@ export default function EntreprisePage() {
   const [entreprise, setEntreprise] = useState<EntrepriseInfo | null>(null)
   const [fecExercices, setFecExercices] = useState<FecExercice[]>([])
   const [siren, setSiren] = useState('')
-  const [chargement, setChargement] = useState(false)
+  const [chargement, setChargement] = useState(true)
   const [sirenInput, setSirenInput] = useState('')
   const [sirenLoading, setSirenLoading] = useState(false)
   const [sirenError, setSirenError] = useState('')
@@ -284,7 +284,7 @@ export default function EntreprisePage() {
   }
 
   const handlePnxConnect = async () => {
-    if (!userId) return
+    if (!userId || !activeId) { setPnxMsg('Erreur : aucun dossier actif'); return }
     if (!pnxToken.trim()) { setPnxMsg('Erreur : token Pennylane requis'); return }
     setPnxConnecting(true); setPnxMsg('')
     try {
