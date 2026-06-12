@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/client'
 import AppSidebar from '@/components/Sidebar'
 import TopBar from '@/components/TopBar'
 import { usePeriod } from '@/hooks/usePeriod'
@@ -8,7 +8,7 @@ import { useActiveCompany } from '@/hooks/useActiveCompany'
 import SanteBriefing from '@/components/SanteBriefing'
 import type { HealthMetrics, AgingResult, TiersOutstanding, AgeBucket } from '@/lib/health-metrics'
 
-const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+const sb = createClient()
 
 const fmt = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' €'
 const fmtK = (n: number) => {

@@ -1,8 +1,8 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/client'
 
-const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+const sb = createClient()
 
 const KEY = 'alvio-active-company'
 const EVENT = 'alvio-company-changed'
@@ -31,8 +31,9 @@ function persistActiveId(id: string) {
 // pour relancer leurs fetchs (rafraîchissement sans reload).
 export function useActiveCompany() {
   const [companies, setCompanies] = useState<Company[]>([])
-  // Démarrer à null — on ne fait JAMAIS confiance au localStorage sans vérification
-  const [activeId, _setActiveId] = useState<string | null>(null)
+  // Init synchrone depuis le localStorage (évite le trou où activeId=null au 1er rendu).
+  // La validation ci-dessous purge l'ID s'il n'appartient pas à l'utilisateur connecté.
+  const [activeId, _setActiveId] = useState<string | null>(loadActiveId())
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

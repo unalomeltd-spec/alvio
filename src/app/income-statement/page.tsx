@@ -1,13 +1,13 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/client'
 import Sidebar from '@/components/Sidebar'
 import TopBar from '@/components/TopBar'
 import { usePeriod } from '@/hooks/usePeriod'
 import { useActiveCompany } from '@/hooks/useActiveCompany'
 import AlvioInsight from '@/components/AlvioInsight'
 
-const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+const sb = createClient()
 const fmt = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' €'
 const fmtP = (n: number) => (Math.round(n * 10) / 10).toFixed(1) + ' %'
 

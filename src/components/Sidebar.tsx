@@ -8,6 +8,7 @@ import {
   Settings, CheckSquare, LogOut, ChevronLeft,
 } from 'lucide-react'
 import { useActiveCompany } from '@/hooks/useActiveCompany'
+import { createClient } from '@/lib/supabase/client'
 
 interface NavItemDef {
   href: string
@@ -99,11 +100,7 @@ export default function Sidebar({ activePage: _a }: { activePage?: string } = {}
     let mounted = true
     ;(async () => {
       try {
-        const { createBrowserClient } = await import('@supabase/ssr')
-        const supabase = createBrowserClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        )
+        const supabase = createClient()
         const { data: { session } } = await supabase.auth.getSession()
         if (!mounted || !session?.user?.email) return
         setUserEmail(session.user.email)
@@ -114,13 +111,11 @@ export default function Sidebar({ activePage: _a }: { activePage?: string } = {}
 
   const handleLogout = async () => {
     try {
-      const { createBrowserClient } = await import('@supabase/ssr')
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      )
+      const supabase = createClient()
       await supabase.auth.signOut()
     } catch { /* silent */ }
+    // Purge le dossier actif pour ne pas polluer la prochaine session
+    try { localStorage.removeItem('alvio-active-company') } catch {}
     window.location.href = '/login'
   }
 
