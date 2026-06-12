@@ -33,7 +33,7 @@ export default function EntreprisePage() {
   const [entreprise, setEntreprise] = useState<EntrepriseInfo | null>(null)
   const [fecExercices, setFecExercices] = useState<FecExercice[]>([])
   const [siren, setSiren] = useState('')
-  const [chargement, setChargement] = useState(true)
+  const [chargement, setChargement] = useState(false)
   const [sirenInput, setSirenInput] = useState('')
   const [sirenLoading, setSirenLoading] = useState(false)
   const [sirenError, setSirenError] = useState('')
