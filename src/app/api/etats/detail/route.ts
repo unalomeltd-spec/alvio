@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 
 // ============================================================
 // ALVIO — Drill down comptable
@@ -18,12 +18,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ erreur: 'annee, company_id et prefixes requis' }, { status: 400 })
   }
 
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  // Client authentifié : session via cookies, RLS appliquées.
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
 
-  const { data, error } = await admin
+  // RLS : ne renvoie la ligne que si le dossier appartient à l'utilisateur connecté.
+  const { data, error } = await supabase
     .from('fec_exercices')
     .select('ecritures')
     .eq('company_id', companyId)

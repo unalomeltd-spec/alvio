@@ -7,7 +7,7 @@
 //   • Gate dur : équilibre FEC strict 0,00 + réconciliation résultat. Bloque SIG/IA si KO.
 // Validé au centime contre Pennylane sur BONVARLET, CARGONAUTES, PATHTECH.
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 import { classifyCompte, getDestinationEffective, type Destination } from '@/lib/pcg-reference'
 import { computeHealthMetrics, type FecLine } from '@/lib/health-metrics'
 
@@ -278,8 +278,15 @@ export async function GET(request: NextRequest) {
   if (!annee || !companyId) return NextResponse.json({ erreur: 'annee et company_id requis' }, { status: 400 })
   if (annee < 2000 || annee > 2030) return NextResponse.json({ erreur: 'annee invalide (2000–2030)' }, { status: 400 })
   if ((dateDebut && !dateFin) || (!dateDebut && dateFin)) return NextResponse.json({ erreur: 'dateDebut et dateFin doivent être fournis ensemble' }, { status: 400 })
-  const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-  const { data, error } = await admin.from('fec_exercices').select('ecritures').eq('company_id', companyId).eq('annee', annee).single()
+
+  // Client authentifié : la session vient des cookies, les RLS s'appliquent.
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
+
+  // RLS : cette lecture ne renvoie la ligne QUE si le dossier appartient à l'utilisateur.
+  // Un company_id falsifié → aucune ligne → 404. Isolation garantie par la base.
+  const { data, error } = await supabase.from('fec_exercices').select('ecritures').eq('company_id', companyId).eq('annee', annee).single()
   if (error || !data) return NextResponse.json({ erreur: 'FEC introuvable' }, { status: 404 })
   try {
     const ecritures = data.ecritures

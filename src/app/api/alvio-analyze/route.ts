@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 export interface AnalyzePayload {
@@ -71,6 +72,11 @@ function analyseLocale(payload: AnalyzePayload): string {
 // ── Handler ────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
+    // Authentification requise (la route ne lit pas la base mais ne doit pas être ouverte).
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ erreur: 'Non authentifié' }, { status: 401 })
+
     const payload: AnalyzePayload = await request.json()
     return NextResponse.json({ analyse: analyseLocale(payload), source: 'local' })
   } catch {
