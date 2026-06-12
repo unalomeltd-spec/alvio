@@ -115,23 +115,32 @@ export function parseFEC(text: string): ParseResult {
 }
 
 /**
- * Détermine l'année de l'exercice à partir des dates d'écriture,
- * avec repli sur le nom de fichier (pattern FECYYYY) puis l'année courante.
+ * Détermine l'année de l'exercice à partir de la DATE DE CLÔTURE,
+ * c'est-à-dire la dernière date d'écriture présente dans le FEC.
+ * Pour les exercices à cheval (ex. oct 2024 → sept 2025), renvoie 2025.
+ * Repli sur le nom de fichier (pattern FECYYYY) puis l'année courante.
  */
 export function detectAnnee(lignes: LigneFEC[], fileName: string): number {
-  const dateStr = lignes.find(l => l.EcritureDate && l.EcritureDate.length >= 8)?.EcritureDate || ''
-  let annee: number
-  if (dateStr.includes('-')) {
-    annee = parseInt(dateStr.slice(0, 4))
-  } else if (dateStr.length === 8) {
-    annee = parseInt(dateStr.slice(0, 4))
-  } else {
+  const dates = lignes
+    .map(l => l.EcritureDate)
+    .filter(d => d && d.length >= 8)
+
+  let annee: number | null = null
+
+  if (dates.length > 0) {
+    const normalize = (d: string) =>
+      d.includes('-') ? d.slice(0, 10) : `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`
+    const maxDate = dates.map(normalize).reduce((a, b) => (a > b ? a : b))
+    const parsed = parseInt(maxDate.slice(0, 4))
+    if (!isNaN(parsed) && parsed >= 2000 && parsed <= 2100) {
+      annee = parsed
+    }
+  }
+
+  if (annee === null) {
     const match = fileName.match(/FEC(\d{4})/)
     annee = match ? parseInt(match[1]) : new Date().getFullYear()
   }
-  if (isNaN(annee) || annee < 2000 || annee > 2100) {
-    const match = fileName.match(/FEC(\d{4})/)
-    annee = match ? parseInt(match[1]) : new Date().getFullYear()
-  }
+
   return annee
 }
