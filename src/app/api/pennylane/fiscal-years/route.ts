@@ -4,7 +4,7 @@
 // GET /api/pennylane/fiscal-years?connection_id=...&user_id=...
 //
 // Récupère les exercices fiscaux réels depuis l'API Pennylane.
-// Déchiffre le token via Vault (identique à /sync), ne l'expose jamais.
+// Réponse Pennylane réelle : { items: [{ id, start, finish, status }] }
 // ─────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -21,7 +21,6 @@ export interface FiscalYear {
   id: string
   start_date: string   // 'YYYY-MM-DD'
   end_date: string     // 'YYYY-MM-DD'
-  opened: boolean
   closed: boolean
 }
 
@@ -38,7 +37,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // ── Récupérer + déchiffrer le token (même pattern que /sync) ──────────
+    // ── Récupérer + déchiffrer le token ───────────────────────────────────
     const { data: conn, error: connError } = await supabaseAdmin
       .from('pennylane_connections')
       .select('token_secret_id')
@@ -75,10 +74,16 @@ export async function GET(req: NextRequest) {
 
     const data = await res.json()
 
-    // L'API renvoie soit un tableau directement, soit { fiscal_years: [...] }
-    const fiscalYears: FiscalYear[] = Array.isArray(data)
-      ? data
-      : (data.fiscal_years ?? [])
+    // Réponse réelle Pennylane : { items: [{ id, start, finish, status }] }
+    const raw: any[] = Array.isArray(data) ? data : (data.items ?? data.fiscal_years ?? [])
+
+    // Normaliser vers le format interne Alvio
+    const fiscalYears: FiscalYear[] = raw.map(fy => ({
+      id: String(fy.id),
+      start_date: fy.start ?? fy.start_date,
+      end_date: fy.finish ?? fy.end_date,
+      closed: (fy.status ?? '') === 'closed',
+    }))
 
     // Trier du plus récent au plus ancien
     fiscalYears.sort((a, b) => b.start_date.localeCompare(a.start_date))
