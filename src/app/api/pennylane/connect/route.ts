@@ -35,8 +35,15 @@ export async function POST(req: NextRequest) {
   }
 
   const { user_id, company_id, token } = body
+  console.log('[pennylane/connect] user_id:', user_id, '| company_id:', company_id)
   if (!user_id || !company_id || !token) {
     return NextResponse.json({ erreur: 'Paramètres requis : user_id, company_id, token' }, { status: 400 })
+  }
+  // Vérifier que company_id existe bien en base
+  const { data: companyCheck, error: companyCheckError } = await supabaseAdmin
+    .from('companies').select('id').eq('id', company_id).single()
+  if (!companyCheck) {
+    return NextResponse.json({ erreur: `company_id introuvable en base : ${company_id}` }, { status: 400 })
   }
   const cleanToken = token.trim()
 
@@ -53,7 +60,7 @@ export async function POST(req: NextRequest) {
     const companyRegNo = me?.company?.reg_no || ''
 
     // ── Étape 2 : stocker le token chiffré dans Vault ─────────────────────
-    const secretName = `pennylane_token_${company_id}_${Date.now()}`
+    const secretName = `pennylane_token_${user_id}_${companyRegNo || Date.now()}`
     const { data: secretId, error: vaultError } = await supabaseAdmin
       .rpc('alvio_vault_create', {
         p_secret: cleanToken,
@@ -79,7 +86,7 @@ export async function POST(req: NextRequest) {
           token_secret_id: secretId,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: 'company_id' }
+        { onConflict: 'company_id,company_reg_no' }
       )
       .select('id, company_name, company_reg_no')
       .single()
