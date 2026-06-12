@@ -185,16 +185,22 @@ export default function EntreprisePage() {
   }
 
   const handleSave = async () => {
-    if (!entreprise || !activeId) return
+    const cid = activeId || activeCompany?.id
+    if (!entreprise || !cid) {
+      alert('Impossible d\'enregistrer : aucun dossier actif (cid=' + cid + ')')
+      return
+    }
     setSaving(true)
     try {
-      await supabase.from('companies').update(
+      const { error } = await supabase.from('companies').update(
         { siren: sirenInput, entreprise, nom: entreprise.nom || 'Mon entreprise', updated_at: new Date().toISOString() }
-      ).eq('id', activeId)
-      setSiren(sirenInput); setSaved(true)
-      // Recharge pour que la barre de dossiers reflète le nouveau nom du dossier
-      setTimeout(() => window.location.reload(), 600)
-    } catch (e) { console.error(e); setSaving(false) }
+      ).eq('id', cid)
+      if (error) { alert('Erreur enregistrement : ' + error.message); setSaving(false); return }
+      setSiren(sirenInput)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (e: any) { console.error(e); alert('Exception : ' + (e?.message || e)) }
+    finally { setSaving(false) }
   }
 
   const handleNewDossier = async () => {
@@ -795,9 +801,9 @@ export default function EntreprisePage() {
                 </div>
               )}
 
-              {sirenInput !== siren && entreprise && (
-                <button onClick={handleSave} disabled={saving}
-                  style={{ background: saved ? 'var(--success)' : 'var(--alvio-champagne)', color: saved ? '#fff' : 'var(--brand-dark)', border:'none', borderRadius:8, padding:11, fontSize:13, fontWeight:500, cursor:'pointer' }}>
+              {entreprise && (
+                <button onClick={handleSave} disabled={saving || saved}
+                  style={{ background: saved ? 'var(--success)' : 'var(--alvio-champagne)', color: saved ? '#fff' : 'var(--brand-dark)', border:'none', borderRadius:8, padding:11, fontSize:13, fontWeight:500, cursor: saving || saved ? 'default' : 'pointer', transition:'background .2s' }}>
                   {saving ? 'Enregistrement...' : saved ? 'Enregistré ✓' : 'Enregistrer les modifications'}
                 </button>
               )}
