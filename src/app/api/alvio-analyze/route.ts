@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 export interface AnalyzePayload {
-  page: 'profitability' | 'income-statement' | 'balance-sheet' | 'cash-flow' | 'dashboard'
+  page: 'profitability' | 'income-statement' | 'sante-financiere' | 'dashboard'
   indicateurs: Record<string, number>
   periode?: string
   annee?: number
