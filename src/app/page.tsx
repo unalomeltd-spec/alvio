@@ -346,7 +346,7 @@ export default function LandingPage() {
               Votre entreprise
             </div>
             <div className="alvio-pill" style={{ fontSize: 9, padding: '2px 8px' }}>Exercice 2025 ▾</div>
-            {activeTab !== 'cashflow' && <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>· vs Exercice 2024 ▾</span>}
+            {activeTab !== 'sante' && <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>· vs Exercice 2024 ▾</span>}
           </div>
 
           {/* Tabs */}
