@@ -75,17 +75,38 @@ export default function SanteBriefing({ sante, sig }: SanteBriefingProps) {
   }
 
   return (
-    <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid rgba(0,0,0,0.06)', padding: '16px 18px', marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B8A98A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 12h4l2 5 4-12 2 7h6" />
+    <div style={{
+      marginBottom: 16,
+      background: '#fff',
+      border: '0.5px solid rgba(184,169,138,0.3)',
+      borderLeft: '3px solid #B8A98A',
+      borderRadius: '0 12px 12px 0',
+      padding: '16px 20px',
+    }}>
+      {/* Header — identique AlvioInsight */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <div style={{
+          width: 32, height: 32, borderRadius: '50%',
+          background: 'rgba(184,169,138,0.12)',
+          border: '0.5px solid rgba(184,169,138,0.3)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
+          <svg width="15" height="15" viewBox="0 0 28 28" fill="none">
+            <path d="M14 2C14 2 8 8 8 14C8 18.4 10.6 22.2 14 24C17.4 22.2 20 18.4 20 14C20 8 14 2 14 2Z" fill="#B8A98A"/>
+            <circle cx="14" cy="14" r="2.5" fill="#fff"/>
           </svg>
         </div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#1A1A1A' }}>Alvio</div>
-        <span style={{ fontSize: 10, color: '#1D9E75', background: 'rgba(29,158,117,0.08)', border: '0.5px solid rgba(29,158,117,0.2)', padding: '2px 8px', borderRadius: 10 }}>CFO Digital</span>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A', letterSpacing: '0.02em' }}>Alvio</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#1D9E75' }} />
+            <span style={{ fontSize: 10, color: '#8C9BAB' }}>CFO Digital</span>
+          </div>
+        </div>
       </div>
-      <div style={{ fontSize: 13, color: '#3A3A3A', lineHeight: 1.7 }}>
+
+      {/* Contenu */}
+      <div style={{ fontSize: 13, color: '#1A1A1A', lineHeight: 1.7, letterSpacing: '0.01em' }}>
         {phrases.join(' ')}
       </div>
       {fraicheur && (
