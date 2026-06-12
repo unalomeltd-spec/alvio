@@ -43,26 +43,17 @@ function analyseLocale(payload: AnalyzePayload): string {
     return `${ctx}, ${pts.join('. ')}.`
   }
 
-  if (page === 'balance-sheet') {
-    const pts: string[] = []
-    if (i.treso > 0) pts.push(`trésorerie positive de ${fmt(i.treso)}`)
-    else pts.push(`trésorerie négative de ${fmt(i.treso)} — tension de liquidité`)
-    if (i.bfr > i.treso * 1.5) pts.push(`BFR élevé (${fmt(i.bfr)}) par rapport à la trésorerie`)
-    else if (i.bfr < 0) pts.push(`BFR négatif (${fmt(i.bfr)}) — vos fournisseurs vous financent`)
-    else pts.push(`BFR de ${fmt(i.bfr)}`)
-    return `${ctx}, ${pts.join('. ')}.`
-  }
-
-  if (page === 'cash-flow') {
+  if (page === 'sante-financiere') {
     const pts: string[] = []
     if (i.treso < 0) pts.push(`trésorerie négative de ${fmt(i.treso)} — situation critique`)
     else if (i.treso > i.ca * 0.2) pts.push(`trésorerie confortable à ${fmt(i.treso)}, soit ${fmtP(i.treso / i.ca * 100)} du CA`)
     else pts.push(`trésorerie de ${fmt(i.treso)}`)
+    if (i.bfr < 0) pts.push(`BFR négatif (${fmt(i.bfr)}) — vos fournisseurs vous financent`)
+    else if (i.bfr > i.treso * 1.5) pts.push(`BFR élevé (${fmt(i.bfr)}) par rapport à la trésorerie`)
+    else pts.push(`BFR de ${fmt(i.bfr)}`)
     const jours = i.ebe > 0 ? Math.round(i.treso / (i.ebe / 365)) : 0
     if (jours > 90) pts.push(`${jours} jours de trésorerie — excellente visibilité`)
-    else if (jours < 30) pts.push(`seulement ${jours} jours de trésorerie — renforcer la position de cash`)
-    else pts.push(`${jours} jours de trésorerie`)
-    if (i.bfr > 0) pts.push(`BFR positif de ${fmt(i.bfr)} à financer`)
+    else if (jours < 30 && jours >= 0) pts.push(`seulement ${jours} jours de trésorerie — renforcer la position de cash`)
     return `${ctx}, ${pts.join('. ')}.`
   }
 
