@@ -129,16 +129,19 @@ function ProduitsChargesChart({ data }: { data: MensuelPoint[] }) {
     <div style={{ position: 'relative' }}>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Produits et charges par mois">
         <line x1="8" y1={base} x2={W - 8} y2={base} stroke="var(--border-light)" strokeWidth="1" />
+        {hover !== null && (
+          <rect x={slot * hover + 3} y="4" width={slot - 6} height={H - 26} rx="6" fill="var(--alvio-champagne-subtle)" />
+        )}
         {data.map((d, i) => {
           const cx = slot * i + slot / 2;
           const ph = d.produits > 0 ? (d.produits / max) * upMax : 0;
           const ch = d.charges > 0 ? (d.charges / max) * dnMax : 0;
-          const dim = hover !== null && hover !== i;
+          const on = hover === i;
           return (
-            <g key={i} style={{ opacity: dim ? 0.32 : 1, transition: 'opacity .18s ease' }}>
-              <rect x={cx - bw / 2} y={base - ph} width={bw} height={ph} rx="4" fill={COL.gold}
+            <g key={i}>
+              <rect x={cx - bw / 2} y={base - ph} width={bw} height={ph} rx="4" fill={on ? COL.goldD : COL.gold}
                 className="alvio-bar" style={{ transformBox: 'fill-box', transformOrigin: 'bottom', transform: vis ? 'scaleY(1)' : 'scaleY(0)', transitionDelay: `${i * 40}ms` }} />
-              <rect x={cx - bw / 2} y={base} width={bw} height={ch} rx="4" fill={COL.arg}
+              <rect x={cx - bw / 2} y={base} width={bw} height={ch} rx="4" fill={on ? '#7C8A99' : COL.arg}
                 className="alvio-bar" style={{ transformBox: 'fill-box', transformOrigin: 'top', transform: vis ? 'scaleY(1)' : 'scaleY(0)', transitionDelay: `${i * 40 + 60}ms` }} />
             </g>
           );
@@ -184,16 +187,16 @@ function DonutCharges({ data }: { data: ChargeNature[] }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16 }}>
       <svg width="150" height="150" viewBox="0 0 160 160" style={{ flexShrink: 0 }} role="img" aria-label="Répartition des charges par nature">
-        <g transform="rotate(-90 80 80)" fill="none" strokeWidth="18">
+        <g transform="rotate(-90 80 80)" fill="none">
           {segs.map((s, i) => (
             <circle key={i} cx={cx} cy={cy} r={r} stroke={s.color}
               className="alvio-donut-seg"
+              strokeWidth={hover === i ? 22 : 18}
               onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}
               style={{
                 strokeDasharray: vis ? `${s.arc} ${C - s.arc}` : `0 ${C}`,
                 strokeDashoffset: -s.start,
                 transitionDelay: `${i * 90}ms`,
-                opacity: hover === null || hover === i ? 1 : 0.3,
               }} />
           ))}
         </g>
@@ -203,7 +206,7 @@ function DonutCharges({ data }: { data: ChargeNature[] }) {
       <div style={{ flex: '1 1 150px', minWidth: 150, display: 'flex', flexDirection: 'column', gap: 8 }}>
         {segs.map((s, i) => (
           <div key={i} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'default', opacity: hover === null || hover === i ? 1 : 0.45, transition: 'opacity .15s ease' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'default', padding: '3px 6px', margin: '0 -6px', borderRadius: 8, background: hover === i ? 'var(--alvio-champagne-subtle)' : 'transparent', transition: 'background .15s ease' }}>
             <span style={{ width: 9, height: 9, borderRadius: 2, background: s.color, flexShrink: 0 }} />
             <span style={{ color: 'var(--text-secondary)', flex: 1 }}>{s.label}</span>
             <span style={{ fontWeight: 600, color: 'var(--text-primary)' }} className="alvio-num">{Math.round(s.frac * 100)} %</span>
