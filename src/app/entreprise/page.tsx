@@ -188,17 +188,28 @@ export default function EntreprisePage() {
   }
 
   const handleSave = async () => {
-    const cid = activeId || activeCompany?.id
-    if (!entreprise || !cid) { setErreurSave('Aucun dossier actif'); return }
+    if (!entreprise) { setErreurSave('Renseignez d\'abord votre SIREN.'); return }
+    if (!userId) { setErreurSave('Session expirée — reconnectez-vous.'); return }
     setSaving(true); setErreurSave('')
     try {
-      const { error } = await supabase.from('companies').update(
-        { siren: sirenInput, entreprise, nom: entreprise.nom || 'Mon entreprise', updated_at: new Date().toISOString() }
-      ).eq('id', cid)
-      if (error) { setErreurSave('Erreur : ' + error.message); setSaving(false); return }
+      const cid = activeId || activeCompany?.id
+      if (cid) {
+        // Dossier existant : mise à jour de la fiche.
+        const { error } = await supabase.from('companies').update(
+          { siren: sirenInput, entreprise, nom: entreprise.nom || 'Mon entreprise', updated_at: new Date().toISOString() }
+        ).eq('id', cid)
+        if (error) { setErreurSave('Erreur : ' + error.message); setSaving(false); return }
+      } else {
+        // Aucun dossier (nouveau compte) : le SIREN crée le premier dossier.
+        const { data, error } = await supabase.from('companies').insert(
+          { user_id: userId, siren: sirenInput, entreprise, nom: entreprise.nom || 'Mon entreprise', is_default: true }
+        ).select('id').single()
+        if (error || !data) { setErreurSave('Erreur : ' + (error?.message || 'création du dossier impossible')); setSaving(false); return }
+        setActiveId(data.id)  // bascule sur le dossier fraîchement créé
+      }
       setSiren(sirenInput)
       setSaved(true)
-      // Met à jour la liste partagée (nom du dossier dans le sélecteur) sans recharger.
+      // Recharge la liste partagée (sélecteur + dossier actif) sans recharger la page.
       await refresh()
       setTimeout(() => setSaved(false), 3000)
     } catch (e: any) { console.error(e); setErreurSave('Erreur inattendue') }
