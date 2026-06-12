@@ -191,11 +191,10 @@ export default function EntreprisePage() {
       await supabase.from('companies').update(
         { siren: sirenInput, entreprise, nom: entreprise.nom || 'Mon entreprise', updated_at: new Date().toISOString() }
       ).eq('id', activeId)
-      setSiren(sirenInput)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
-    } catch (e) { console.error(e) }
-    finally { setSaving(false) }
+      setSiren(sirenInput); setSaved(true)
+      // Recharge pour que la barre de dossiers reflète le nouveau nom du dossier
+      setTimeout(() => window.location.reload(), 600)
+    } catch (e) { console.error(e); setSaving(false) }
   }
 
   const handleNewDossier = async () => {
@@ -796,9 +795,9 @@ export default function EntreprisePage() {
                 </div>
               )}
 
-              {entreprise && (
-                <button onClick={handleSave} disabled={saving || saved}
-                  style={{ background: saved ? '#0F8A5F' : 'var(--alvio-champagne)', color: saved ? '#fff' : 'var(--brand-dark)', border:'none', borderRadius:8, padding:11, fontSize:13, fontWeight:500, cursor: saving || saved ? 'default' : 'pointer', transition:'background .2s' }}>
+              {sirenInput !== siren && entreprise && (
+                <button onClick={handleSave} disabled={saving}
+                  style={{ background: saved ? 'var(--success)' : 'var(--alvio-champagne)', color: saved ? '#fff' : 'var(--brand-dark)', border:'none', borderRadius:8, padding:11, fontSize:13, fontWeight:500, cursor:'pointer' }}>
                   {saving ? 'Enregistrement...' : saved ? 'Enregistré ✓' : 'Enregistrer les modifications'}
                 </button>
               )}
