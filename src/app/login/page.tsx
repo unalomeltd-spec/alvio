@@ -43,7 +43,30 @@ export default function LoginPage() {
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       padding: 24,
     }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'); * { box-sizing:border-box; margin:0; padding:0; }`}</style>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        * { box-sizing:border-box; margin:0; padding:0; }
+        .login-input {
+          width:100%; border:1px solid #ECECEC; border-radius:8px;
+          padding:10px 12px; font-size:13px; color:#242628;
+          background:#fff; outline:none; font-family:inherit;
+          transition:border-color .18s, box-shadow .18s;
+        }
+        .login-input:focus { border-color:#B8A98A; box-shadow:0 0 0 3px rgba(184,169,138,0.12); }
+        .btn-submit {
+          width:100%; background:#B8A98A; color:#1A1A1A;
+          border:none; border-radius:10px; padding:12px;
+          font-size:13px; font-weight:700; cursor:pointer;
+          font-family:inherit; margin-top:4px;
+          transition:background .18s, transform .15s, box-shadow .15s;
+        }
+        .btn-submit:hover:not(:disabled) { background:#A99672; transform:translateY(-1px); box-shadow:0 6px 20px rgba(184,169,138,0.3); }
+        .btn-submit:disabled { opacity:0.65; cursor:not-allowed; }
+        .back-link { font-size:12px; color:#6E7378; text-decoration:none; transition:color .18s; }
+        .back-link:hover { color:#B8A98A; }
+        .switch-btn { background:none; border:none; font-size:12px; font-weight:600; color:#B8A98A; cursor:pointer; font-family:inherit; text-decoration:underline; transition:color .18s; }
+        .switch-btn:hover { color:#A99672; }
+      `}</style>
 
       {/* Logo */}
       <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 32 }}>
@@ -79,32 +102,14 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#242628', marginBottom: 6, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Email</label>
-            <input
-              type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="votre@email.com" required
-              style={{ width: '100%', border: '1px solid #ECECEC', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: '#242628', background: '#fff', outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.2s' }}
-              onFocus={e => (e.target as HTMLElement).style.borderColor = '#B8A98A'}
-              onBlur={e => (e.target as HTMLElement).style.borderColor = '#ECECEC'}
-            />
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#6E7378', marginBottom: 6, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="votre@email.com" required className="login-input" />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#242628', marginBottom: 6, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Mot de passe</label>
-            <input
-              type="password" value={password} onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••" required
-              style={{ width: '100%', border: '1px solid #ECECEC', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: '#242628', background: '#fff', outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.2s' }}
-              onFocus={e => (e.target as HTMLElement).style.borderColor = '#B8A98A'}
-              onBlur={e => (e.target as HTMLElement).style.borderColor = '#ECECEC'}
-            />
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#6E7378', marginBottom: 6, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Mot de passe</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required className="login-input" />
           </div>
-          <button type="submit" disabled={loading} style={{
-            background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 10,
-            padding: '12px', fontSize: 13, fontWeight: 600,
-            cursor: loading ? 'not-allowed' : 'pointer',
-            fontFamily: 'inherit', marginTop: 4,
-            opacity: loading ? 0.7 : 1, transition: 'opacity 0.2s',
-          }}>
+          <button type="submit" disabled={loading} className="btn-submit">
             {loading ? 'Chargement...' : mode === 'login' ? 'Se connecter →' : 'Créer mon compte →'}
           </button>
         </form>
@@ -113,15 +118,13 @@ export default function LoginPage() {
           <span style={{ fontSize: 12, color: '#6E7378' }}>
             {mode === 'login' ? 'Pas encore de compte ? ' : 'Déjà un compte ? '}
           </span>
-          <button
-            onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setErreur(''); setSuccess('') }}
-            style={{ background: 'none', border: 'none', fontSize: 12, fontWeight: 600, color: '#B8A98A', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+          <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setErreur(''); setSuccess('') }} className="switch-btn">
             {mode === 'login' ? 'Créer un compte' : 'Se connecter'}
           </button>
         </div>
       </div>
 
-      <Link href="/" style={{ marginTop: 20, fontSize: 12, color: '#6E7378', textDecoration: 'none' }}>
+      <Link href="/" className="back-link" style={{ marginTop: 20 }}>
         ← Retour à l'accueil
       </Link>
     </div>
