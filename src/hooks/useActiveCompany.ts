@@ -31,7 +31,8 @@ function persistActiveId(id: string) {
 // pour relancer leurs fetchs (rafraîchissement sans reload).
 export function useActiveCompany() {
   const [companies, setCompanies] = useState<Company[]>([])
-  const [activeId, _setActiveId] = useState<string | null>(loadActiveId())
+  // Démarrer à null — on ne fait JAMAIS confiance au localStorage sans vérification
+  const [activeId, _setActiveId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -39,7 +40,11 @@ export function useActiveCompany() {
       setLoading(true)
       try {
         const { data: { user } } = await sb.auth.getUser()
-        if (!user) { setLoading(false); return }
+        if (!user) {
+          // User déconnecté : purger le localStorage
+          try { localStorage.removeItem('alvio-active-company') } catch {}
+          setLoading(false); return
+        }
         const { data } = await sb
           .from('companies')
           .select('id, nom, siren, entreprise, is_default')
@@ -48,11 +53,16 @@ export function useActiveCompany() {
           .order('created_at', { ascending: true })
         const list = (data || []) as Company[]
         setCompanies(list)
+        // Valider le localStorage APRÈS avoir chargé les dossiers du user connecté
         const saved = loadActiveId()
         const validSaved = saved && list.some(c => c.id === saved) ? saved : null
+        if (!validSaved) {
+          // L'ID stocké n'appartient pas à ce user — purger et prendre le fallback
+          try { localStorage.removeItem('alvio-active-company') } catch {}
+        }
         const fallback = list.find(c => c.is_default)?.id || list[0]?.id || null
         const resolved = validSaved || fallback
-        if (resolved && resolved !== activeId) { _setActiveId(resolved); persistActiveId(resolved) }
+        if (resolved) { _setActiveId(resolved); persistActiveId(resolved) }
       } catch (e) { console.error(e) }
       finally { setLoading(false) }
     }
