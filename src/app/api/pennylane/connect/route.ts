@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     const companyRegNo = me?.company?.reg_no || ''
 
     // ── Étape 2 : stocker le token chiffré dans Vault ─────────────────────
-    const secretName = `pennylane_token_${user_id}_${companyRegNo || Date.now()}`
+    const secretName = `pennylane_token_${company_id}_${companyRegNo || Date.now()}_${Date.now()}`
     const { data: secretId, error: vaultError } = await supabaseAdmin
       .rpc('alvio_vault_create', {
         p_secret: cleanToken,
