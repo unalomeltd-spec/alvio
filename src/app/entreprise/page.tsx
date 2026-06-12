@@ -45,7 +45,7 @@ export default function EntreprisePage() {
   const [deletingAnnee, setDeletingAnnee] = useState<number | null>(null)
   const [exKpis, setExKpis] = useState<Record<number,{ca:number;mb:number;tauxMb:number;ebe:number;tauxEbe:number;rnet:number;treso:number}>>({})
   const [userId, setUserId] = useState<string | null>(null)
-  const { companies, activeId, activeCompany, setActiveId } = useActiveCompany()
+  const { companies, activeId, activeCompany, setActiveId, loading } = useActiveCompany()
   const [creatingDossier, setCreatingDossier] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [userEmail, setUserEmail] = useState('')
@@ -143,7 +143,8 @@ export default function EntreprisePage() {
       if (!user) { window.location.href = '/'; return }
       setUserId(user.id)
       setUserEmail(user.email || '')
-      if (!activeId || !activeCompany) return  // attend le dossier actif complet (id + données)
+      if (loading) return  // attend la résolution du dossier actif
+      if (!activeId || !activeCompany) return  // pas de dossier disponible
       setChargement(true)
       try {
         // Fiche entreprise depuis le dossier actif (companies.entreprise / siren)
@@ -167,7 +168,7 @@ export default function EntreprisePage() {
       finally { setChargement(false) }
     }
     charger()
-  }, [activeId, activeCompany])
+  }, [activeId, activeCompany, loading])
 
   const handleSirenLookup = async (v: string) => {
     const clean = v.replace(/\D/g, '').slice(0, 9)
