@@ -61,7 +61,9 @@ export default function EntreprisePage() {
   const [pnxConnecting, setPnxConnecting] = useState(false)
   const [pnxMsg, setPnxMsg] = useState('')
   const [pnxSyncingId, setPnxSyncingId] = useState<string | null>(null)
-  const [pnxSyncAnnee, setPnxSyncAnnee] = useState<Record<string, number>>({})
+  const [pnxSyncPeriod, setPnxSyncPeriod] = useState<Record<string, { start: string; end: string }>>({})
+  const [pnxFiscalYears, setPnxFiscalYears] = useState<Record<string, { id: string; start_date: string; end_date: string }[]>>({})
+  const [pnxFyLoading, setPnxFyLoading] = useState<Record<string, boolean>>({})
   const [pnxDeletingId, setPnxDeletingId] = useState<string | null>(null)
 
   const rechargerFec = async (cid: string) => {
@@ -101,9 +103,37 @@ export default function EntreprisePage() {
       const res = await fetch(`/api/pennylane/connections?company_id=${cid}`)
       if (res.ok) {
         const data = await res.json()
-        setPnxConnections(data.connections || [])
+        const connections = data.connections || []
+        setPnxConnections(connections)
+        // Charger les fiscal years pour chaque connexion
+        for (const conn of connections) {
+          chargerFiscalYears(conn.id)
+        }
       }
     } catch (e) { console.error(e) }
+  }
+
+  const chargerFiscalYears = async (connectionId: string) => {
+    const uid = (await supabase.auth.getUser()).data.user?.id
+    if (!uid) return
+    setPnxFyLoading(prev => ({ ...prev, [connectionId]: true }))
+    try {
+      const res = await fetch(`/api/pennylane/fiscal-years?connection_id=${connectionId}&user_id=${uid}`)
+      if (res.ok) {
+        const data = await res.json()
+        const fy = data.fiscal_years || []
+        setPnxFiscalYears(prev => ({ ...prev, [connectionId]: fy }))
+        // Pré-sélectionner le dernier exercice clos, ou le plus récent
+        const defaut = fy.find((f: any) => f.closed) ?? fy[0]
+        if (defaut) {
+          setPnxSyncPeriod(prev => ({
+            ...prev,
+            [connectionId]: { start: defaut.start_date, end: defaut.end_date },
+          }))
+        }
+      }
+    } catch (e) { console.error(e) }
+    finally { setPnxFyLoading(prev => ({ ...prev, [connectionId]: false })) }
   }
 
   useEffect(() => {
@@ -279,7 +309,11 @@ export default function EntreprisePage() {
 
   const handlePnxSync = async (connectionId: string) => {
     if (!userId) return
-    const annee = pnxSyncAnnee[connectionId] ?? (new Date().getFullYear() - 1)
+    const period = pnxSyncPeriod[connectionId]
+    if (!period) {
+      setPnxMsg('Erreur : aucun exercice sélectionné')
+      return
+    }
     setPnxSyncingId(connectionId); setPnxMsg('')
     try {
       const res = await fetch('/api/pennylane/sync', {
@@ -288,8 +322,8 @@ export default function EntreprisePage() {
         body: JSON.stringify({
           user_id: userId,
           connection_id: connectionId,
-          period_start: `${annee}-01-01`,
-          period_end: `${annee}-12-31`,
+          period_start: period.start,
+          period_end: period.end,
         }),
       })
       const data = await res.json()
@@ -343,9 +377,6 @@ export default function EntreprisePage() {
 
   const lbl = (t: string) => <div style={{ fontSize:10, fontWeight:500, color:'#8C9BAB', textTransform:'uppercase' as const, letterSpacing:'.06em', marginBottom:3 }}>{t}</div>
   const val = (t: string) => <div style={{ fontSize:13, color:'var(--text-primary)', fontWeight:500 }}>{t || '—'}</div>
-
-  const anneeCourante = new Date().getFullYear()
-  const anneesPnx = [anneeCourante, anneeCourante - 1, anneeCourante - 2, anneeCourante - 3, anneeCourante - 4]
 
   return (
     <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg-main)',  }}>
@@ -525,12 +556,25 @@ export default function EntreprisePage() {
                               <div style={{ fontSize:11, color:'#8C9BAB' }}>SIREN {conn.company_reg_no ? fmtSiren(conn.company_reg_no) : '—'}</div>
                             </div>
                             <select
-                              value={pnxSyncAnnee[conn.id] ?? (anneeCourante - 1)}
-                              onChange={e => setPnxSyncAnnee(prev => ({ ...prev, [conn.id]: parseInt(e.target.value) }))}
-                              disabled={pnxSyncingId === conn.id}
-                              style={{ flex:'0 0 100px', border:'1px solid rgba(0,0,0,0.12)', borderRadius:8, padding:'7px 10px', fontSize:13, fontFamily:'inherit', outline:'none', background:'#fff', cursor:'pointer' }}
+                              value={pnxSyncPeriod[conn.id] ? `${pnxSyncPeriod[conn.id].start}|${pnxSyncPeriod[conn.id].end}` : ''}
+                              onChange={e => {
+                                const [start, end] = e.target.value.split('|')
+                                setPnxSyncPeriod(prev => ({ ...prev, [conn.id]: { start, end } }))
+                              }}
+                              disabled={pnxSyncingId === conn.id || pnxFyLoading[conn.id]}
+                              style={{ flex:'0 0 200px', border:'1px solid rgba(0,0,0,0.12)', borderRadius:8, padding:'7px 10px', fontSize:12, fontFamily:'inherit', outline:'none', background:'#fff', cursor:'pointer' }}
                             >
-                              {anneesPnx.map(a => <option key={a} value={a}>{a}</option>)}
+                              {pnxFyLoading[conn.id] && (
+                                <option value="">Chargement...</option>
+                              )}
+                              {!pnxFyLoading[conn.id] && (pnxFiscalYears[conn.id] ?? []).length === 0 && (
+                                <option value="">Aucun exercice trouvé</option>
+                              )}
+                              {(pnxFiscalYears[conn.id] ?? []).map(fy => {
+                                const key = `${fy.start_date}|${fy.end_date}`
+                                const label = `${fy.start_date} → ${fy.end_date}`
+                                return <option key={fy.id} value={key}>{label}</option>
+                              })}
                             </select>
                             <button
                               onClick={() => handlePnxSync(conn.id)}
