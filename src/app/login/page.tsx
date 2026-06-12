@@ -1,13 +1,11 @@
 'use client'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 const sb = createClient()
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [erreur, setErreur] = useState('')
@@ -23,7 +21,9 @@ export default function LoginPage() {
       if (mode === 'login') {
         const { error } = await sb.auth.signInWithPassword({ email, password })
         if (error) { setErreur('Email ou mot de passe incorrect.'); return }
-        router.push('/dashboard')
+        // Rechargement complet de la page : le layout serveur se ré-exécute
+        // AVEC la session fraîche et hydrate le CompanyProvider avec les dossiers.
+        window.location.href = '/dashboard'
       } else {
         const { error } = await sb.auth.signUp({ email, password })
         if (error) { setErreur(error.message); return }
