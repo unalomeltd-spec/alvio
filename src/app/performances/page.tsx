@@ -117,6 +117,7 @@ function KpiCard({ label, pct, val, pctN1, spark }: { label: string; pct: number
       <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
       <div style={{ fontSize: 26, fontWeight: 700, color: up ? OK : 'var(--text-primary)', marginTop: 8, letterSpacing: '-0.02em' }}>{pct != null ? fmtP(pct) : fmt(val)}</div>
       <div style={{ fontSize: 13, color: 'var(--text-primary)', marginTop: 2, fontWeight: 500 }}>{fmt(val)}</div>
+      {pct != null && <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>du chiffre d'affaires</div>}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 8, minHeight: 34 }}>
         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{pctN1 != null ? `vs ${fmtP(pctN1)} N-1` : '—'}</div>
         {SHOW_SPARKLINES && <Spark data={spark} color={up ? OK : DANGER} />}
@@ -861,27 +862,26 @@ export default function PerformancesPage() {
         const prev = d.n1 != null ? Math.abs(d.n1) : null
         return { lib: d.lib, val, prefixKey: d.prefixKey, varPct: prev != null && prev > 0.5 ? ((val - prev) / prev) * 100 : null }
       })
-      .sort((a, b) => b.val - a.val)
+    // ordre PCG préservé — pas de sort()
 
   const chargesPostes: Poste[] = cr ? mkPostes([
-    { lib: 'Charges de personnel (64)', val: cr.chargesExploitation.chargesPersonnel, n1: crN1?.chargesExploitation.chargesPersonnel, prefixKey: 'chargesPersonnel' },
-    { lib: 'Services extérieurs (61/62)', val: cr.chargesExploitation.servicesExt, n1: crN1?.chargesExploitation.servicesExt, prefixKey: 'servicesExt' },
-    { lib: 'Autres achats (60)', val: cr.chargesExploitation.autresAchats, n1: crN1?.chargesExploitation.autresAchats, prefixKey: 'autresAchats' },
-    { lib: 'Achats de marchandises', val: cr.chargesExploitation.achatsMarchandises, n1: crN1?.chargesExploitation.achatsMarchandises, prefixKey: 'achatsMarchandises' },
-    { lib: 'Variation de stocks', val: cr.chargesExploitation.variationStocksMarch, n1: crN1?.chargesExploitation.variationStocksMarch, prefixKey: 'variationStocks' },
-    { lib: 'Dotations & provisions (68)', val: cr.chargesExploitation.dotations, n1: crN1?.chargesExploitation.dotations, prefixKey: 'dotations' },
-    { lib: 'Impôts & taxes (63)', val: cr.chargesExploitation.impotsTaxes, n1: crN1?.chargesExploitation.impotsTaxes, prefixKey: 'impotsTaxes' },
-    { lib: 'Autres charges (65)', val: cr.chargesExploitation.autresCharges, n1: crN1?.chargesExploitation.autresCharges, prefixKey: 'autresCharges' },
+    { lib: 'Achats de marchandises (60)',     val: cr.chargesExploitation.achatsMarchandises,   n1: crN1?.chargesExploitation.achatsMarchandises,   prefixKey: 'achatsMarchandises' },
+    { lib: 'Autres achats & variation stocks (60)', val: cr.chargesExploitation.autresAchats + cr.chargesExploitation.variationStocksMarch, n1: crN1 ? (crN1.chargesExploitation.autresAchats + crN1.chargesExploitation.variationStocksMarch) : undefined, prefixKey: 'autresAchats' },
+    { lib: 'Services extérieurs (61/62)',     val: cr.chargesExploitation.servicesExt,          n1: crN1?.chargesExploitation.servicesExt,          prefixKey: 'servicesExt' },
+    { lib: 'Impôts & taxes (63)',             val: cr.chargesExploitation.impotsTaxes,          n1: crN1?.chargesExploitation.impotsTaxes,          prefixKey: 'impotsTaxes' },
+    { lib: 'Charges de personnel (64)',       val: cr.chargesExploitation.chargesPersonnel,     n1: crN1?.chargesExploitation.chargesPersonnel,     prefixKey: 'chargesPersonnel' },
+    { lib: 'Autres charges de gestion (65)',  val: cr.chargesExploitation.autresCharges,        n1: crN1?.chargesExploitation.autresCharges,        prefixKey: 'autresCharges' },
+    { lib: 'Dotations aux amortissements (68)', val: cr.chargesExploitation.dotations,          n1: crN1?.chargesExploitation.dotations,            prefixKey: 'dotations' },
   ]) : []
 
   const produitsPostes: Poste[] = cr ? mkPostes([
-    { lib: 'Production vendue (biens & services)', val: cr.produitsExploitation.productionVendue, n1: crN1?.produitsExploitation.productionVendue, prefixKey: 'productionVendue' },
-    { lib: 'Ventes de marchandises', val: cr.produitsExploitation.ventesMarchandises, n1: crN1?.produitsExploitation.ventesMarchandises, prefixKey: 'ventesMarchandises' },
-    { lib: 'Production stockée', val: cr.produitsExploitation.productionStockee, n1: crN1?.produitsExploitation.productionStockee, prefixKey: 'productionStockee' },
-    { lib: 'Production immobilisée', val: cr.produitsExploitation.productionImmobilisee, n1: crN1?.produitsExploitation.productionImmobilisee, prefixKey: 'productionImmobilisee' },
-    { lib: "Subventions d'exploitation (74)", val: cr.produitsExploitation.subventions, n1: crN1?.produitsExploitation.subventions, prefixKey: 'subventions' },
-    { lib: 'Autres produits de gestion (75)', val: cr.produitsExploitation.autresProduits, n1: crN1?.produitsExploitation.autresProduits, prefixKey: 'autresProduits' },
-    { lib: 'Reprises sur provisions (78)', val: cr.produitsExploitation.reprises, n1: crN1?.produitsExploitation.reprises, prefixKey: 'reprises' },
+    { lib: 'Ventes de marchandises (70)',          val: cr.produitsExploitation.ventesMarchandises,    n1: crN1?.produitsExploitation.ventesMarchandises,    prefixKey: 'ventesMarchandises' },
+    { lib: 'Production vendue — biens & services (70)', val: cr.produitsExploitation.productionVendue, n1: crN1?.produitsExploitation.productionVendue,      prefixKey: 'productionVendue' },
+    { lib: 'Production stockée (71)',              val: cr.produitsExploitation.productionStockee,     n1: crN1?.produitsExploitation.productionStockee,     prefixKey: 'productionStockee' },
+    { lib: 'Production immobilisée (72)',          val: cr.produitsExploitation.productionImmobilisee, n1: crN1?.produitsExploitation.productionImmobilisee, prefixKey: 'productionImmobilisee' },
+    { lib: "Subventions d'exploitation (74)",      val: cr.produitsExploitation.subventions,           n1: crN1?.produitsExploitation.subventions,           prefixKey: 'subventions' },
+    { lib: 'Autres produits de gestion (75)',      val: cr.produitsExploitation.autresProduits,        n1: crN1?.produitsExploitation.autresProduits,        prefixKey: 'autresProduits' },
+    { lib: 'Reprises sur provisions (78)',         val: cr.produitsExploitation.reprises,              n1: crN1?.produitsExploitation.reprises,              prefixKey: 'reprises' },
   ]) : []
 
   return (
