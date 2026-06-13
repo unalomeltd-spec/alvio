@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import AppSidebar from '@/components/Sidebar'
 import TopBar from '@/components/TopBar'
@@ -10,6 +10,22 @@ import DashboardBriefing from '@/components/DashboardBriefing'
 const sb = createClient()
 const fmt = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' €'
 const fmtP = (n: number) => (Math.round(n * 10) / 10).toFixed(1) + ' %'
+
+function NavCard({ href, label, icon, desc, color }: { href: string; label: string; icon: React.ReactNode; desc: string; color: string }) {
+  const [hov, setHov] = useState(false)
+  return (
+    <a href={href}
+      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+      style={{ background:'var(--bg-card)', borderRadius:14, border:`1px solid ${hov ? '#C6A275' : 'var(--border-light)'}`, padding:'16px 18px', textDecoration:'none', display:'block', transition:'border-color .18s' }}>
+      <div style={{ width:36, height:36, borderRadius:10, background: hov ? 'rgba(198,162,117,0.15)' : 'var(--alvio-champagne-subtle)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:12, transition:'background .18s' }}>{icon}</div>
+      <div style={{ fontSize:12, fontWeight:600, color:'var(--text-primary)', marginBottom:4 }}>{label}</div>
+      <div style={{ fontSize:11, color, fontWeight:500 }}>{desc}</div>
+      <div style={{ marginTop:10, display:'flex', justifyContent:'flex-end' }}>
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="#C6A275" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+      </div>
+    </a>
+  )
+}
 
 export default function DashboardPage() {
   const [etats, setEtats] = useState<any>(null)
@@ -219,38 +235,24 @@ export default function DashboardPage() {
                 />
 
                 {/* Navigation */}
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
                   {[
                     {
-                      href:'/profitability', label:'Rentabilité',
-                      icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><polyline points="2,14 7,8 11,11 18,4" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><polyline points="14,4 18,4 18,8" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+                      href:'/performances', label:'Performances',
+                      icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><polyline points="2,14 7,8 11,11 18,4" stroke="#C6A275" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><polyline points="14,4 18,4 18,8" stroke="#C6A275" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
                       desc:`MB ${fmtP(sig.tauxMb)} · EBITDA ${fmtP(sig.tauxEbe)}`, color:'#B8A98A'
                     },
                     {
-                      href:'/income-statement', label:'Compte de résultat',
-                      icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="2" width="14" height="16" rx="2" stroke="#B8A98A" strokeWidth="1.5"/><line x1="6" y1="7" x2="14" y2="7" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round"/><line x1="6" y1="10.5" x2="14" y2="10.5" stroke="#A99672" strokeWidth="1.2" strokeLinecap="round"/><line x1="6" y1="14" x2="10" y2="14" stroke="#A99672" strokeWidth="1.2" strokeLinecap="round"/></svg>,
-                      desc:`Résultat net ${fmt(sig.resultatNet)}`, color: sig.resultatNet >= 0 ? '#0F8A5F' : '#B42318'
-                    },
-                    {
                       href:'/sante-financiere', label:'Santé financière',
-                      icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 10h3.5l2-5 3 10 2-6 1.5 1H18" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+                      icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 10h3.5l2-5 3 10 2-6 1.5 1H18" stroke="#C6A275" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
                       desc:`Tréso ${fmt(bilan?.actif?.tresorerie ?? 0)}`, color: (bilan?.actif?.tresorerie ?? 0) >= 0 ? '#0F8A5F' : '#B42318'
                     },
                     {
                       href:'/entreprise', label:'Paramétrages',
-                      icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.5" stroke="#B8A98A" strokeWidth="1.5"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.4 4.4l1.4 1.4M14.2 14.2l1.4 1.4M4.4 15.6l1.4-1.4M14.2 5.8l1.4-1.4" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+                      icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.5" stroke="#C6A275" strokeWidth="1.5"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.4 4.4l1.4 1.4M14.2 14.2l1.4 1.4M4.4 15.6l1.4-1.4M14.2 5.8l1.4-1.4" stroke="#C6A275" strokeWidth="1.5" strokeLinecap="round"/></svg>,
                       desc:`Dossiers · FEC · Pennylane`, color:'#9CA3AF'
                     },
-                  ].map(n => (
-                    <a key={n.href} href={n.href} style={{ background:'var(--bg-card)', borderRadius:14, border:'1px solid var(--border-light)', padding:'16px 18px', textDecoration:'none', display:'block', transition:'border-color 0.15s' }}>
-                      <div style={{ width:36, height:36, borderRadius:10, background:'var(--alvio-champagne-subtle)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:12 }}>{n.icon}</div>
-                      <div style={{ fontSize:12, fontWeight:500, color:'var(--text-primary)', marginBottom:4 }}>{n.label}</div>
-                      <div style={{ fontSize:11, color: n.color, fontWeight:500 }}>{n.desc}</div>
-                      <div style={{ marginTop:10, display:'flex', justifyContent:'flex-end' }}>
-                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="#B8A98A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      </div>
-                    </a>
-                  ))}
+                  ].map(n => <NavCard key={n.href} href={n.href} label={n.label} icon={n.icon} desc={n.desc} color={n.color} />)}
                 </div>
               </div>
             )}

@@ -83,14 +83,18 @@ function Sparkline({ points, up }: { points: string; up: boolean }) {
 function KpiCard({ label, value, spark, footer, onClick }: {
   label: string; value: string; spark?: ReactNode; footer: ReactNode; onClick?: () => void;
 }) {
+  const [hovered, setHovered] = useState(false);
   return (
     <button
       type="button"
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       className="alvio-kpi-card"
       style={{
-        background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 14,
+        background: 'var(--bg-card)', border: `1px solid ${hovered ? '#C6A275' : 'var(--border-light)'}`, borderRadius: 14,
         padding: '13px 15px', textAlign: 'left', cursor: 'pointer', width: '100%', fontFamily: 'inherit',
+        transition: 'border-color .18s',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
@@ -302,36 +306,32 @@ export default function DashboardBriefing({ prenom, metrics }: DashboardBriefing
             <KpiCard
               label="Chiffre d'affaires"
               value={formatEur(metrics.chiffreAffaires)}
-              spark={<Sparkline points="0,16 10,15 20,13 30,14 40,9 50,8 60,4" up={(metrics.deltaCA ?? 0) >= 0} />}
               footer={<><DeltaPill value={metrics.deltaCA} /><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>vs N−1</span></>}
-              onClick={() => router.push('/income-statement')}
+              onClick={() => router.push('/performances')}
             />
           </div>
           <div className={cls()} style={rev(120)}>
             <KpiCard
               label="Marge brute"
               value={formatEur(metrics.margebrute)}
-              spark={<Sparkline points="0,15 10,16 20,12 30,11 40,12 50,7 60,5" up={(metrics.deltaMb ?? 0) >= 0} />}
               footer={<><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500 }}>{metrics.tauxMb.toFixed(1)} % du CA</span><DeltaPill value={metrics.deltaMb} /></>}
-              onClick={() => router.push('/profitability')}
+              onClick={() => router.push('/performances')}
             />
           </div>
           <div className={cls()} style={rev(180)}>
             <KpiCard
               label="EBITDA"
               value={formatEur(metrics.ebitda)}
-              spark={<Sparkline points="0,17 10,13 20,14 30,10 40,9 50,6 60,3" up={(metrics.deltaEbe ?? 0) >= 0} />}
               footer={<><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500 }}>{metrics.tauxEbe.toFixed(1)} % du CA</span><DeltaPill value={metrics.deltaEbe} /></>}
-              onClick={() => router.push('/profitability')}
+              onClick={() => router.push('/performances')}
             />
           </div>
           <div className={cls()} style={rev(240)}>
             <KpiCard
               label="Résultat net"
               value={formatEur(metrics.resultatNet)}
-              spark={<Sparkline points="0,16 10,14 20,11 30,12 40,8 50,6 60,2" up={metrics.resultatNet >= 0} />}
               footer={<><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500 }}>{tauxRnet.toFixed(1)} % du CA</span><DeltaPill value={metrics.deltaRnet} /></>}
-              onClick={() => router.push('/profitability')}
+              onClick={() => router.push('/performances')}
             />
           </div>
         </div>
@@ -405,7 +405,7 @@ export default function DashboardBriefing({ prenom, metrics }: DashboardBriefing
         <p style={{ margin: 0, fontSize: 12.5, color: insightDanger ? '#633806' : '#5c4f3a', lineHeight: 1.5, flex: 1 }}>
           <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Analyse Alvio —</strong> {insightText}
         </p>
-        <button onClick={() => router.push('/profitability')} style={{ fontSize: 12, fontWeight: 600, color: insightDanger ? '#B42318' : '#B08D5E', background: 'transparent', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>Voir →</button>
+        <button onClick={() => router.push('/performances')} style={{ fontSize: 12, fontWeight: 600, color: insightDanger ? '#B42318' : '#B08D5E', background: 'transparent', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>Voir →</button>
       </div>
     </>
   );
