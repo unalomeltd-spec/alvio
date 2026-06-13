@@ -284,14 +284,12 @@ function EuroRepartition({ slices, ca, onOpen }: {
   slices: EuroSlice[]; ca: number
   onOpen: (s: EuroSlice) => void
 }) {
-  const total = slices.reduce((s, c) => s + c.val, 0)
-  // Barre proportionnelle
-  let offset = 0
-  const segments = slices.map((s) => {
-    const w = ca > 0 ? (s.val / ca) * 100 : 0
-    const o = offset; offset += w
-    return { ...s, w, o }
-  })
+  // Barre : on n'empile que les parts positives, normalisées entre elles
+  // (les charges peuvent dépasser le CA → un résultat net négatif n'a pas de tranche)
+  const barSlices = slices.filter((s) => s.val > 0)
+  const barTotal = barSlices.reduce((a, s) => a + s.val, 0) || 1
+  const netSlice = slices.find((s) => s.key === 'net')
+  const deficit = netSlice && netSlice.val < 0 ? Math.abs(netSlice.val) : null
 
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 14, padding: 20, display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -300,21 +298,32 @@ function EuroRepartition({ slices, ca, onOpen }: {
         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>Répartition du CA — cliquez un poste pour son évolution →</div>
       </div>
 
-      {/* Barre empilée */}
-      <div style={{ height: 20, borderRadius: 6, overflow: 'hidden', display: 'flex', marginBottom: 16, background: 'var(--bg-main)' }}>
-        {segments.map((s, i) => (
+      {/* Barre empilée (parts positives uniquement) */}
+      <div style={{ height: 20, borderRadius: 6, overflow: 'hidden', display: 'flex', marginBottom: deficit != null ? 8 : 16, background: 'var(--bg-main)' }}>
+        {barSlices.map((s, i) => (
           <div key={i} onClick={() => onOpen(s)} title={s.label}
-            style={{ width: `${s.w}%`, background: s.color, cursor: 'pointer', transition: 'opacity .15s' }}
+            style={{ width: `${(s.val / barTotal) * 100}%`, background: s.color, cursor: 'pointer', transition: 'opacity .15s' }}
             onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = '0.8')}
             onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = '1')} />
         ))}
       </div>
+
+      {/* Note déficit */}
+      {deficit != null && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: 'rgba(203,107,94,0.07)', border: '1px solid rgba(203,107,94,0.18)', borderRadius: 8, padding: '8px 11px', marginBottom: 16 }}>
+          <span style={{ color: DANGER, fontSize: 12, flexShrink: 0, marginTop: 1 }}>!</span>
+          <span style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+            Les charges absorbent la totalité du CA — résultat net déficitaire de <strong style={{ color: DANGER }}>{fmt(deficit)}</strong>.
+          </span>
+        </div>
+      )}
 
       {/* Lignes */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
         {slices.map((s, i) => {
           const pct = ca > 0 ? (s.val / ca) * 100 : 0
           const pos = (s.varPct ?? 0) >= 0
+          const neg = s.val < 0
           return (
             <div key={i} onClick={() => onOpen(s)}
               style={{ display: 'grid', gridTemplateColumns: '10px 1fr 90px 42px', alignItems: 'center', gap: 10, padding: '8px 6px', borderRadius: 7, cursor: 'pointer', transition: 'background .1s' }}
@@ -326,8 +335,8 @@ function EuroRepartition({ slices, ca, onOpen }: {
                 <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>{s.sublabel}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{fmt(s.val)}</div>
-                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{fmtP(pct)}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: neg ? DANGER : 'var(--text-primary)' }}>{fmt(s.val)}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{neg ? '—' : fmtP(pct)}</div>
               </div>
               <div style={{ fontSize: 10, fontWeight: 600, color: s.varPct != null ? (pos ? OK : DANGER) : 'var(--text-muted)', textAlign: 'right' }}>
                 {s.varPct != null ? fmtV(s.varPct) : '—'}
@@ -685,14 +694,19 @@ export default function PerformancesPage() {
       const ebe = months.map((i) => mb[i] + g('p74')[i] - g('p63')[i] - g('p64')[i])
       const rex = months.map((i) => ebe[i] + g('p75')[i] + g('p78')[i] - g('p65')[i] - g('p68')[i])
       const net = months.map((i) => rex[i] + g('p76')[i] + g('p77')[i] - g('p66')[i] - g('p67')[i] - g('p69')[i])
-      return { ca, mb, ebe, rex, net }
+      // Séries pour la bulle « Où va le CA » (montants de charges, positifs)
+      const pers = months.map((i) => g('p64')[i])
+      const ext = months.map((i) => g('p60')[i] + g('p61')[i] + g('p62')[i])
+      const fisc = months.map((i) => g('p63')[i])
+      const dot = months.map((i) => g('p68')[i] + g('p65')[i])
+      return { ca, mb, ebe, rex, net, pers, ext, fisc, dot }
     }
 
     const run = async () => {
       const n = await buildYear(anneeActive)
       const n1 = annees.includes(anneeActive - 1) ? await buildYear(anneeActive - 1) : null
       if (cancel || !n) return
-      const keys: (keyof typeof n)[] = ['ca', 'mb', 'ebe', 'rex', 'net']
+      const keys: (keyof typeof n)[] = ['ca', 'mb', 'ebe', 'rex', 'net', 'pers', 'ext', 'fisc', 'dot']
       const monthly: Record<string, { n: number[]; n1: number[] | null }> = {}
       keys.forEach((k) => { monthly[k] = { n: n[k], n1: n1 ? n1[k] : null } })
       setKpiMonthly(monthly)
@@ -830,7 +844,7 @@ export default function PerformancesPage() {
       { key: 'ext',  label: 'Charges externes',            sublabel: 'Achats & services', val: ext,  varPct: vp(ext, extN1),   color: '#B08D5E' },
       { key: 'fisc', label: 'Fiscalité & taxes',           sublabel: 'Impôts hors IS',    val: fisc, varPct: vp(fisc, fiscN1), color: '#8C9BAB' },
       { key: 'dot',  label: 'Dotations & autres',          sublabel: 'Amortissements',    val: dot,  varPct: vp(dot, dotN1),   color: '#BFC6CC' },
-      { key: 'net',  label: 'Résultat net',                sublabel: 'Ce qui reste',      val: rnet, varPct: vp(rnet, rnetN1), color: rnet >= 0 ? OK : DANGER },
+      { key: 'net',  label: 'Résultat net',                sublabel: rnet >= 0 ? 'Ce qui reste' : 'Déficit', val: rnet, varPct: vp(rnet, rnetN1), color: rnet >= 0 ? OK : DANGER },
     ].filter((s) => Math.abs(s.val) > 0.5)
   })() : []
 
