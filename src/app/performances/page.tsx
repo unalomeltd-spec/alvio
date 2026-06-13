@@ -277,28 +277,65 @@ function IndicatorPanel({ indic, monthly, onClose }: {
   )
 }
 
-/* ── Comparatif N/N-1 ────────────────────────────────────────────────── */
-function CompareList({ rows, mode }: { rows: { label: string; val: number; varPct: number | null }[]; mode: 'val' | 'pct' }) {
-  const maxV = Math.max(...rows.map((r) => Math.abs(r.val)), 1)
+/* ── ★ Bulle « Où va le chiffre d'affaires ? » ───────────────────────── */
+interface EuroSlice { key: string; label: string; sublabel: string; val: number; varPct: number | null; color: string }
+
+function EuroRepartition({ slices, ca, onOpen }: {
+  slices: EuroSlice[]; ca: number
+  onOpen: (s: EuroSlice) => void
+}) {
+  const total = slices.reduce((s, c) => s + c.val, 0)
+  // Barre proportionnelle
+  let offset = 0
+  const segments = slices.map((s) => {
+    const w = ca > 0 ? (s.val / ca) * 100 : 0
+    const o = offset; offset += w
+    return { ...s, w, o }
+  })
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {rows.map((c, i) => {
-        const pos = (c.varPct ?? 0) >= 0
-        return (
-          <div key={i}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
-              <span style={{ fontSize: 12, color: 'var(--text-primary)' }}>{c.label}</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{mode === 'val' ? fmt(c.val) : fmtV(c.varPct)}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ flex: 1, height: 6, background: 'var(--bg-main)', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{ width: `${(Math.abs(c.val) / maxV) * 100}%`, height: '100%', background: CH, borderRadius: 4 }} />
+    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 14, padding: 20, display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Où va le chiffre d'affaires ?</div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>Répartition du CA — cliquez un poste pour son évolution →</div>
+      </div>
+
+      {/* Barre empilée */}
+      <div style={{ height: 20, borderRadius: 6, overflow: 'hidden', display: 'flex', marginBottom: 16, background: 'var(--bg-main)' }}>
+        {segments.map((s, i) => (
+          <div key={i} onClick={() => onOpen(s)} title={s.label}
+            style={{ width: `${s.w}%`, background: s.color, cursor: 'pointer', transition: 'opacity .15s' }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = '0.8')}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = '1')} />
+        ))}
+      </div>
+
+      {/* Lignes */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+        {slices.map((s, i) => {
+          const pct = ca > 0 ? (s.val / ca) * 100 : 0
+          const pos = (s.varPct ?? 0) >= 0
+          return (
+            <div key={i} onClick={() => onOpen(s)}
+              style={{ display: 'grid', gridTemplateColumns: '10px 1fr 90px 42px', alignItems: 'center', gap: 10, padding: '8px 6px', borderRadius: 7, cursor: 'pointer', transition: 'background .1s' }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = 'var(--bg-page)')}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = 'transparent')}>
+              <span style={{ width: 9, height: 9, borderRadius: 3, background: s.color, flexShrink: 0, boxShadow: `0 1px 4px ${s.color}88` }} />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.label}</div>
+                <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>{s.sublabel}</div>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 600, color: pos ? OK : DANGER, width: 44, textAlign: 'right' }}>{fmtV(c.varPct)}</span>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{fmt(s.val)}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{fmtP(pct)}</div>
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: s.varPct != null ? (pos ? OK : DANGER) : 'var(--text-muted)', textAlign: 'right' }}>
+                {s.varPct != null ? fmtV(s.varPct) : '—'}
+              </div>
             </div>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -573,7 +610,8 @@ export default function PerformancesPage() {
   const [, setUserId] = useState<string>('')
   const [kpiPanel, setKpiPanel] = useState<{ key: string; label: string; sublabel: string; val: number; varPct: number | null; pct: number | null } | null>(null)
   const [kpiMonthly, setKpiMonthly] = useState<Record<string, { n: number[]; n1: number[] | null }>>({})
-  const [cmpMode, setCmpMode] = useState<'val' | 'pct'>('val')
+  // euroPanel : side panel de la bulle "Où va le CA ?"
+  const [euroPanel, setEuroPanel] = useState<{ label: string; sublabel: string; val: number; varPct: number | null; pct: number | null; key: string } | null>(null)
   const [panel, setPanel] = useState<PosteDetail | null>(null)
   const [drillLoading, setDrillLoading] = useState(false)
   const [sparks, setSparks] = useState<Record<string, number[]>>({})
@@ -774,13 +812,27 @@ export default function PerformancesPage() {
     { key: 'net', label: 'Résultat net',               sublabel: 'Ce qui reste après tout',   pct: sig.tauxRnet, val: sig.resultatNet, pctN1: sigN1 ? sigN1.tauxRnet : null,  varPct: sigN1 && sigN1.resultatNet ? ((sig.resultatNet - sigN1.resultatNet) / Math.abs(sigN1.resultatNet)) * 100 : null,   spark: sparks.net || [] },
   ] : []
 
-  const compareRows = sig ? [
-    { label: "Chiffre d'affaires", val: sig.ca, varPct: sigN1 && sigN1.ca ? ((sig.ca - sigN1.ca) / Math.abs(sigN1.ca)) * 100 : null },
-    { label: 'Marge brute', val: sig.valeurAjoutee, varPct: sigN1 && sigN1.valeurAjoutee ? ((sig.valeurAjoutee - sigN1.valeurAjoutee) / Math.abs(sigN1.valeurAjoutee)) * 100 : null },
-    { label: 'EBE', val: sig.ebe, varPct: sigN1 && sigN1.ebe ? ((sig.ebe - sigN1.ebe) / Math.abs(sigN1.ebe)) * 100 : null },
-    { label: "Résultat d'exploitation", val: sig.rex, varPct: sigN1 && sigN1.rex ? ((sig.rex - sigN1.rex) / Math.abs(sigN1.rex)) * 100 : null },
-    { label: 'Résultat net', val: sig.resultatNet, varPct: sigN1 && sigN1.resultatNet ? ((sig.resultatNet - sigN1.resultatNet) / Math.abs(sigN1.resultatNet)) * 100 : null },
-  ] : []
+  const euroSlices: EuroSlice[] = sig && cr ? (() => {
+    const ca = sig.ca || 1
+    const pers = cr.chargesExploitation.chargesPersonnel
+    const ext = cr.chargesExploitation.servicesExt + cr.chargesExploitation.autresAchats + cr.chargesExploitation.achatsMarchandises
+    const fisc = cr.chargesExploitation.impotsTaxes
+    const dot = cr.chargesExploitation.dotations + (cr.chargesExploitation.autresCharges || 0)
+    const rnet = sig.resultatNet
+    const persN1 = crN1 ? crN1.chargesExploitation.chargesPersonnel : null
+    const extN1 = crN1 ? crN1.chargesExploitation.servicesExt + crN1.chargesExploitation.autresAchats + crN1.chargesExploitation.achatsMarchandises : null
+    const fiscN1 = crN1 ? crN1.chargesExploitation.impotsTaxes : null
+    const dotN1 = crN1 ? crN1.chargesExploitation.dotations + (crN1.chargesExploitation.autresCharges || 0) : null
+    const rnetN1 = sigN1 ? sigN1.resultatNet : null
+    const vp = (v: number, p: number | null) => p != null && Math.abs(p) > 0.5 ? ((v - p) / Math.abs(p)) * 100 : null
+    return [
+      { key: 'pers', label: 'Salaires & charges sociales', sublabel: 'Masse salariale', val: pers, varPct: vp(pers, persN1), color: CH },
+      { key: 'ext',  label: 'Charges externes',            sublabel: 'Achats & services', val: ext,  varPct: vp(ext, extN1),   color: '#B08D5E' },
+      { key: 'fisc', label: 'Fiscalité & taxes',           sublabel: 'Impôts hors IS',    val: fisc, varPct: vp(fisc, fiscN1), color: '#8C9BAB' },
+      { key: 'dot',  label: 'Dotations & autres',          sublabel: 'Amortissements',    val: dot,  varPct: vp(dot, dotN1),   color: '#BFC6CC' },
+      { key: 'net',  label: 'Résultat net',                sublabel: 'Ce qui reste',      val: rnet, varPct: vp(rnet, rnetN1), color: rnet >= 0 ? OK : DANGER },
+    ].filter((s) => Math.abs(s.val) > 0.5)
+  })() : []
 
   // Postes pour le bloc Explorer (val = magnitude, varPct vs N-1)
   const mkPostes = (defs: { lib: string; val: number; n1: number | undefined; prefixKey: string }[]): Poste[] =>
@@ -843,19 +895,10 @@ export default function PerformancesPage() {
                 {kpis.filter((k) => k.key !== 'ca').map((k) => <KpiCard key={k.key} label={k.label} pct={k.pct} val={k.val} pctN1={k.pctN1} spark={k.spark} />)}
               </div>
 
-              {/* Indicateurs clés (gauche) + comparatif (droite) */}
+              {/* Indicateurs clés (gauche) + Où va le CA (droite) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 16, marginBottom: 18 }}>
                 <IndicateursCles kpis={kpis} onOpen={(k) => setKpiPanel({ key: k.key, label: k.label, sublabel: k.sublabel, val: k.val, varPct: k.varPct, pct: k.pct })} />
-
-                <div style={card}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div><div style={cardTitle}>Comparer avec N-1</div><div style={cardSub}>Évolution des indicateurs clés</div></div>
-                    <div onClick={() => setCmpMode((m) => (m === 'val' ? 'pct' : 'val'))} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', border: '1px solid var(--border-light)', borderRadius: 8, fontSize: 11, color: 'var(--text-primary)', cursor: 'pointer' }}>
-                      {cmpMode === 'val' ? 'Valeur' : 'Variation'}<span style={{ color: 'var(--text-muted)', fontSize: 9 }}>▾</span>
-                    </div>
-                  </div>
-                  {hasN1 ? <CompareList rows={compareRows} mode={cmpMode} /> : <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '20px 0' }}>Aucun exercice N-1 disponible pour la comparaison.</div>}
-                </div>
+                <EuroRepartition slices={euroSlices} ca={sig.ca} onOpen={(s) => setEuroPanel({ key: s.key, label: s.label, sublabel: s.sublabel, val: s.val, varPct: s.varPct, pct: sig.ca > 0 ? (s.val / sig.ca) * 100 : null })} />
               </div>
 
               {/* ★ Bloc Explorer le détail (charges / produits) */}
@@ -869,6 +912,7 @@ export default function PerformancesPage() {
 
       {panel && <SidePanel poste={panel} onClose={() => setPanel(null)} />}
       {kpiPanel && <IndicatorPanel indic={kpiPanel} monthly={kpiMonthly[kpiPanel.key]} onClose={() => setKpiPanel(null)} />}
+      {euroPanel && <IndicatorPanel indic={euroPanel} monthly={kpiMonthly[euroPanel.key]} onClose={() => setEuroPanel(null)} />}
       <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
     </div>
   )
