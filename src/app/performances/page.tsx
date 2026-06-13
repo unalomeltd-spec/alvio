@@ -88,6 +88,8 @@ interface PosteDetail {
   monthly: { m: string; n: number; n1: number }[]
   annual: { y: string; v: number }[]
   ecritures: { date: string; lib: string; montant: number }[]
+  // Écritures par numéro de compte (pour le drill compte → écritures)
+  comptesEcritures: Record<string, { date: string; lib: string; montant: number }[]>
   loading: boolean
 }
 
@@ -245,7 +247,7 @@ function ExploreBlock({ chargesPostes, produitsPostes, onOpen }: {
                 style={{ display: 'grid', gridTemplateColumns: '10px 1fr 96px 56px 14px', alignItems: 'center', gap: 12, padding: '10px 8px', borderRadius: 8, cursor: 'pointer', transition: 'background .12s' }}
                 onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = 'var(--bg-page)')}
                 onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = 'transparent')}>
-                <span style={{ width: 9, height: 9, borderRadius: 3, background: colors[i % colors.length] }} />
+                <span style={{ width: 10, height: 10, borderRadius: 4, background: colors[i % colors.length], flexShrink: 0, boxShadow: `0 1px 4px ${colors[i % colors.length]}88` }} />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.lib}</div>
                   <div style={{ height: 4, background: 'var(--bg-main)', borderRadius: 3, marginTop: 5, overflow: 'hidden' }}>
@@ -270,48 +272,86 @@ function ExploreBlock({ chargesPostes, produitsPostes, onOpen }: {
 /* ── Side panel (graphiques) ─────────────────────────────────────────── */
 function SidePanel({ poste, onClose }: { poste: PosteDetail; onClose: () => void }) {
   const [tab, setTab] = useState<'apercu' | 'ecritures'>('apercu')
+  // Drill compte → écritures filtrées
+  const [selectedCompte, setSelectedCompte] = useState<{ num: string; lib: string; val: number; varPct: number | null } | null>(null)
   const isCharges = poste.orientation === 'charge'
   const accent = isCharges ? CH : OK
   const hasN1 = poste.monthly.some((m) => m.n1 > 0)
+
+  // Reset compte sélectionné si le poste change
+  const ecrToShow = selectedCompte
+    ? (poste.comptesEcritures[selectedCompte.num] ?? [])
+    : poste.ecritures
+
+  const handleSelectCompte = (c: { num: string; lib: string; val: number; varPct: number | null }) => {
+    setSelectedCompte(c)
+    setTab('ecritures')
+  }
+
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 8, background: 'transparent' }} />
       <div style={{
-        position: 'fixed', top: 12, right: 12, bottom: 12, width: 380, zIndex: 200, background: '#fff',
+        position: 'fixed', top: 12, right: 12, bottom: 12, width: 390, zIndex: 200, background: '#fff',
         borderRadius: 16, border: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column',
         boxShadow: '-4px 0 30px rgba(0,0,0,0.10)', overflow: 'hidden', animation: 'slideIn 0.24s cubic-bezier(0.22,1,0.36,1)',
       }}>
         <style>{'@keyframes slideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}'}</style>
 
+        {/* Header */}
         <div style={{ padding: '18px 20px 14px', flexShrink: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Détail {isCharges ? 'des charges' : 'des produits'}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{poste.label}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {/* Breadcrumb quand un compte est sélectionné */}
+              {selectedCompte ? (
+                <button onClick={() => { setSelectedCompte(null); setTab('apercu') }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, color: accent }}>←</span>
+                  <span style={{ fontSize: 11, color: accent, fontWeight: 600 }}>{poste.label}</span>
+                </button>
+              ) : (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Détail {isCharges ? 'des charges' : 'des produits'}</div>
+              )}
+              <div style={{ fontSize: selectedCompte ? 13 : 16, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {selectedCompte ? (
+                  <>
+                    <span style={{ fontSize: 11, fontFamily: 'monospace', color: accent, marginRight: 6 }}>{selectedCompte.num}</span>
+                    {selectedCompte.lib}
+                  </>
+                ) : poste.label}
+              </div>
             </div>
-            <button onClick={onClose} style={{ background: 'var(--bg-main)', border: '1px solid var(--border-light)', borderRadius: 7, width: 28, height: 28, cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16, lineHeight: 1 }}>×</button>
+            <button onClick={onClose} style={{ background: 'var(--bg-main)', border: '1px solid var(--border-light)', borderRadius: 7, width: 28, height: 28, cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16, lineHeight: 1, flexShrink: 0, marginLeft: 10 }}>×</button>
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 12 }}>
             <div>
-              <div style={{ fontSize: 26, fontWeight: 700, color: accent }}>{fmt(poste.total)}</div>
+              <div style={{ fontSize: 26, fontWeight: 700, color: accent }}>
+                {fmt(selectedCompte ? selectedCompte.val : poste.total)}
+              </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>Exercice en cours</div>
             </div>
-            {poste.varPct != null && (
-              <span style={{ fontSize: 13, fontWeight: 600, color: poste.varPct >= 0 ? OK : DANGER, textAlign: 'right' }}>
-                {fmtV(poste.varPct)}<span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400, display: 'block' }}>vs N-1</span>
+            {(selectedCompte ? selectedCompte.varPct : poste.varPct) != null && (
+              <span style={{ fontSize: 13, fontWeight: 600, color: ((selectedCompte ? selectedCompte.varPct : poste.varPct) ?? 0) >= 0 ? OK : DANGER, textAlign: 'right' }}>
+                {fmtV(selectedCompte ? selectedCompte.varPct : poste.varPct)}
+                <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400, display: 'block' }}>vs N-1</span>
               </span>
             )}
           </div>
         </div>
 
+        {/* Tabs */}
         <div style={{ display: 'flex', gap: 18, padding: '0 20px', borderBottom: '1px solid var(--border-light)', flexShrink: 0 }}>
-          {([['apercu', "Vue d'ensemble"], ['ecritures', 'Écritures associées']] as const).map(([id, lbl]) => (
-            <button key={id} onClick={() => setTab(id)} style={{
-              background: 'none', border: 'none', cursor: 'pointer', padding: '10px 0', fontSize: 12,
-              fontWeight: tab === id ? 600 : 500, color: tab === id ? 'var(--text-primary)' : 'var(--text-muted)',
-              borderBottom: `2px solid ${tab === id ? accent : 'transparent'}`,
-            }}>{lbl}</button>
-          ))}
+          {([['apercu', "Vue d'ensemble"], ['ecritures', 'Écritures associées']] as const).map(([id, lbl]) => {
+            // Masquer "Vue d'ensemble" quand on est sur un compte (pas de graphes par compte)
+            if (id === 'apercu' && selectedCompte) return null
+            return (
+              <button key={id} onClick={() => setTab(id)} style={{
+                background: 'none', border: 'none', cursor: 'pointer', padding: '10px 0', fontSize: 12,
+                fontWeight: tab === id ? 600 : 500, color: tab === id ? 'var(--text-primary)' : 'var(--text-muted)',
+                borderBottom: `2px solid ${tab === id ? accent : 'transparent'}`,
+              }}>{lbl}</button>
+            )
+          })}
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
@@ -319,8 +359,9 @@ function SidePanel({ poste, onClose }: { poste: PosteDetail; onClose: () => void
             <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
               <div style={{ width: 28, height: 28, border: '2px solid var(--bg-main)', borderTop: `2px solid ${accent}`, borderRadius: '50%', animation: 'spin .8s linear infinite' }} />
             </div>
-          ) : tab === 'apercu' ? (
+          ) : tab === 'apercu' && !selectedCompte ? (
             <>
+              {/* Évolution mensuelle */}
               <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>Évolution mensuelle</div>
               <ResponsiveContainer width="100%" height={120}>
                 <BarChart data={poste.monthly} margin={{ top: 4, right: 0, left: -28, bottom: 0 }} barCategoryGap="18%">
@@ -336,19 +377,35 @@ function SidePanel({ poste, onClose }: { poste: PosteDetail; onClose: () => void
                 </div>
               )}
 
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8, marginTop: hasN1 ? 0 : 12 }}>Répartition par compte</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '56px 1fr 70px 40px', fontSize: 8, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', paddingBottom: 6 }}>
-                <span>Compte</span><span>Libellé</span><span style={{ textAlign: 'right' }}>Montant</span><span style={{ textAlign: 'right' }}>Var.</span>
+              {/* Répartition par compte — cliquable */}
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6, marginTop: hasN1 ? 0 : 12 }}>
+                Répartition par compte
+                <span style={{ fontSize: 9, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 8 }}>Cliquez un compte pour ses écritures →</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 70px 40px 10px', fontSize: 8, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', paddingBottom: 6 }}>
+                <span>N°</span><span>Libellé</span><span style={{ textAlign: 'right' }}>Montant</span><span style={{ textAlign: 'right' }}>Var.</span><span />
               </div>
               {poste.comptes.map((c, i) => (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '56px 1fr 70px 40px', alignItems: 'center', padding: '7px 0', borderTop: '1px solid var(--border-light)' }}>
-                  <span style={{ fontSize: 10, fontFamily: 'monospace', color: accent }}>{c.num}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.lib}</span>
+                <div key={i} onClick={() => handleSelectCompte(c)}
+                  style={{ display: 'grid', gridTemplateColumns: '44px 1fr 70px 40px 10px', alignItems: 'center', padding: '8px 6px', borderTop: '1px solid var(--border-light)', cursor: 'pointer', borderRadius: 6, transition: 'background .1s' }}
+                  onMouseEnter={(e) => {
+                    const el = e.currentTarget as HTMLElement
+                    el.style.background = isCharges ? 'rgba(198,162,117,0.07)' : 'rgba(15,138,95,0.06)'
+                  }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+                  <span style={{
+                    fontSize: 9, fontFamily: 'monospace', color: '#fff', background: accent,
+                    padding: '2px 4px', borderRadius: 4, fontWeight: 700, letterSpacing: 0,
+                    boxShadow: `0 1px 3px ${accent}55`,
+                  }}>{c.num.slice(0, 5)}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 4 }}>{c.lib}</span>
                   <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', textAlign: 'right' }}>{fmt(c.val)}</span>
                   <span style={{ fontSize: 10, fontWeight: 600, color: (c.varPct ?? 0) >= 0 ? OK : DANGER, textAlign: 'right' }}>{fmtV(c.varPct)}</span>
+                  <span style={{ fontSize: 10, color: accent, textAlign: 'right' }}>›</span>
                 </div>
               ))}
 
+              {/* Évolution annuelle */}
               {poste.annual.length > 1 && (
                 <>
                   <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', margin: '20px 0 8px' }}>Évolution annuelle</div>
@@ -362,18 +419,27 @@ function SidePanel({ poste, onClose }: { poste: PosteDetail; onClose: () => void
               )}
             </>
           ) : (
+            /* Onglet écritures — toutes ou filtrées sur un compte */
             <>
+              {selectedCompte && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 10 }}>
+                  {ecrToShow.length} écriture{ecrToShow.length > 1 ? 's' : ''} · compte {selectedCompte.num}
+                </div>
+              )}
               <div style={{ display: 'grid', gridTemplateColumns: '64px 1fr 74px', fontSize: 8, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', paddingBottom: 6 }}>
                 <span>Date</span><span>Libellé</span><span style={{ textAlign: 'right' }}>Montant</span>
               </div>
-              {poste.ecritures.map((e, i) => (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '64px 1fr 74px', alignItems: 'center', padding: '9px 0', borderTop: '1px solid var(--border-light)' }}>
+              {ecrToShow.map((e, i) => (
+                <div key={i}
+                  style={{ display: 'grid', gridTemplateColumns: '64px 1fr 74px', alignItems: 'center', padding: '9px 6px', borderTop: '1px solid var(--border-light)', borderRadius: 6, transition: 'background .1s' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-main)' }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
                   <span style={{ fontSize: 10, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtDate(e.date)}</span>
                   <span style={{ fontSize: 11, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={e.lib}>{e.lib || '—'}</span>
                   <span style={{ fontSize: 11, fontWeight: 600, color: isCharges ? DANGER : OK, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{isCharges ? '+' : ''}{fmt(Math.abs(e.montant))}</span>
                 </div>
               ))}
-              {poste.ecritures.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>Aucune écriture sur la période.</div>}
+              {ecrToShow.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0' }}>Aucune écriture sur la période.</div>}
             </>
           )}
         </div>
@@ -499,7 +565,7 @@ export default function PerformancesPage() {
     const orientation: 'produit' | 'charge' = prefixes[0][0] === '7' ? 'produit' : 'charge'
     const sign = (e: Ecriture) => (orientation === 'produit' ? e.credit - e.debit : e.debit - e.credit)
     setDrillLoading(true)
-    setPanel({ label, prefixes, orientation, total: 0, varPct: null, comptes: [], monthly: MOIS.map((m) => ({ m, n: 0, n1: 0 })), annual: [], ecritures: [], loading: true })
+    setPanel({ label, prefixes, orientation, total: 0, varPct: null, comptes: [], monthly: MOIS.map((m) => ({ m, n: 0, n1: 0 })), annual: [], ecritures: [], comptesEcritures: {}, loading: true })
 
     const comptesN = await fetchDetail(anneeActive, prefixes)
     const comptesN1 = annees.includes(anneeActive - 1) ? await fetchDetail(anneeActive - 1, prefixes) : []
@@ -540,10 +606,18 @@ export default function PerformancesPage() {
       .sort((a, b) => toIso(b.date).localeCompare(toIso(a.date)))
       .slice(0, 60)
 
+    // Écritures par numéro de compte (pour le drill compte → écritures)
+    const comptesEcritures: Record<string, { date: string; lib: string; montant: number }[]> = {}
+    comptesN.forEach((c) => {
+      comptesEcritures[c.num] = c.ecritures
+        .map((e) => ({ date: e.date, lib: e.lib, montant: sign(e) }))
+        .sort((a, b) => toIso(b.date).localeCompare(toIso(a.date)))
+    })
+
     setPanel({
       label, prefixes, orientation, total: totalN,
       varPct: totalN1 > 0.5 ? ((totalN - totalN1) / totalN1) * 100 : null,
-      comptes, monthly, annual, ecritures, loading: false,
+      comptes, monthly, annual, ecritures, comptesEcritures, loading: false,
     })
     setDrillLoading(false)
   }, [anneeActive, activeId, annees])

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard, TrendingUp, FileText, Activity,
+  LayoutDashboard, BarChart2, Activity,
   Settings, CheckSquare, LogOut, ChevronLeft,
 } from 'lucide-react'
 import { useActiveCompany } from '@/hooks/useActiveCompany'
@@ -17,10 +17,9 @@ interface NavItemDef {
 }
 
 const MAIN_NAV: NavItemDef[] = [
-  { href: '/dashboard',        label: 'Synthèse',           icon: LayoutDashboard },
-  { href: '/profitability',    label: 'Rentabilité',         icon: TrendingUp },
-  { href: '/income-statement', label: 'Compte de résultat', icon: FileText },
-  { href: '/sante-financiere', label: 'Santé financière',   icon: Activity },
+  { href: '/dashboard',        label: 'Synthèse',          icon: LayoutDashboard },
+  { href: '/performances',     label: 'Performances',      icon: BarChart2 },
+  { href: '/sante-financiere', label: 'Santé financière',  icon: Activity },
 ]
 
 const SECONDARY_NAV: NavItemDef[] = [
@@ -114,7 +113,6 @@ export default function Sidebar({ activePage: _a }: { activePage?: string } = {}
       const supabase = createClient()
       await supabase.auth.signOut()
     } catch { /* silent */ }
-    // Purge le dossier actif pour ne pas polluer la prochaine session
     try { localStorage.removeItem('alvio-active-company') } catch {}
     window.location.href = '/login'
   }
@@ -126,11 +124,6 @@ export default function Sidebar({ activePage: _a }: { activePage?: string } = {}
   const WIDTH = collapsed ? 60 : 220
 
   return (
-    /*
-     * position: relative + overflow: visible → permet au bouton collapse
-     * de dépasser légèrement sur le bord droit.
-     * Le contenu interne est clippé par son propre wrapper overflow: hidden.
-     */
     <aside
       aria-label="Navigation principale"
       style={{
@@ -142,7 +135,6 @@ export default function Sidebar({ activePage: _a }: { activePage?: string } = {}
         transition: 'width 0.2s ease, min-width 0.2s ease',
       }}
     >
-      {/* Contenu clippé pendant l'animation */}
       <div style={{
         width: '100%', height: '100vh',
         overflow: 'hidden',
@@ -168,7 +160,6 @@ export default function Sidebar({ activePage: _a }: { activePage?: string } = {}
           ))}
         </nav>
 
-        {/* Bas — déconnexion uniquement */}
         <div style={{ borderTop: '1px solid var(--border-soft)', padding: collapsed ? '12px 6px' : '12px 8px', flexShrink: 0 }}>
           <button
             onClick={handleLogout}
@@ -191,14 +182,12 @@ export default function Sidebar({ activePage: _a }: { activePage?: string } = {}
         </div>
       </div>
 
-      {/* ── Bouton collapse — bord droit, centre vertical ── */}
       <button
         onClick={() => setCollapsed(c => !c)}
         title={collapsed ? 'Développer' : 'Réduire'}
         style={{
           position: 'absolute',
-          right: -10,
-          top: '50%',
+          right: -10, top: '50%',
           transform: 'translateY(-50%)',
           width: 20, height: 20,
           borderRadius: '50%',
@@ -206,8 +195,7 @@ export default function Sidebar({ activePage: _a }: { activePage?: string } = {}
           background: 'var(--bg-card)',
           boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer',
-          zIndex: 20,
+          cursor: 'pointer', zIndex: 20,
           transition: 'background 0.12s, box-shadow 0.12s',
         }}
         onMouseEnter={e => {
