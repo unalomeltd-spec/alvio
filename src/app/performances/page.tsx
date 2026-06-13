@@ -26,7 +26,7 @@ const CHARGE_COLORS = ['#C6A275', '#B08D5E', '#D8C5A4', '#C9B89A', '#8C9BAB', '#
 const PRODUIT_COLORS = ['#0F8A5F', '#3DA77E', '#7FC4A8', '#5FB893', '#A9D8C4', '#2E9B72', '#C7E6D7']
 
 // Sparklines KPI : trend mensuel reconstruit côté client (indicatif). false = on coupe.
-const SHOW_SPARKLINES = true
+const SHOW_SPARKLINES = false
 
 const fmt = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' €'
 const fmtP = (n: number) => (Math.round(n * 10) / 10).toFixed(1) + ' %'
