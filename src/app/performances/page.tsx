@@ -31,6 +31,11 @@ const SHOW_SPARKLINES = false
 const fmt = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' €'
 const fmtP = (n: number) => (Math.round(n * 10) / 10).toFixed(1) + ' %'
 const fmtV = (n: number | null) => (n == null ? '—' : (n >= 0 ? '+' : '') + Math.round(n) + ' %')
+// Normalise un numéro de compte à 5 caractères (padding 0 si court, coupe si long)
+const num5 = (n: string | undefined | null) => {
+  const s = (n || '').trim()
+  return s.length >= 5 ? s.slice(0, 5) : s.padEnd(5, '0')
+}
 // Normalise les libellés FEC/Pennylane : 1re lettre majuscule, reste minuscule
 const sentenceCase = (s: string | undefined | null) => {
   if (!s) return ''
@@ -486,7 +491,7 @@ function SidePanel({ poste, onClose }: { poste: PosteDetail; onClose: () => void
               <div style={{ fontSize: selectedCompte ? 13 : 16, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {selectedCompte ? (
                   <>
-                    <span style={{ fontSize: 11, fontFamily: 'monospace', color: accent, marginRight: 6 }}>{selectedCompte.num}</span>
+                    <span title={selectedCompte.num} style={{ fontSize: 11, fontFamily: 'monospace', color: accent, marginRight: 6 }}>{num5(selectedCompte.num)}</span>
                     {sentenceCase(selectedCompte.lib)}
                   </>
                 ) : poste.label}
@@ -564,12 +569,12 @@ function SidePanel({ poste, onClose }: { poste: PosteDetail; onClose: () => void
                     el.style.background = isCharges ? 'rgba(198,162,117,0.07)' : 'rgba(15,138,95,0.06)'
                   }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
-                  <span style={{
+                  <span title={c.num} style={{
                     fontSize: 9, fontFamily: 'monospace', color: '#fff', background: accent,
                     padding: '2px 4px', borderRadius: 4, fontWeight: 700, letterSpacing: 0,
                     boxShadow: `0 1px 3px ${accent}55`,
-                  }}>{c.num.slice(0, 5)}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 4 }}>{sentenceCase(c.lib)}</span>
+                  }}>{num5(c.num)}</span>
+                  <span title={sentenceCase(c.lib)} style={{ fontSize: 11, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 4 }}>{sentenceCase(c.lib)}</span>
                   <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', textAlign: 'right' }}>{fmt(c.val)}</span>
                   <span style={{ fontSize: 10, fontWeight: 600, color: (c.varPct ?? 0) >= 0 ? OK : DANGER, textAlign: 'right' }}>{fmtV(c.varPct)}</span>
                   <span style={{ fontSize: 10, color: accent, textAlign: 'right' }}>›</span>
@@ -776,7 +781,7 @@ export default function PerformancesPage() {
         const varPct = prev != null && prev > 0.5 ? ((v - prev) / prev) * 100 : null
         return { num: c.num, lib: c.lib, val: v, varPct }
       })
-      .sort((a, b) => b.val - a.val)
+      .sort((a, b) => a.num.localeCompare(b.num))
 
     const annual: { y: string; v: number }[] = []
     const yearsAsc = [...annees].sort((a, b) => a - b)
