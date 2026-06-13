@@ -108,8 +108,12 @@ function Spark({ data, color }: { data: number[]; color: string }) {
 /* ── Carte KPI ───────────────────────────────────────────────────────── */
 function KpiCard({ label, pct, val, pctN1, spark }: { label: string; pct: number | null; val: number; pctN1: number | null; spark: number[] }) {
   const up = pctN1 == null || pct == null ? true : pct >= pctN1
+  const [hovered, setHovered] = useState(false)
   return (
-    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 14, padding: '16px 18px' }}>
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ background: 'var(--bg-card)', border: `1px solid ${hovered ? CH : 'var(--border-light)'}`, borderRadius: 14, padding: '16px 18px', transition: 'border-color .18s', cursor: 'default' }}>
       <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
       <div style={{ fontSize: 26, fontWeight: 700, color: up ? OK : 'var(--text-primary)', marginTop: 8, letterSpacing: '-0.02em' }}>{pct != null ? fmtP(pct) : fmt(val)}</div>
       <div style={{ fontSize: 13, color: 'var(--text-primary)', marginTop: 2, fontWeight: 500 }}>{fmt(val)}</div>
@@ -909,8 +913,8 @@ export default function PerformancesPage() {
                 {kpis.filter((k) => k.key !== 'ca').map((k) => <KpiCard key={k.key} label={k.label} pct={k.pct} val={k.val} pctN1={k.pctN1} spark={k.spark} />)}
               </div>
 
-              {/* Indicateurs clés (gauche) + Où va le CA (droite) */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 16, marginBottom: 18 }}>
+              {/* Indicateurs clés (gauche) + Où va le CA (droite) — 50/50 */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 18 }}>
                 <IndicateursCles kpis={kpis} onOpen={(k) => setKpiPanel({ key: k.key, label: k.label, sublabel: k.sublabel, val: k.val, varPct: k.varPct, pct: k.pct })} />
                 <EuroRepartition slices={euroSlices} ca={sig.ca} onOpen={(s) => setEuroPanel({ key: s.key, label: s.label, sublabel: s.sublabel, val: s.val, varPct: s.varPct, pct: sig.ca > 0 ? (s.val / sig.ca) * 100 : null })} />
               </div>
