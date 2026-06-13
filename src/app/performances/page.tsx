@@ -106,12 +106,12 @@ function Spark({ data, color }: { data: number[]; color: string }) {
 }
 
 /* ── Carte KPI ───────────────────────────────────────────────────────── */
-function KpiCard({ label, pct, val, pctN1, spark }: { label: string; pct: number; val: number; pctN1: number | null; spark: number[] }) {
-  const up = pctN1 == null ? true : pct >= pctN1
+function KpiCard({ label, pct, val, pctN1, spark }: { label: string; pct: number | null; val: number; pctN1: number | null; spark: number[] }) {
+  const up = pctN1 == null || pct == null ? true : pct >= pctN1
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 14, padding: '16px 18px' }}>
       <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: up ? OK : 'var(--text-primary)', marginTop: 8, letterSpacing: '-0.02em' }}>{fmtP(pct)}</div>
+      <div style={{ fontSize: 26, fontWeight: 700, color: up ? OK : 'var(--text-primary)', marginTop: 8, letterSpacing: '-0.02em' }}>{pct != null ? fmtP(pct) : fmt(val)}</div>
       <div style={{ fontSize: 13, color: 'var(--text-primary)', marginTop: 2, fontWeight: 500 }}>{fmt(val)}</div>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 8, minHeight: 34 }}>
         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{pctN1 != null ? `vs ${fmtP(pctN1)} N-1` : '—'}</div>
@@ -121,45 +121,159 @@ function KpiCard({ label, pct, val, pctN1, spark }: { label: string; pct: number
   )
 }
 
-/* ── Cascade (waterfall) ─────────────────────────────────────────────── */
-function buildWaterfall(sig: any) {
-  const raw = [
-    { name: 'CA', type: 'anchor', value: sig.ca },
-    { name: 'Consommations ext.', type: 'down', value: -(sig.consommationsInt ?? 0) },
-    { name: 'Valeur ajoutée', type: 'anchor', value: sig.valeurAjoutee },
-    { name: 'Impôts & taxes', type: 'down', value: -(sig.impotsTaxes ?? 0) },
-    { name: 'Charges de personnel', type: 'down', value: -(sig.chargesPersonnel ?? 0) },
-    { name: 'EBE', type: 'anchor', value: sig.ebe },
-    { name: 'Dotations & autres', type: 'down', value: -(sig.ebe - sig.rex) },
-    { name: "Résultat d'exploit.", type: 'anchor', value: sig.rex },
-    { name: 'Financier & IS', type: 'down', value: -(sig.rex - sig.resultatNet) },
-    { name: 'Résultat net', type: 'anchor', value: sig.resultatNet },
-  ]
-  let cursor = 0
-  return raw.map((d) => {
-    if (d.type === 'anchor') { cursor = d.value; return { ...d, base: 0, bar: d.value } }
-    const start = cursor + d.value
-    const r = { ...d, base: start, bar: -d.value }
-    cursor = start
-    return r
-  })
-}
-function Waterfall({ sig, highlight }: { sig: any; highlight: string | null }) {
-  const data = buildWaterfall(sig)
+/* ── Indicateur : type + glyphe ──────────────────────────────────────── */
+interface KpiItem { key: string; label: string; sublabel: string; pct: number | null; val: number; pctN1: number | null; varPct: number | null; spark: number[] }
+
+function KpiGlyph({ k, color }: { k: string; color: string }) {
+  const paths: Record<string, React.ReactNode> = {
+    ca: <path d="M3 17l5-5 4 4 6-7" />,
+    mb: <><circle cx="7" cy="7" r="2.4" /><circle cx="17" cy="17" r="2.4" /><path d="M6.5 17.5L17.5 6.5" /></>,
+    ebe: <><ellipse cx="12" cy="6" rx="7" ry="3" /><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6" /><path d="M5 12v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5" /></>,
+    rex: <><path d="M3 13a9 9 0 0 1 18 0" /><path d="M12 13l4-3" /></>,
+    net: <><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M16 12h.5" /></>,
+  }
   return (
-    <ResponsiveContainer width="100%" height={250}>
-      <BarChart data={data} margin={{ top: 24, right: 4, left: 4, bottom: 4 }} barCategoryGap="22%">
-        <XAxis dataKey="name" tick={{ fontSize: 9, fill: 'var(--text-secondary)' }} interval={0} axisLine={{ stroke: 'var(--border-light)' }} tickLine={false} height={40} />
-        <Bar dataKey="base" stackId="a" fill="transparent" />
-        <Bar dataKey="bar" stackId="a" radius={[3, 3, 0, 0]}>
-          {data.map((d, i) => {
-            const isAnchor = d.type === 'anchor'
-            const hot = highlight === d.name
-            return <Cell key={i} fill={hot ? '#242628' : (isAnchor ? CH : '#CB6B5E')} opacity={hot ? 1 : (isAnchor ? 1 : 0.85)} />
-          })}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <span style={{ width: 30, height: 30, borderRadius: 9, background: `${color}1A`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[k]}</svg>
+    </span>
+  )
+}
+
+/* ── ★ Liste « Indicateurs clés » (remplace la cascade) ──────────────── */
+function IndicateursCles({ kpis, onOpen }: { kpis: KpiItem[]; onOpen: (k: KpiItem) => void }) {
+  return (
+    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 14, padding: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Indicateurs clés</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>Cliquez un indicateur pour son évolution et son analyse →</div>
+        </div>
+        <span style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 4 }}>Évolution 12 mois</span>
+      </div>
+      {kpis.map((k) => {
+        const pos = (k.varPct ?? 0) >= 0
+        const col = pos ? OK : DANGER
+        return (
+          <div key={k.key} onClick={() => onOpen(k)}
+            style={{ display: 'grid', gridTemplateColumns: '30px 1fr 104px 80px', alignItems: 'center', gap: 12, padding: '11px 8px', borderTop: '1px solid var(--border-light)', cursor: 'pointer', borderRadius: 8, transition: 'background .12s' }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = 'var(--bg-page)')}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = 'transparent')}>
+            <KpiGlyph k={k.key} color={col} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.label}</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.sublabel}</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{fmt(k.val)}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: col }}>{fmtV(k.varPct)}<span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 400 }}> vs N-1</span></div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Spark data={k.spark} color={col} />
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ── ★ Side panel d'un indicateur (évolution + analyse) ──────────────── */
+function IndicatorPanel({ indic, monthly, onClose }: {
+  indic: { key: string; label: string; sublabel: string; val: number; varPct: number | null; pct: number | null }
+  monthly: { n: number[]; n1: number[] | null } | undefined
+  onClose: () => void
+}) {
+  const [tab, setTab] = useState<'evol' | 'analyse'>('evol')
+  const pos = (indic.varPct ?? 0) >= 0
+  const varCol = pos ? OK : DANGER
+  const data = MOIS.map((m, i) => ({ m, n: monthly?.n?.[i] ?? 0, n1: monthly?.n1 ? monthly.n1[i] : null }))
+  const hasN1 = !!monthly?.n1
+  const loading = !monthly
+
+  // À retenir — généré depuis les valeurs certifiées
+  const bullets: string[] = []
+  if (indic.varPct != null) bullets.push(`${indic.label} ${pos ? 'en hausse' : 'en baisse'} de ${Math.abs(Math.round(indic.varPct))} % sur l'exercice.`)
+  if (indic.pct != null) bullets.push(`Représente ${fmtP(indic.pct)} du chiffre d'affaires.`)
+  bullets.push(pos ? "Tendance favorable sur la période." : 'Poste à surveiller — la dynamique se dégrade.')
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 8, background: 'transparent' }} />
+      <div style={{
+        position: 'fixed', top: 12, right: 12, bottom: 12, width: 390, zIndex: 200, background: '#fff',
+        borderRadius: 16, border: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column',
+        boxShadow: '-4px 0 30px rgba(0,0,0,0.10)', overflow: 'hidden', animation: 'slideIn 0.24s cubic-bezier(0.22,1,0.36,1)',
+      }}>
+        <style>{'@keyframes slideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}'}</style>
+
+        <div style={{ padding: '18px 20px 14px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{indic.label}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{indic.sublabel}</div>
+            </div>
+            <button onClick={onClose} style={{ background: 'var(--bg-main)', border: '1px solid var(--border-light)', borderRadius: 7, width: 28, height: 28, cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16, lineHeight: 1 }}>×</button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 12 }}>
+            <div>
+              <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)' }}>{fmt(indic.val)}</div>
+              {indic.pct != null && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{fmtP(indic.pct)} du CA</div>}
+            </div>
+            {indic.varPct != null && (
+              <span style={{ fontSize: 13, fontWeight: 600, color: varCol, textAlign: 'right' }}>
+                {fmtV(indic.varPct)}<span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400, display: 'block' }}>vs N-1</span>
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 18, padding: '0 20px', borderBottom: '1px solid var(--border-light)', flexShrink: 0 }}>
+          {([['evol', 'Évolution'], ['analyse', 'Analyse']] as const).map(([id, lbl]) => (
+            <button key={id} onClick={() => setTab(id)} style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: '10px 0', fontSize: 12,
+              fontWeight: tab === id ? 600 : 500, color: tab === id ? 'var(--text-primary)' : 'var(--text-muted)',
+              borderBottom: `2px solid ${tab === id ? CH : 'transparent'}`,
+            }}>{lbl}</button>
+          ))}
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+          {loading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
+              <div style={{ width: 28, height: 28, border: '2px solid var(--bg-main)', borderTop: `2px solid ${CH}`, borderRadius: '50%', animation: 'spin .8s linear infinite' }} />
+            </div>
+          ) : tab === 'evol' ? (
+            <>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>Évolution sur 12 mois</div>
+              <ResponsiveContainer width="100%" height={170}>
+                <LineChart data={data} margin={{ top: 6, right: 8, left: -26, bottom: 0 }}>
+                  <XAxis dataKey="m" tick={{ fontSize: 8, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} interval={1} />
+                  {hasN1 && <Line type="monotone" dataKey="n1" stroke={GREY} strokeWidth={1.8} strokeDasharray="4 3" dot={false} />}
+                  <Line type="monotone" dataKey="n" stroke={CH} strokeWidth={2.2} dot={{ r: 2.5, fill: CH }} />
+                </LineChart>
+              </ResponsiveContainer>
+              <div style={{ display: 'flex', gap: 14, justifyContent: 'flex-end', fontSize: 9, color: 'var(--text-muted)', marginTop: 4 }}>
+                {hasN1 && <span><span style={{ display: 'inline-block', width: 10, height: 2, background: GREY, marginRight: 4, verticalAlign: 'middle' }} />N-1</span>}
+                <span><span style={{ display: 'inline-block', width: 10, height: 2, background: CH, marginRight: 4, verticalAlign: 'middle' }} />N</span>
+              </div>
+              <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 12, lineHeight: 1.5, fontStyle: 'italic' }}>
+                Courbe mensuelle indicative reconstruite depuis les écritures. Le total et la variation affichés en tête sont les valeurs certifiées de l'exercice.
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>À retenir</div>
+              {bullets.map((b, i) => (
+                <div key={i} style={{ display: 'flex', gap: 9, marginBottom: 11 }}>
+                  <span style={{ color: i === bullets.length - 1 && !pos ? DANGER : OK, flexShrink: 0, fontSize: 13 }}>{i === bullets.length - 1 && !pos ? '!' : '✓'}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{b}</span>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -457,8 +571,8 @@ export default function PerformancesPage() {
   const [annees, setAnnees] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
   const [, setUserId] = useState<string>('')
-  const [highlight, setHighlight] = useState<string | null>(null)
-  const [wfMode, setWfMode] = useState<'val' | 'pct'>('val')
+  const [kpiPanel, setKpiPanel] = useState<{ key: string; label: string; sublabel: string; val: number; varPct: number | null; pct: number | null } | null>(null)
+  const [kpiMonthly, setKpiMonthly] = useState<Record<string, { n: number[]; n1: number[] | null }>>({})
   const [cmpMode, setCmpMode] = useState<'val' | 'pct'>('val')
   const [panel, setPanel] = useState<PosteDetail | null>(null)
   const [drillLoading, setDrillLoading] = useState(false)
@@ -505,43 +619,53 @@ export default function PerformancesPage() {
     } else setEtatsN1(null)
   }, [periodeTab, dateDebut, dateFin, dateDebutN1, dateFinN1])
 
-  // Sparklines KPI : trend mensuel reconstruit depuis les écritures (classes 6 & 7), indicatif.
+  // Séries mensuelles par indicateur (N et N-1) reconstruites depuis les écritures (classes 6 & 7).
+  // Indicatif : les totaux/variations affichés restent ceux, certifiés, de /api/etats.
   useEffect(() => {
-    if (!SHOW_SPARKLINES || !activeId || !anneeActive) return
+    if (!activeId || !anneeActive) return
     let cancel = false
-    const run = async () => {
-      const res = await fetch(`/api/etats/detail?annee=${anneeActive}&company_id=${activeId}&prefixes=6,7`)
-      if (!res.ok) return
+
+    const buildYear = async (annee: number) => {
+      const res = await fetch(`/api/etats/detail?annee=${annee}&company_id=${activeId}&prefixes=6,7`)
+      if (!res.ok) return null
       const d = await res.json()
-      const prod: number[] = Array(12).fill(0), conso: number[] = Array(12).fill(0)
-      const perso: number[] = Array(12).fill(0), impots: number[] = Array(12).fill(0), dotAutres: number[] = Array(12).fill(0)
-        ; (d.comptes as Compte[]).forEach((c) => {
-          const cls = c.num[0]
-          c.ecritures.forEach((e) => {
-            const mi = monthIdx(e.date); if (mi < 0) return
-            if (cls === '7') prod[mi] += e.credit - e.debit
-            else {
-              const v = e.debit - e.credit
-              const p2 = c.num.slice(0, 2)
-              if (p2 === '60' || p2 === '61' || p2 === '62') conso[mi] += v
-              else if (p2 === '63') impots[mi] += v
-              else if (p2 === '64') perso[mi] += v
-              else dotAutres[mi] += v
-            }
-          })
+      const B: Record<string, number[]> = {}
+      const add = (k: string, mi: number, v: number) => { (B[k] ??= Array(12).fill(0))[mi] += v }
+      ;(d.comptes as Compte[]).forEach((c) => {
+        const p2 = c.num.slice(0, 2)
+        c.ecritures.forEach((e) => {
+          const mi = monthIdx(e.date); if (mi < 0) return
+          if (c.num[0] === '7') add('p' + p2, mi, e.credit - e.debit)
+          else add('p' + p2, mi, e.debit - e.credit)
         })
-      if (cancel) return
-      const va = prod.map((v, i) => v - conso[i])
-      const ebe = va.map((v, i) => v - impots[i] - perso[i])
-      const net = ebe.map((v, i) => v - dotAutres[i])
-      setSparks({ mb: va, ebe, rex: net, net })
+      })
+      const g = (k: string) => B[k] ?? Array(12).fill(0)
+      const months = Array.from({ length: 12 }, (_, i) => i)
+      // Cascade SIG mensuelle
+      const ca = months.map((i) => g('p70')[i] + g('p71')[i] + g('p72')[i] + g('p73')[i])
+      const mb = months.map((i) => ca[i] - (g('p60')[i] + g('p61')[i] + g('p62')[i]))
+      const ebe = months.map((i) => mb[i] + g('p74')[i] - g('p63')[i] - g('p64')[i])
+      const rex = months.map((i) => ebe[i] + g('p75')[i] + g('p78')[i] - g('p65')[i] - g('p68')[i])
+      const net = months.map((i) => rex[i] + g('p76')[i] + g('p77')[i] - g('p66')[i] - g('p67')[i] - g('p69')[i])
+      return { ca, mb, ebe, rex, net }
+    }
+
+    const run = async () => {
+      const n = await buildYear(anneeActive)
+      const n1 = annees.includes(anneeActive - 1) ? await buildYear(anneeActive - 1) : null
+      if (cancel || !n) return
+      const keys: (keyof typeof n)[] = ['ca', 'mb', 'ebe', 'rex', 'net']
+      const monthly: Record<string, { n: number[]; n1: number[] | null }> = {}
+      keys.forEach((k) => { monthly[k] = { n: n[k], n1: n1 ? n1[k] : null } })
+      setKpiMonthly(monthly)
+      if (SHOW_SPARKLINES) setSparks({ ca: n.ca, mb: n.mb, ebe: n.ebe, rex: n.rex, net: n.net })
     }
     run()
     return () => { cancel = true }
-  }, [activeId, anneeActive])
+  }, [activeId, anneeActive, annees])
 
   const changerAnnee = async (annee: number) => {
-    setAnneeActive(annee); setPanel(null); setHighlight(null)
+    setAnneeActive(annee); setPanel(null); setKpiPanel(null)
     const p = periodeTab === 'perso' && dateDebut && dateFin ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
     const pN1 = periodeTab === 'perso' && dateDebutN1 && dateFinN1 ? `&dateDebut=${dateDebutN1}&dateFin=${dateFinN1}` : ''
     const res = await fetch(`/api/etats?annee=${annee}&company_id=${activeId}${p}`)
@@ -642,17 +766,12 @@ export default function PerformancesPage() {
     </div>
   )
 
-  const STEPS = [
-    { n: 1, label: 'CA', bar: 'CA' }, { n: 2, label: 'VA', bar: 'Valeur ajoutée' },
-    { n: 3, label: 'EBE', bar: 'EBE' }, { n: 4, label: "Résultat d'exploitation", bar: "Résultat d'exploit." },
-    { n: 5, label: 'Résultat net', bar: 'Résultat net' },
-  ]
-
   const kpis = sig ? [
-    { key: 'mb', label: 'Marge brute', pct: sig.tauxMb, val: sig.valeurAjoutee, pctN1: sigN1 ? sigN1.tauxMb : null, spark: sparks.mb || [] },
-    { key: 'ebe', label: 'EBE', pct: sig.tauxEbe, val: sig.ebe, pctN1: sigN1 ? sigN1.tauxEbe : null, spark: sparks.ebe || [] },
-    { key: 'rex', label: "Résultat d'exploitation", pct: sig.tauxRex, val: sig.rex, pctN1: sigN1 ? sigN1.tauxRex : null, spark: sparks.rex || [] },
-    { key: 'net', label: 'Résultat net', pct: sig.tauxRnet, val: sig.resultatNet, pctN1: sigN1 ? sigN1.tauxRnet : null, spark: sparks.net || [] },
+    { key: 'ca',  label: "Chiffre d'affaires",        sublabel: 'Volume de ventes',          pct: null,         val: sig.ca,           pctN1: null,                          varPct: sigN1 && sigN1.ca ? ((sig.ca - sigN1.ca) / Math.abs(sigN1.ca)) * 100 : null,                                     spark: sparks.ca || [] },
+    { key: 'mb',  label: 'Marge brute',                sublabel: 'Efficacité commerciale',    pct: sig.tauxMb,   val: sig.valeurAjoutee, pctN1: sigN1 ? sigN1.tauxMb : null,    varPct: sigN1 && sigN1.valeurAjoutee ? ((sig.valeurAjoutee - sigN1.valeurAjoutee) / Math.abs(sigN1.valeurAjoutee)) * 100 : null, spark: sparks.mb || [] },
+    { key: 'ebe', label: 'EBE',                        sublabel: 'Capacité à générer du cash', pct: sig.tauxEbe, val: sig.ebe,          pctN1: sigN1 ? sigN1.tauxEbe : null,   varPct: sigN1 && sigN1.ebe ? ((sig.ebe - sigN1.ebe) / Math.abs(sigN1.ebe)) * 100 : null,                                  spark: sparks.ebe || [] },
+    { key: 'rex', label: "Résultat d'exploitation",    sublabel: 'Performance opérationnelle', pct: sig.tauxRex, val: sig.rex,          pctN1: sigN1 ? sigN1.tauxRex : null,   varPct: sigN1 && sigN1.rex ? ((sig.rex - sigN1.rex) / Math.abs(sigN1.rex)) * 100 : null,                                  spark: sparks.rex || [] },
+    { key: 'net', label: 'Résultat net',               sublabel: 'Ce qui reste après tout',   pct: sig.tauxRnet, val: sig.resultatNet, pctN1: sigN1 ? sigN1.tauxRnet : null,  varPct: sigN1 && sigN1.resultatNet ? ((sig.resultatNet - sigN1.resultatNet) / Math.abs(sigN1.resultatNet)) * 100 : null,   spark: sparks.net || [] },
   ] : []
 
   const compareRows = sig ? [
@@ -719,37 +838,14 @@ export default function PerformancesPage() {
             <>
               <AlvioInsight payload={{ page: 'profitability', annee: anneeActive, indicateurs: { ca: sig.ca, mb: sig.margeCommerciale, ebe: sig.ebe, rex: sig.rex, rnet: sig.resultatNet, tauxMb: sig.tauxMb, tauxEbe: sig.tauxEbe, tauxRex: sig.tauxRex, tauxRnet: sig.tauxRnet, tauxPers: sig.tauxPers, pers64: sig.chargesPersonnel } }} />
 
-              {/* KPIs */}
+              {/* KPIs ratio (haut) */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, margin: '6px 0 18px' }}>
-                {kpis.map((k) => <KpiCard key={k.key} label={k.label} pct={k.pct} val={k.val} pctN1={k.pctN1} spark={k.spark} />)}
+                {kpis.filter((k) => k.key !== 'ca').map((k) => <KpiCard key={k.key} label={k.label} pct={k.pct} val={k.val} pctN1={k.pctN1} spark={k.spark} />)}
               </div>
 
-              {/* Cascade + comparatif */}
+              {/* Indicateurs clés (gauche) + comparatif (droite) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 16, marginBottom: 18 }}>
-                <div style={card}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div><div style={cardTitle}>Comprendre votre performance</div><div style={cardSub}>Du chiffre d'affaires au résultat net</div></div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-secondary)' }}>
-                      Vue cascade
-                      <div onClick={() => setWfMode((m) => (m === 'val' ? 'pct' : 'val'))} style={{ width: 34, height: 19, borderRadius: 10, background: wfMode === 'val' ? CH : GREY, position: 'relative', cursor: 'pointer', transition: 'background .2s' }}>
-                        <div style={{ width: 15, height: 15, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2, left: wfMode === 'val' ? 17 : 2, transition: 'left .2s' }} />
-                      </div>
-                    </div>
-                  </div>
-                  <Waterfall sig={sig} highlight={highlight} />
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 10, color: 'var(--text-muted)', marginRight: 4 }}>Cliquez sur une étape pour la mettre en avant</span>
-                    {STEPS.map((s) => {
-                      const on = highlight === s.bar
-                      return (
-                        <button key={s.n} onClick={() => setHighlight(on ? null : s.bar)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 20, border: `1px solid ${on ? CH : 'var(--border-light)'}`, background: on ? 'var(--alvio-champagne-subtle)' : 'var(--bg-card)', cursor: 'pointer', fontSize: 11, color: 'var(--text-primary)', fontWeight: on ? 600 : 500 }}>
-                          <span style={{ width: 16, height: 16, borderRadius: '50%', background: on ? CH : 'var(--bg-main)', color: on ? '#fff' : 'var(--text-muted)', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{s.n}</span>
-                          {s.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
+                <IndicateursCles kpis={kpis} onOpen={(k) => setKpiPanel({ key: k.key, label: k.label, sublabel: k.sublabel, val: k.val, varPct: k.varPct, pct: k.pct })} />
 
                 <div style={card}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -772,6 +868,7 @@ export default function PerformancesPage() {
       </div>
 
       {panel && <SidePanel poste={panel} onClose={() => setPanel(null)} />}
+      {kpiPanel && <IndicatorPanel indic={kpiPanel} monthly={kpiMonthly[kpiPanel.key]} onClose={() => setKpiPanel(null)} />}
       <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
     </div>
   )
