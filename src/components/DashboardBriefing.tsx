@@ -36,10 +36,6 @@ const DONUT_COLORS = ['#C6A275', '#B08D5E', '#D4BC97', '#8C9BAB', '#B9C2CB', '#6
 function formatEur(value: number): string {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value || 0);
 }
-function formatEurK(value: number): string {
-  const k = Math.round((value || 0) / 1000);
-  return k.toLocaleString('fr-FR') + ' k€';
-}
 function formatPct(value: number): string {
   return (value >= 0 ? '+' : '') + value.toFixed(1) + ' %';
 }
@@ -185,9 +181,6 @@ function DonutCharges({ data }: { data: ChargeNature[] }) {
     return { ...d, frac, arc, start, color: DONUT_COLORS[i % DONUT_COLORS.length] };
   });
 
-  const centerVal = hover !== null ? Math.round(segs[hover].frac * 100) + ' %' : formatEurK(total);
-  const centerLabel = hover !== null ? segs[hover].label : 'Charges';
-
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16 }}>
       <svg width="150" height="150" viewBox="0 0 160 160" style={{ flexShrink: 0 }} role="img" aria-label="Répartition des charges par nature">
@@ -204,8 +197,6 @@ function DonutCharges({ data }: { data: ChargeNature[] }) {
               }} />
           ))}
         </g>
-        <text x="80" y="77" textAnchor="middle" fontFamily="Inter" fontSize="18" fontWeight="600" fill="var(--text-primary)">{centerVal}</text>
-        <text x="80" y="94" textAnchor="middle" fontFamily="Inter" fontSize="11" fill="var(--text-muted)">{centerLabel}</text>
       </svg>
       <div style={{ flex: '1 1 150px', minWidth: 150, display: 'flex', flexDirection: 'column', gap: 8 }}>
         {segs.map((s, i) => (
