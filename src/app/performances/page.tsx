@@ -31,6 +31,12 @@ const SHOW_SPARKLINES = false
 const fmt = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' €'
 const fmtP = (n: number) => (Math.round(n * 10) / 10).toFixed(1) + ' %'
 const fmtV = (n: number | null) => (n == null ? '—' : (n >= 0 ? '+' : '') + Math.round(n) + ' %')
+// Normalise les libellés FEC/Pennylane : 1re lettre majuscule, reste minuscule
+const sentenceCase = (s: string | undefined | null) => {
+  if (!s) return ''
+  const t = s.trim().toLowerCase()
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
 const MOIS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
 
 function toIso(d: string): string {
@@ -481,7 +487,7 @@ function SidePanel({ poste, onClose }: { poste: PosteDetail; onClose: () => void
                 {selectedCompte ? (
                   <>
                     <span style={{ fontSize: 11, fontFamily: 'monospace', color: accent, marginRight: 6 }}>{selectedCompte.num}</span>
-                    {selectedCompte.lib}
+                    {sentenceCase(selectedCompte.lib)}
                   </>
                 ) : poste.label}
               </div>
@@ -563,7 +569,7 @@ function SidePanel({ poste, onClose }: { poste: PosteDetail; onClose: () => void
                     padding: '2px 4px', borderRadius: 4, fontWeight: 700, letterSpacing: 0,
                     boxShadow: `0 1px 3px ${accent}55`,
                   }}>{c.num.slice(0, 5)}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 4 }}>{c.lib}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 4 }}>{sentenceCase(c.lib)}</span>
                   <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', textAlign: 'right' }}>{fmt(c.val)}</span>
                   <span style={{ fontSize: 10, fontWeight: 600, color: (c.varPct ?? 0) >= 0 ? OK : DANGER, textAlign: 'right' }}>{fmtV(c.varPct)}</span>
                   <span style={{ fontSize: 10, color: accent, textAlign: 'right' }}>›</span>
@@ -600,7 +606,7 @@ function SidePanel({ poste, onClose }: { poste: PosteDetail; onClose: () => void
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-main)' }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
                   <span style={{ fontSize: 10, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtDate(e.date)}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={e.lib}>{e.lib || '—'}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={sentenceCase(e.lib)}>{sentenceCase(e.lib) || '—'}</span>
                   <span style={{ fontSize: 11, fontWeight: 600, color: isCharges ? DANGER : OK, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{isCharges ? '+' : ''}{fmt(Math.abs(e.montant))}</span>
                 </div>
               ))}
