@@ -260,7 +260,41 @@ export default function DashboardPage() {
 
         </div>
       </div>
-      <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
+      <AlvioAvatar />
+      <style>{'@keyframes spin{to{transform:rotate(360deg)}}@keyframes alvioFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}@keyframes alvioPop{from{opacity:0;transform:translateY(8px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}'}</style>
+    </div>
+  )
+}
+
+/* ── Avatar Alvio flottant (sticker transparent, bas droite) ─────────── */
+function AlvioAvatar() {
+  const [open, setOpen] = useState(true)
+  return (
+    <div style={{ position: 'fixed', bottom: 0, right: 18, zIndex: 60, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+      {open && (
+        <div style={{
+          maxWidth: 250, marginTop: 14, background: '#fff', border: '1px solid var(--border-light)', borderRadius: 16, borderBottomRightRadius: 4,
+          padding: '13px 15px', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', position: 'relative', animation: 'alvioPop .28s cubic-bezier(0.22,1,0.36,1)', alignSelf: 'flex-start',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#C6A275', letterSpacing: '0.02em' }}>Alvio · CFO Digital</span>
+            <button onClick={() => setOpen(false)} aria-label="Masquer"
+              style={{ background: 'var(--bg-main)', border: '1px solid var(--border-light)', borderRadius: 6, width: 20, height: 20, cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13, lineHeight: 1, padding: 0, flexShrink: 0 }}>×</button>
+          </div>
+          <p style={{ margin: 0, fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            J'ai analysé vos données. Voici les informations les plus importantes pour piloter votre entreprise aujourd'hui.
+          </p>
+          {/* petite pointe vers l'avatar */}
+          <span style={{ position: 'absolute', top: 22, right: -6, width: 12, height: 12, background: '#fff', borderRight: '1px solid var(--border-light)', borderTop: '1px solid var(--border-light)', transform: 'rotate(45deg)' }} />
+        </div>
+      )}
+      <button onClick={() => setOpen((o) => !o)} aria-label={open ? 'Masquer Alvio' : 'Afficher Alvio'}
+        style={{
+          border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', flexShrink: 0,
+          animation: 'alvioFloat 4.5s ease-in-out infinite', lineHeight: 0,
+        }}>
+        <img src="/avatar-alvio.png" alt="Alvio" style={{ height: 165, width: 'auto', display: 'block', filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.22))' }} />
+      </button>
     </div>
   )
 }
