@@ -114,33 +114,51 @@ export function parseFEC(text: string): ParseResult {
   return { lignes, erreur: null, header }
 }
 
+export interface ExerciceBornes {
+  /** Année de la clôture (millésime) = year(dateFin). Reste la clé de fec_exercices. */
+  annee: number
+  /** Ouverture (1er jour) au format YYYY-MM-DD, ou null si indéterminable. */
+  dateDebut: string | null
+  /** Clôture (dernier jour) au format YYYY-MM-DD, ou null si indéterminable. */
+  dateFin: string | null
+}
+
 /**
- * Détermine l'année de l'exercice à partir de la DATE DE CLÔTURE,
- * c'est-à-dire la dernière date d'écriture présente dans le FEC.
- * Pour les exercices à cheval (ex. oct 2024 → sept 2025), renvoie 2025.
- * Repli sur le nom de fichier (pattern FECYYYY) puis l'année courante.
+ * Bornes de l'exercice à partir des dates d'écriture du FEC.
+ *   • dateFin   = dernière EcritureDate (OD de clôture)
+ *   • dateDebut = première EcritureDate (les à-nouveaux marquent l'ouverture)
+ *   • annee     = année de la clôture ; repli nom de fichier (FECYYYY) puis année courante.
+ * Gère nativement les exercices à cheval (ex. 01/07/N → 30/06/N+1).
  */
-export function detectAnnee(lignes: LigneFEC[], fileName: string): number {
-  const dates = lignes
-    .map(l => l.EcritureDate)
-    .filter(d => d && d.length >= 8)
+export function detectExercice(lignes: LigneFEC[], fileName: string): ExerciceBornes {
+  const normalize = (d: string) =>
+    d.includes('-') ? d.slice(0, 10) : `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`
+
+  let min: string | null = null
+  let max: string | null = null
+  for (const l of lignes) {
+    const raw = l.EcritureDate
+    if (!raw || raw.length < 8) continue
+    const d = normalize(raw)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) continue
+    if (min === null || d < min) min = d   // ISO -> comparaison lexicale = chronologique
+    if (max === null || d > max) max = d
+  }
 
   let annee: number | null = null
-
-  if (dates.length > 0) {
-    const normalize = (d: string) =>
-      d.includes('-') ? d.slice(0, 10) : `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`
-    const maxDate = dates.map(normalize).reduce((a, b) => (a > b ? a : b))
-    const parsed = parseInt(maxDate.slice(0, 4))
-    if (!isNaN(parsed) && parsed >= 2000 && parsed <= 2100) {
-      annee = parsed
-    }
+  if (max) {
+    const parsed = parseInt(max.slice(0, 4))
+    if (!isNaN(parsed) && parsed >= 2000 && parsed <= 2100) annee = parsed
   }
-
   if (annee === null) {
-    const match = fileName.match(/FEC(\d{4})/)
-    annee = match ? parseInt(match[1]) : new Date().getFullYear()
+    const m = fileName.match(/FEC(\d{4})/)
+    annee = m ? parseInt(m[1]) : new Date().getFullYear()
   }
 
-  return annee
+  return { annee, dateDebut: min, dateFin: max }
+}
+
+/** @deprecated conservé pour compat — préférer detectExercice(). */
+export function detectAnnee(lignes: LigneFEC[], fileName: string): number {
+  return detectExercice(lignes, fileName).annee
 }

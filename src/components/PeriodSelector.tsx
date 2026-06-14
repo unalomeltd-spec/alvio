@@ -1,5 +1,9 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { useActiveCompany } from '@/hooks/useActiveCompany'
+
+const supabase = createClient()
 
 interface PeriodSelectorProps {
   annees: number[]
@@ -27,6 +31,41 @@ function shiftYearMinus1(d: string): string {
   return y + d.slice(4)
 }
 
+// ── Dates : blocs calés sur l'ouverture de l'exercice ──────────────
+function addMonths(iso: string, n: number): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  dt.setUTCMonth(dt.getUTCMonth() + n)
+  return dt.toISOString().slice(0, 10)
+}
+function minusOneDay(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  dt.setUTCDate(dt.getUTCDate() - 1)
+  return dt.toISOString().slice(0, 10)
+}
+// T = blocs de 3 mois depuis l'ouverture, S = blocs de 6 mois, dernier bloc borné à la clôture.
+// Pour un exercice civil, reproduit janv→mars, etc.
+function buildPresets(debut: string, fin: string) {
+  const clamp = (d: string) => (d > fin ? fin : d)
+  const block = (off: number, len: number) => ({
+    debut: addMonths(debut, off),
+    fin: clamp(minusOneDay(addMonths(debut, off + len))),
+  })
+  return [
+    { label: 'T1', ...block(0, 3) },
+    { label: 'T2', ...block(3, 3) },
+    { label: 'T3', ...block(6, 3) },
+    { label: 'T4', debut: addMonths(debut, 9), fin },
+    { label: 'S1', ...block(0, 6) },
+    { label: 'S2', debut: addMonths(debut, 6), fin },
+  ].filter(p => p.debut <= fin)
+}
+
+const fdc = (d: string) => d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4)
+const estCivil = (m: { debut: string; fin: string }) =>
+  m.debut.slice(5) === '01-01' && m.fin.slice(5) === '12-31' && m.debut.slice(0, 4) === m.fin.slice(0, 4)
+
 export default function PeriodSelector({
   annees, anneeActive, setAnneeActive,
   periodeTab, setPeriodeTab,
@@ -35,18 +74,39 @@ export default function PeriodSelector({
   anneeN1, setAnneeN1,
   showN1 = true,
 }: PeriodSelectorProps) {
+  const { activeId } = useActiveCompany()
   const [open, setOpen] = useState(false)
   const [n1Open, setN1Open] = useState(false)
   const [n1Custom, setN1Custom] = useState(false)
+  const [exMeta, setExMeta] = useState<Record<number, { debut: string; fin: string }>>({})
 
-  const presets = (annee: number) => [
-    { label: 'T1', debut: `${annee}-01-01`, fin: `${annee}-03-31` },
-    { label: 'T2', debut: `${annee}-04-01`, fin: `${annee}-06-30` },
-    { label: 'T3', debut: `${annee}-07-01`, fin: `${annee}-09-30` },
-    { label: 'T4', debut: `${annee}-10-01`, fin: `${annee}-12-31` },
-    { label: 'S1', debut: `${annee}-01-01`, fin: `${annee}-06-30` },
-    { label: 'S2', debut: `${annee}-07-01`, fin: `${annee}-12-31` },
-  ]
+  // Bornes réelles des exercices du dossier (date_debut / date_fin), RLS appliquée.
+  useEffect(() => {
+    if (!activeId) { setExMeta({}); return }
+    let cancel = false
+    ;(async () => {
+      const { data } = await supabase
+        .from('fec_exercices')
+        .select('annee, date_debut, date_fin')
+        .eq('company_id', activeId)
+      if (cancel || !data) return
+      const map: Record<number, { debut: string; fin: string }> = {}
+      for (const row of data) {
+        if (row.date_debut && row.date_fin) map[row.annee] = { debut: row.date_debut, fin: row.date_fin }
+      }
+      setExMeta(map)
+    })()
+    return () => { cancel = true }
+  }, [activeId])
+
+  const activeMeta = exMeta[anneeActive]
+  const exoDebut = activeMeta?.debut || `${anneeActive}-01-01`
+  const exoFin   = activeMeta?.fin   || `${anneeActive}-12-31`
+  const presetList = buildPresets(exoDebut, exoFin)
+  const spanExo = (a: number): string | null => {
+    const m = exMeta[a]
+    return m && !estCivil(m) ? `${fdc(m.debut)} → ${fdc(m.fin)}` : null
+  }
 
   const setPreset = (debut: string, fin: string) => {
     setDateDebut(debut)
@@ -80,19 +140,13 @@ export default function PeriodSelector({
 
   const labelN = (() => {
     if (periodeTab === 'exercice') return `Exercice ${anneeActive}`
-    if (dateDebut && dateFin) {
-      const fd = (d: string) => d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4)
-      return `${fd(dateDebut)} → ${fd(dateFin)}`
-    }
+    if (dateDebut && dateFin) return `${fdc(dateDebut)} → ${fdc(dateFin)}`
     return 'Période'
   })()
 
   const labelN1 = (() => {
     if (!n1Custom && periodeTab === 'exercice') return `vs Exercice ${anneeN1}`
-    if (dateDebutN1 && dateFinN1) {
-      const fd = (d: string) => d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4)
-      return `vs ${fd(dateDebutN1)} → ${fd(dateFinN1)}`
-    }
+    if (dateDebutN1 && dateFinN1) return `vs ${fdc(dateDebutN1)} → ${fdc(dateFinN1)}`
     return `vs Exercice ${anneeN1}`
   })()
 
@@ -117,28 +171,36 @@ export default function PeriodSelector({
               {/* Exercices */}
               <div style={{ padding: '8px 0', borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
                 <div style={{ padding: '4px 14px 6px', fontSize: 10, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Exercice</div>
-                {annees.map(a => (
-                  <div key={a} onClick={() => handleExercice(a)}
-                    style={{ padding: '7px 14px', fontSize: 12, cursor: 'pointer', color: anneeActive === a && periodeTab === 'exercice' ? '#B8A98A' : '#1A1A1A', background: anneeActive === a && periodeTab === 'exercice' ? 'rgba(184,169,138,0.08)' : 'transparent', fontWeight: anneeActive === a && periodeTab === 'exercice' ? 500 : 400 }}
-                    onMouseEnter={e => { if (!(anneeActive === a && periodeTab === 'exercice')) (e.currentTarget as HTMLElement).style.background = '#F7F8FA' }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = anneeActive === a && periodeTab === 'exercice' ? 'rgba(184,169,138,0.08)' : 'transparent' }}>
-                    Exercice {a} — complet
-                  </div>
-                ))}
+                {annees.map(a => {
+                  const actif = anneeActive === a && periodeTab === 'exercice'
+                  const sub = spanExo(a)
+                  return (
+                    <div key={a} onClick={() => handleExercice(a)}
+                      style={{ display: 'flex', flexDirection: 'column', gap: 1, padding: '7px 14px', fontSize: 12, cursor: 'pointer', color: actif ? '#B8A98A' : '#1A1A1A', background: actif ? 'rgba(184,169,138,0.08)' : 'transparent', fontWeight: actif ? 500 : 400 }}
+                      onMouseEnter={e => { if (!actif) (e.currentTarget as HTMLElement).style.background = '#F7F8FA' }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = actif ? 'rgba(184,169,138,0.08)' : 'transparent' }}>
+                      <span>Exercice {a} — complet</span>
+                      {sub && <span style={{ fontSize: 10, color: '#8C9BAB', fontVariantNumeric: 'tabular-nums' }}>{sub}</span>}
+                    </div>
+                  )
+                })}
               </div>
 
               {/* Trimestres & semestres */}
               <div style={{ padding: '8px 0', borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
-                <div style={{ padding: '4px 14px 6px', fontSize: 10, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Périodes {anneeActive}</div>
+                <div style={{ padding: '4px 14px 6px', fontSize: 10, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Périodes de l'exercice</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, padding: '0 8px' }}>
-                  {presets(anneeActive).map(p => (
-                    <div key={p.label} onClick={() => setPreset(p.debut, p.fin)}
-                      style={{ padding: '6px 8px', fontSize: 11, cursor: 'pointer', borderRadius: 6, color: dateDebut === p.debut && dateFin === p.fin ? '#B8A98A' : '#1A1A1A', background: dateDebut === p.debut && dateFin === p.fin ? 'rgba(184,169,138,0.1)' : 'transparent', textAlign: 'center', fontWeight: 500 }}
-                      onMouseEnter={e => { if (!(dateDebut === p.debut && dateFin === p.fin)) (e.currentTarget as HTMLElement).style.background = '#F7F8FA' }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = dateDebut === p.debut && dateFin === p.fin ? 'rgba(184,169,138,0.1)' : 'transparent' }}>
-                      {p.label}
-                    </div>
-                  ))}
+                  {presetList.map(p => {
+                    const actif = dateDebut === p.debut && dateFin === p.fin
+                    return (
+                      <div key={p.label} onClick={() => setPreset(p.debut, p.fin)}
+                        style={{ padding: '6px 8px', fontSize: 11, cursor: 'pointer', borderRadius: 6, color: actif ? '#B8A98A' : '#1A1A1A', background: actif ? 'rgba(184,169,138,0.1)' : 'transparent', textAlign: 'center', fontWeight: 500 }}
+                        onMouseEnter={e => { if (!actif) (e.currentTarget as HTMLElement).style.background = '#F7F8FA' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = actif ? 'rgba(184,169,138,0.1)' : 'transparent' }}>
+                        {p.label}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
 
@@ -191,7 +253,7 @@ export default function PeriodSelector({
                   </div>
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 500, color: '#1A1A1A' }}>Automatique</div>
-                    <div style={{ fontSize: 10, color: '#8C9BAB' }}>Même période, année N-1</div>
+                    <div style={{ fontSize: 10, color: '#8C9BAB' }}>Même période, exercice précédent</div>
                   </div>
                 </div>
               </div>
@@ -199,14 +261,19 @@ export default function PeriodSelector({
               {/* Exercices N-1 disponibles */}
               <div style={{ padding: '8px 0', borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
                 <div style={{ padding: '4px 14px 6px', fontSize: 10, fontWeight: 600, color: '#8C9BAB', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Exercice comparatif</div>
-                {annees.filter(a => a < anneeActive).map(a => (
-                  <div key={a} onClick={() => { setN1Custom(true); setAnneeN1(a); setPeriodeTab('exercice'); setN1Open(false) }}
-                    style={{ padding: '7px 14px', fontSize: 12, cursor: 'pointer', color: n1Custom && anneeN1 === a ? '#B8A98A' : '#1A1A1A', background: n1Custom && anneeN1 === a ? 'rgba(184,169,138,0.08)' : 'transparent' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#F7F8FA' }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = n1Custom && anneeN1 === a ? 'rgba(184,169,138,0.08)' : 'transparent' }}>
-                    Exercice {a}
-                  </div>
-                ))}
+                {annees.filter(a => a < anneeActive).map(a => {
+                  const actif = n1Custom && anneeN1 === a
+                  const sub = spanExo(a)
+                  return (
+                    <div key={a} onClick={() => { setN1Custom(true); setAnneeN1(a); setPeriodeTab('exercice'); setN1Open(false) }}
+                      style={{ display: 'flex', flexDirection: 'column', gap: 1, padding: '7px 14px', fontSize: 12, cursor: 'pointer', color: actif ? '#B8A98A' : '#1A1A1A', background: actif ? 'rgba(184,169,138,0.08)' : 'transparent' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#F7F8FA' }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = actif ? 'rgba(184,169,138,0.08)' : 'transparent' }}>
+                      <span>Exercice {a}</span>
+                      {sub && <span style={{ fontSize: 10, color: '#8C9BAB', fontVariantNumeric: 'tabular-nums' }}>{sub}</span>}
+                    </div>
+                  )
+                })}
               </div>
 
               {/* Dates personnalisées N-1 */}

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Sidebar from '@/components/Sidebar'
-import { parseFEC, detectAnnee } from '@/lib/fec-parser'
+import { parseFEC, detectExercice } from '@/lib/fec-parser'
 import { useActiveCompany } from '@/hooks/useActiveCompany'
 
 // Client cookie partagé (même session que le reste de l'app).
@@ -18,6 +18,7 @@ interface EntrepriseInfo {
 
 interface FecExercice {
   annee: number; nom_fichier: string; nb_ecritures: number
+  date_debut: string | null; date_fin: string | null
 }
 
 interface PennylaneConnection {
@@ -72,8 +73,8 @@ export default function EntreprisePage() {
 
   const rechargerFec = async (cid: string) => {
     const { data: fecData } = await supabase
-      .from('fec_exercices').select('annee, nom_fichier, ecritures')
-      .eq('company_id', cid).order('annee', { ascending: false })
+      .from('fec_exercices').select('annee, nom_fichier, ecritures, date_debut, date_fin')
+      .eq('company_id', cid).order('date_fin', { ascending: false, nullsFirst: false })
     if (fecData) {
       const kpisMap: Record<number,any> = {}
       await Promise.all(fecData.map(async (r) => {
@@ -97,7 +98,9 @@ export default function EntreprisePage() {
       setFecExercices(fecData.map(r => ({
         annee: r.annee,
         nom_fichier: r.nom_fichier || `FEC_${r.annee}.txt`,
-        nb_ecritures: Array.isArray(r.ecritures) ? r.ecritures.length : 0
+        nb_ecritures: Array.isArray(r.ecritures) ? r.ecritures.length : 0,
+        date_debut: r.date_debut ?? null,
+        date_fin: r.date_fin ?? null,
       })))
     }
   }
@@ -271,15 +274,15 @@ export default function EntreprisePage() {
       const text = await file.text()
       const { lignes, erreur } = parseFEC(text)
       if (erreur) { setUploadMsg(erreur); setUploading(false); return }
-      const annee = detectAnnee(lignes, file.name)
+      const { annee, dateDebut, dateFin } = detectExercice(lignes, file.name)
       if (!activeId) { setUploadMsg('Aucun dossier actif'); setUploading(false); return }
       await supabase.from('fec_exercices').upsert(
-        { user_id: user.id, company_id: activeId, annee, ecritures: lignes, nom_fichier: file.name },
+        { user_id: user.id, company_id: activeId, annee, ecritures: lignes, nom_fichier: file.name, date_debut: dateDebut, date_fin: dateFin },
         { onConflict: 'company_id,annee' }
       )
       setFecExercices(prev => {
         const filtered = prev.filter(f => f.annee !== annee)
-        return [{ annee, nom_fichier: file.name, nb_ecritures: lignes.length }, ...filtered].sort((a,b) => b.annee - a.annee)
+        return [{ annee, nom_fichier: file.name, nb_ecritures: lignes.length, date_debut: dateDebut, date_fin: dateFin }, ...filtered].sort((a,b) => (b.date_fin || '').localeCompare(a.date_fin || ''))
       })
       setUploadMsg('FEC ' + annee + ' \u2014 ' + lignes.length.toLocaleString('fr-FR') + ' \u00e9critures import\u00e9es')
     } catch (err) {
@@ -392,11 +395,10 @@ export default function EntreprisePage() {
   // Extrait la date de clôture depuis le nom_fichier Pennylane (ex. Pennylane_FEC_2024-10-01_2025-09-30.txt)
   // ou renvoie l'année comme fallback pour les FEC manuels
   const fmtDateCloture = (f: FecExercice): string => {
+    // 1) date_fin stockée (vérité) ; 2) repli ancien nom de fichier Pennylane ; 3) repli millésime.
+    if (f.date_fin) { const [y, m, d] = f.date_fin.split('-'); return `${d}/${m}/${y}` }
     const match = f.nom_fichier.match(/_(\d{4}-\d{2}-\d{2})\.txt$/)
-    if (match) {
-      const [y, m, d] = match[1].split('-')
-      return `${d}/${m}/${y}`
-    }
+    if (match) { const [y, m, d] = match[1].split('-'); return `${d}/${m}/${y}` }
     return String(f.annee)
   }
 

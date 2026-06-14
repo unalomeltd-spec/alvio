@@ -249,6 +249,13 @@ function buildMensuel(lignes: LigneFEC[], ecrituresCloture: Set<string>) {
   return MOIS_LABELS.map((label, i) => ({ mois: i + 1, label, produits: r(prod[i]), charges: r(chg[i]) }))
 }
 
+// Réordonne les 12 mois pour que l'axe commence au mois d'ouverture de l'exercice (et non janvier).
+function orienterMensuel(mois: ReturnType<typeof buildMensuel>, exDebut: string): ReturnType<typeof buildMensuel> {
+  const m0 = parseInt((exDebut || '').slice(5, 7), 10) - 1
+  if (isNaN(m0) || m0 <= 0 || m0 > 11) return mois  // janvier ou invalide → ordre civil
+  return [...mois.slice(m0), ...mois.slice(0, m0)]
+}
+
 // Ventilation des charges par nature — branchée sur les agrégats du moteur
 // (classification PCG via @/lib/pcg-reference). Aucun préfixe en dur.
 // Les variations de stocks sont nettées dans « Achats consommés ». Buckets négatifs
@@ -271,7 +278,7 @@ function buildChargesParNature(a: Aggregats) {
 }
 
 // ─── Pipeline ────────────────────────────────────────────────────
-function calculer(lignes: LigneFEC[], annee: number, dateDebut?: string, dateFin?: string) {
+function calculer(lignes: LigneFEC[], annee: number, dateDebut?: string, dateFin?: string, exDebut?: string | null, exFin?: string | null) {
   const lignesFiltrees = (dateDebut && dateFin) ? filtrerParPeriode(lignes, dateDebut, dateFin) : lignes
 
   const { regime, ecrituresClotureNum } = detecterRegime(lignesFiltrees)
@@ -302,7 +309,10 @@ function calculer(lignes: LigneFEC[], annee: number, dateDebut?: string, dateFin
     comptesNonReconnus: comptesNonReconnus.slice(0, 30), comptesNonReconnusTotal: comptesNonReconnus.length,
     anomaliesPlan, anomaliesPlanTotal: anomaliesPlan.length,
   }
-  const periode = (dateDebut && dateFin) ? { type: 'perso' as const, dateDebut, dateFin } : { type: 'exercice' as const, dateDebut: `${annee}-01-01`, dateFin: `${annee}-12-31` }
+  // Bornes réelles de l'exercice (date_debut / date_fin) ; repli année civile si dates absentes (ligne pas encore ré-importée).
+  const exoDebut = exDebut || `${annee}-01-01`
+  const exoFin   = exFin   || `${annee}-12-31`
+  const periode = (dateDebut && dateFin) ? { type: 'perso' as const, dateDebut, dateFin } : { type: 'exercice' as const, dateDebut: exoDebut, dateFin: exoFin }
 
   // Santé financière — calculée sur les écritures brutes (détail ligne par ligne),
   // pas sur la balance agrégée : l'aging par tiers a besoin de CompAuxNum + EcritureDate.
@@ -313,7 +323,8 @@ function calculer(lignes: LigneFEC[], annee: number, dateDebut?: string, dateFin
     tresorerieFinExercice: bilan.actif.tresorerie,
   })
 
-  const mensuel = buildMensuel(lignesFiltrees, ecrituresClotureNum)
+  // Mensuel calé sur l'ouverture de l'exercice (1er mois = mois de date_debut), pas forcément janvier.
+  const mensuel = orienterMensuel(buildMensuel(lignesFiltrees, ecrituresClotureNum), exoDebut)
   const chargesParNature = buildChargesParNature(aggregats)
 
   return { annee, periode, regime, gate, controles, sig, cr, bilan, sante, mensuel, chargesParNature }
@@ -336,12 +347,12 @@ export async function GET(request: NextRequest) {
 
   // RLS : cette lecture ne renvoie la ligne QUE si le dossier appartient à l'utilisateur.
   // Un company_id falsifié → aucune ligne → 404. Isolation garantie par la base.
-  const { data, error } = await supabase.from('fec_exercices').select('ecritures').eq('company_id', companyId).eq('annee', annee).single()
+  const { data, error } = await supabase.from('fec_exercices').select('ecritures, date_debut, date_fin').eq('company_id', companyId).eq('annee', annee).single()
   if (error || !data) return NextResponse.json({ erreur: 'FEC introuvable' }, { status: 404 })
   try {
     const ecritures = data.ecritures
     if (!Array.isArray(ecritures) || ecritures.length === 0) return NextResponse.json({ erreur: 'FEC vide ou invalide' }, { status: 422 })
-    return NextResponse.json(calculer(ecritures as LigneFEC[], annee, dateDebut || undefined, dateFin || undefined))
+    return NextResponse.json(calculer(ecritures as LigneFEC[], annee, dateDebut || undefined, dateFin || undefined, data.date_debut ?? null, data.date_fin ?? null))
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur interne du moteur comptable'
     return NextResponse.json({ erreur: message }, { status: 500 })

@@ -14,7 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { parseFEC, detectAnnee } from '@/lib/fec-parser'
+import { parseFEC, detectExercice } from '@/lib/fec-parser'
 
 const PENNYLANE_BASE = 'https://app.pennylane.com/api/external/v2'
 
@@ -126,12 +126,14 @@ export async function POST(req: NextRequest) {
     }
 
     const nomFichier = `Pennylane_FEC_${period_start}_${period_end}.txt`
-    const annee = detectAnnee(lignes, `FEC${period_start.slice(0, 4)}`)
+    // Pennylane fournit les bornes exactes de l'exercice : on les écrit telles quelles.
+    // annee = millésime de la clôture (period_end) ; repli detectExercice.
+    const annee = parseInt(period_end.slice(0, 4)) || detectExercice(lignes, period_end).annee
 
     const { error: upsertError } = await supabaseAdmin
       .from('fec_exercices')
       .upsert(
-        { user_id, company_id: conn.company_id, annee, ecritures: lignes, nom_fichier: nomFichier },
+        { user_id, company_id: conn.company_id, annee, ecritures: lignes, nom_fichier: nomFichier, date_debut: period_start, date_fin: period_end },
         { onConflict: 'company_id,annee' }
       )
     if (upsertError) {
