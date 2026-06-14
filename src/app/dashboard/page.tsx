@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import AppSidebar from '@/components/Sidebar'
 import TopBar from '@/components/TopBar'
@@ -36,6 +36,16 @@ export default function DashboardPage() {
   const [userId, setUserId] = useState<string>('')
   const { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1 } = usePeriod(new Date().getFullYear())
   const { activeId } = useActiveCompany()
+
+  // Retour visuel immédiat (changement de société / année / période) :
+  // on grise le contenu dès qu'un input change, on dégrise quand les données arrivent.
+  const [switching, setSwitching] = useState(false)
+  const firstLoadRef = useRef(true)
+  useEffect(() => {
+    if (firstLoadRef.current) { firstLoadRef.current = false; return }
+    setSwitching(true)
+  }, [activeId, anneeActive, periodeTab, dateDebut, dateFin])
+  useEffect(() => { setSwitching(false) }, [etats])
   const periodeParams = periodeTab === 'perso' && dateDebut && dateFin
     ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
   const [deltas, setDeltas] = useState<{ deltaCA?: number; deltaMb?: number; deltaEbe?: number; deltaRnet?: number }>({})
@@ -155,7 +165,7 @@ export default function DashboardPage() {
     <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg-main)', fontFamily:"inherit" }}>
       <AppSidebar activePage="dashboard"/>
       <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
-        <TopBar title="Synthèse" annees={annees} anneeActive={anneeActive} onChangerAnnee={changerAnnee}
+        <TopBar title="Synthèse" annees={annees} anneeActive={anneeActive} onChangerAnnee={changerAnnee} loading={switching}
           periodeTab={periodeTab} setPeriodeTab={setPeriodeTab}
           dateDebut={dateDebut} setDateDebut={setDateDebut}
           dateFin={dateFin} setDateFin={setDateFin}
@@ -177,7 +187,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Contenu */}
-          <div style={{ position:'relative', zIndex:1, padding:24, overflowY:'auto', height:'100%' }}>
+          <div style={{ position:'relative', zIndex:1, padding:24, overflowY:'auto', height:'100%', opacity: switching ? 0.45 : 1, transition: 'opacity .18s ease', pointerEvents: switching ? 'none' : undefined }}>
             {erreur && <div style={{ background:'rgba(180,35,24,0.06)', border:'1px solid rgba(180,35,24,0.2)', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#D85A30' }}>{erreur}</div>}
             {!sig ? (
               <div style={{ maxWidth:420, margin:'80px auto', textAlign:'center' }}>

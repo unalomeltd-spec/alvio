@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Sidebar from '@/components/Sidebar'
 import TopBar from '@/components/TopBar'
@@ -644,6 +644,16 @@ export default function PerformancesPage() {
   const { anneeActive, setAnneeActive, periodeTab, setPeriodeTab, dateDebut, setDateDebut, dateFin, setDateFin, anneeN1, setAnneeN1, dateDebutN1, setDateDebutN1, dateFinN1, setDateFinN1 } = usePeriod(new Date().getFullYear())
   const { activeId } = useActiveCompany()
 
+  // Retour visuel immédiat (changement de société / année / période) :
+  // on grise le contenu dès qu'un input change, on dégrise quand les données arrivent.
+  const [switching, setSwitching] = useState(false)
+  const firstLoadRef = useRef(true)
+  useEffect(() => {
+    if (firstLoadRef.current) { firstLoadRef.current = false; return }
+    setSwitching(true)
+  }, [activeId, anneeActive, periodeTab, dateDebut, dateFin])
+  useEffect(() => { setSwitching(false) }, [etats])
+
   const periodeParams = periodeTab === 'perso' && dateDebut && dateFin ? `&dateDebut=${dateDebut}&dateFin=${dateFin}` : ''
   const periodeParamsN1 = periodeTab === 'perso' && dateDebutN1 && dateFinN1 ? `&dateDebut=${dateDebutN1}&dateFin=${dateFinN1}` : ''
 
@@ -899,13 +909,13 @@ export default function PerformancesPage() {
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
       <Sidebar activePage="performances" />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <TopBar title="Performances" annees={annees} anneeActive={anneeActive} onChangerAnnee={changerAnnee} loading={drillLoading}
+        <TopBar title="Performances" annees={annees} anneeActive={anneeActive} onChangerAnnee={changerAnnee} loading={switching || drillLoading}
           periodeTab={periodeTab} setPeriodeTab={setPeriodeTab}
           dateDebut={dateDebut} setDateDebut={setDateDebut} dateFin={dateFin} setDateFin={setDateFin}
           anneeN1={anneeN1} setAnneeN1={setAnneeN1} dateDebutN1={dateDebutN1} setDateDebutN1={setDateDebutN1}
           dateFinN1={dateFinN1} setDateFinN1={setDateFinN1} />
 
-        <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
+        <div style={{ flex: 1, padding: 24, overflowY: 'auto', opacity: switching ? 0.45 : 1, transition: 'opacity .18s ease', pointerEvents: switching ? 'none' : undefined }}>
           {!sig ? (
             <div style={{ maxWidth: 420, margin: '80px auto', textAlign: 'center' }}>
               <div style={{ width: 64, height: 64, borderRadius: 18, background: 'rgba(198,162,117,0.08)', border: '1px solid rgba(198,162,117,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
