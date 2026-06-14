@@ -521,8 +521,9 @@ function Badge({ label, color, bg }: { label: string; color: string; bg: string 
 function ScoreCard({ score, dims }: { score: number; dims: Dimension[] }) {
   const b = band(score)
   const dash = Math.round((score / 100) * 264)
+  const [h, setH] = useState(false)
   return (
-    <div style={{ background: C.carte, border: `1px solid ${C.bordure}`, borderRadius: 14, padding: '16px 18px', position: 'relative' }}>
+    <div onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)} style={{ background: C.carte, border: `1px solid ${h ? CH : C.bordure}`, borderRadius: 14, padding: '16px 18px', position: 'relative', transition: 'border-color .18s' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: C.carbone }}>Votre santé financière</span>
         <HelpDot text="Score = moyenne pondérée de 5 dimensions (trésorerie, encaissements, délais fournisseurs, endettement, rentabilité), chacune notée selon des seuils. Pondération provisoire, à valider." />
@@ -559,8 +560,9 @@ function RunwayCard({ runway, cash }: { runway: number | null; cash: number }) {
   const st = months >= 3 ? { l: 'Excellent', c: OK, bg: '#E1F5EE' } : months >= 1 ? { l: 'Correct', c: WARN, bg: '#FAEEDA' } : { l: 'Attention', c: DANGER, bg: '#FCEBEB' }
   const blocks = []
   for (let i = 0; i < 6; i++) blocks.push(i < Math.floor(filled) ? st.c : (i < filled ? st.c : '#EFEFED'))
+  const [h, setH] = useState(false)
   return (
-    <div style={{ background: C.carte, border: `1px solid ${C.bordure}`, borderRadius: 14, padding: '16px 18px', position: 'relative' }}>
+    <div onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)} style={{ background: C.carte, border: `1px solid ${h ? CH : C.bordure}`, borderRadius: 14, padding: '16px 18px', position: 'relative', transition: 'border-color .18s' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: C.carbone }}>Combien de temps pouvez-vous tenir ?</span>
         <HelpDot text="Trésorerie disponible ÷ charges fixes mensuelles moyennes (personnel + impôts & taxes + dotations, sur 12 mois). Formule provisoire, à valider." />
@@ -586,8 +588,9 @@ function RunwayCard({ runway, cash }: { runway: number | null; cash: number }) {
 function Circulation({ dso, dpo, cash, cashVar, dsoVar, dpoVar }: { dso: number | null; dpo: number | null; cash: number; cashVar: number | null; dsoVar: number | null; dpoVar: number | null }) {
   const cycle = dso != null && dpo != null ? dso - dpo : null
   const favorable = cycle != null && cycle <= 0
+  const [h, setH] = useState(false)
   return (
-    <div style={{ background: C.carte, border: `1px solid ${C.bordure}`, borderRadius: 14, padding: '16px 18px' }}>
+    <div onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)} style={{ background: C.carte, border: `1px solid ${h ? CH : C.bordure}`, borderRadius: 14, padding: '16px 18px', transition: 'border-color .18s' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: C.carbone }}>Comment circule votre argent ?</span>
         {cycle != null && <Badge label={favorable ? 'Favorable' : 'À surveiller'} color={favorable ? OK : WARN} bg={favorable ? '#E1F5EE' : '#FAEEDA'} />}
@@ -760,24 +763,51 @@ function FinanceLine({ icon, label, sub, value, onClick }: { icon: string; label
 }
 
 function TresorerieCourbe({ points }: { points: { month: string; closing: number }[] }) {
-  if (points.length === 0) return null
-  const vals = points.map((p) => p.closing)
-  const min = Math.min(...vals, 0), max = Math.max(...vals, 1), span = max - min || 1
-  const W = 590, H = 86, pad = 8
-  const x = (i: number) => (i / Math.max(1, points.length - 1)) * W
-  const y = (v: number) => pad + (1 - (v - min) / span) * (H - pad)
-  const pts = points.map((p, i) => `${Math.round(x(i))},${Math.round(y(p.closing))}`).join(' ')
+  const [hover, setHover] = useState<number | null>(null)
+  // Points valides, indexés sur leur VRAI mois (1–12), triés chronologiquement.
+  const pts = points
+    .map((p) => ({ m: parseInt(p.month.slice(5, 7)), closing: p.closing }))
+    .filter((p) => p.m >= 1 && p.m <= 12 && Number.isFinite(p.closing))
+    .sort((a, b) => a.m - b.m)
+  if (pts.length === 0) return <div style={{ fontSize: 11, color: C.argent, padding: '20px 0', textAlign: 'center' }}>Aucun mouvement de trésorerie sur la période.</div>
+
+  const W = 600, HBOX = 130, padT = 14, padB = 12
+  const vals = pts.map((p) => p.closing)
+  const min = Math.min(...vals), max = Math.max(...vals), span = max - min || 1
+  const xPct = (m: number) => ((m - 1) / 11) * 100
+  const xView = (m: number) => ((m - 1) / 11) * W
+  const yView = (v: number) => padT + (1 - (v - min) / span) * (HBOX - padT - padB)
+  const topPct = (v: number) => (yView(v) / HBOX) * 100
+  const poly = pts.map((p) => `${xView(p.m).toFixed(1)},${yView(p.closing).toFixed(1)}`).join(' ')
+
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H + 6}`} style={{ width: '100%', height: 96, overflow: 'visible' }}>
-        <line x1="0" y1={H} x2={W} y2={H} stroke="#EFEFED" strokeWidth="1" />
-        <polyline fill="none" stroke={CH} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" points={pts} />
-        {points.map((p, i) => i === points.length - 1
-          ? <circle key={i} cx={Math.round(x(i))} cy={Math.round(y(p.closing))} r="3.5" fill={CH} />
-          : (i % 2 === 0 ? <circle key={i} cx={Math.round(x(i))} cy={Math.round(y(p.closing))} r="2.5" fill="#fff" stroke={CH} strokeWidth="1.5" /> : null))}
-      </svg>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#B4B2A9', marginTop: 4 }}>
-        {points.map((p, i) => <span key={i}>{MOIS_COURT[(parseInt(p.month.slice(5, 7)) - 1) % 12]}</span>)}
+      <div style={{ position: 'relative', height: HBOX }}>
+        <svg viewBox={`0 0 ${W} ${HBOX}`} preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' }}>
+          <line x1="0" y1={HBOX - padB} x2={W} y2={HBOX - padB} stroke="#EFEFED" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          {hover != null && pts[hover] && (
+            <line x1={xView(pts[hover].m)} y1={padT - 6} x2={xView(pts[hover].m)} y2={HBOX - padB} stroke={CH} strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+          )}
+          <polyline fill="none" stroke={CH} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" points={poly} vectorEffect="non-scaling-stroke" />
+        </svg>
+        {/* Pastilles + cibles de survol (HTML → cercles ronds, non déformés) */}
+        {pts.map((p, i) => (
+          <div key={i} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}
+            style={{ position: 'absolute', left: `${xPct(p.m)}%`, top: 0, bottom: 0, width: 26, transform: 'translateX(-50%)', cursor: 'pointer' }}>
+            <span style={{ position: 'absolute', left: '50%', top: `${topPct(p.closing)}%`, transform: 'translate(-50%,-50%)', width: hover === i ? 9 : 7, height: hover === i ? 9 : 7, borderRadius: '50%', background: hover === i ? CH : '#fff', border: `1.6px solid ${CH}`, transition: 'width .1s, height .1s' }} />
+          </div>
+        ))}
+        {/* Tooltip */}
+        {hover != null && pts[hover] && (
+          <div style={{ position: 'absolute', left: `${xPct(pts[hover].m)}%`, top: `${topPct(pts[hover].closing)}%`, transform: 'translate(-50%, calc(-100% - 12px))', background: '#1A1A1A', color: '#fff', borderRadius: 8, padding: '6px 10px', whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 5, boxShadow: '0 4px 14px rgba(0,0,0,0.18)' }}>
+            <div style={{ fontSize: 9, color: '#C9CCCF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{MOIS[pts[hover].m - 1]}</div>
+            <div style={{ fontSize: 13, fontWeight: 700 }}>{fmt(pts[hover].closing)}</div>
+          </div>
+        )}
+      </div>
+      {/* Axe fixe 12 mois */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#B4B2A9', marginTop: 4, padding: '0 2px' }}>
+        {MOIS_COURT.map((m, i) => <span key={i} style={{ color: hover != null && pts[hover] && pts[hover].m === i + 1 ? CH : '#B4B2A9', fontWeight: hover != null && pts[hover] && pts[hover].m === i + 1 ? 700 : 400 }}>{m}</span>)}
       </div>
     </div>
   )
