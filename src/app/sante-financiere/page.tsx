@@ -40,7 +40,6 @@ const fmtVj = (n: number | null) => (n == null ? '—' : (n >= 0 ? '+' : '') + M
 const num5 = (n: string | undefined | null) => { const s = (n || '').trim(); return s.length >= 5 ? s.slice(0, 5) : s.padEnd(5, '0') }
 const sentenceCase = (s: string | undefined | null) => { if (!s) return ''; const t = s.trim().toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1) }
 const MOIS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
-const MOIS_COURT = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
 const PLAFOND_DELAI = 90
 
 function toIso(d: string): string {
@@ -424,17 +423,6 @@ export default function SanteFinancierePage() {
               {/* Endettement & financement */}
               <Endettement d={derived} cp={bilan.passif.capitauxPropres} onDrill={handleDrillFinance} />
 
-              {/* Trésorerie par mois (courbe) */}
-              <div style={{ background: C.carte, border: `1px solid ${C.bordure}`, borderRadius: 14, padding: '16px 18px', marginTop: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: C.carbone }}>Trésorerie — par mois</span>
-                  <span style={{ fontSize: 10, color: C.argent }}>solde de clôture</span>
-                </div>
-                {sante.cashMonthly.ok
-                  ? <TresorerieCourbe points={sante.cashMonthly.value} />
-                  : <div style={{ fontSize: 11, color: C.argent, padding: '20px 0', textAlign: 'center' }}>{sante.cashMonthly.reason}</div>}
-              </div>
-
             </div>
           )}
         </div>
@@ -762,56 +750,6 @@ function FinanceLine({ icon, label, sub, value, onClick }: { icon: string; label
   )
 }
 
-function TresorerieCourbe({ points }: { points: { month: string; closing: number }[] }) {
-  const [hover, setHover] = useState<number | null>(null)
-  // Points valides, indexés sur leur VRAI mois (1–12), triés chronologiquement.
-  const pts = points
-    .map((p) => ({ m: parseInt(p.month.slice(5, 7)), closing: p.closing }))
-    .filter((p) => p.m >= 1 && p.m <= 12 && Number.isFinite(p.closing))
-    .sort((a, b) => a.m - b.m)
-  if (pts.length === 0) return <div style={{ fontSize: 11, color: C.argent, padding: '20px 0', textAlign: 'center' }}>Aucun mouvement de trésorerie sur la période.</div>
-
-  const W = 600, HBOX = 130, padT = 14, padB = 12
-  const vals = pts.map((p) => p.closing)
-  const min = Math.min(...vals), max = Math.max(...vals), span = max - min || 1
-  const xPct = (m: number) => ((m - 1) / 11) * 100
-  const xView = (m: number) => ((m - 1) / 11) * W
-  const yView = (v: number) => padT + (1 - (v - min) / span) * (HBOX - padT - padB)
-  const topPct = (v: number) => (yView(v) / HBOX) * 100
-  const poly = pts.map((p) => `${xView(p.m).toFixed(1)},${yView(p.closing).toFixed(1)}`).join(' ')
-
-  return (
-    <div>
-      <div style={{ position: 'relative', height: HBOX }}>
-        <svg viewBox={`0 0 ${W} ${HBOX}`} preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' }}>
-          <line x1="0" y1={HBOX - padB} x2={W} y2={HBOX - padB} stroke="#EFEFED" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-          {hover != null && pts[hover] && (
-            <line x1={xView(pts[hover].m)} y1={padT - 6} x2={xView(pts[hover].m)} y2={HBOX - padB} stroke={CH} strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
-          )}
-          <polyline fill="none" stroke={CH} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" points={poly} vectorEffect="non-scaling-stroke" />
-        </svg>
-        {/* Pastilles + cibles de survol (HTML → cercles ronds, non déformés) */}
-        {pts.map((p, i) => (
-          <div key={i} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}
-            style={{ position: 'absolute', left: `${xPct(p.m)}%`, top: 0, bottom: 0, width: 26, transform: 'translateX(-50%)', cursor: 'pointer' }}>
-            <span style={{ position: 'absolute', left: '50%', top: `${topPct(p.closing)}%`, transform: 'translate(-50%,-50%)', width: hover === i ? 9 : 7, height: hover === i ? 9 : 7, borderRadius: '50%', background: hover === i ? CH : '#fff', border: `1.6px solid ${CH}`, transition: 'width .1s, height .1s' }} />
-          </div>
-        ))}
-        {/* Tooltip */}
-        {hover != null && pts[hover] && (
-          <div style={{ position: 'absolute', left: `${xPct(pts[hover].m)}%`, top: `${topPct(pts[hover].closing)}%`, transform: 'translate(-50%, calc(-100% - 12px))', background: '#1A1A1A', color: '#fff', borderRadius: 8, padding: '6px 10px', whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 5, boxShadow: '0 4px 14px rgba(0,0,0,0.18)' }}>
-            <div style={{ fontSize: 9, color: '#C9CCCF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{MOIS[pts[hover].m - 1]}</div>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>{fmt(pts[hover].closing)}</div>
-          </div>
-        )}
-      </div>
-      {/* Axe fixe 12 mois */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#B4B2A9', marginTop: 4, padding: '0 2px' }}>
-        {MOIS_COURT.map((m, i) => <span key={i} style={{ color: hover != null && pts[hover] && pts[hover].m === i + 1 ? CH : '#B4B2A9', fontWeight: hover != null && pts[hover] && pts[hover].m === i + 1 ? 700 : 400 }}>{m}</span>)}
-      </div>
-    </div>
-  )
-}
 
 // ─── Side panel : drill par tiers (aging) ───────────────────────────────
 function TiersPanel({ type, bucket, aging, onBucket, onClose }: {
